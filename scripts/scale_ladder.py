@@ -58,22 +58,26 @@ PLACES = [
     ("delta_okavango",        22.9, -19.3, "2020-07-01", "Okavango inland delta, drainage"),
 ]
 
-out = Path(sys.argv[1] if len(sys.argv) > 1 else "site/ladder")
-for name, lon, lat, day, _ in PLACES:
-    for src, cfg in SOURCES.items():
-        for z in cfg["zooms"]:
-            m = mpp(z, lat)
-            d = out / name
-            d.mkdir(parents=True, exist_ok=True)
-            f = d / f"{src}_z{z}_{m:.0f}mpp_{m*256/1000:.0f}km.jpg"
-            if f.exists():
-                continue
-            try:
-                im = centred_crop(src, z, lon, lat, day)
-            except Exception as e:
-                print(f"  {f.name}: {type(e).__name__}"); continue
-            if im is None:
-                print(f"  {f.name}: no tile"); continue
-            im.save(f, quality=86)
-            print(f"  {f.name}")
-print("done")
+def main(out: Path):
+    for name, lon, lat, day, _ in PLACES:
+        for src, cfg in SOURCES.items():
+            for z in cfg["zooms"]:
+                m = mpp(z, lat)
+                d = out / name
+                d.mkdir(parents=True, exist_ok=True)
+                f = d / f"{src}_z{z}_{m:.0f}mpp_{m*256/1000:.0f}km.jpg"
+                if f.exists():
+                    continue
+                try:
+                    im = centred_crop(src, z, lon, lat, day)
+                except Exception as e:
+                    print(f"  {f.name}: {type(e).__name__}"); continue
+                if im is None:
+                    print(f"  {f.name}: no tile"); continue
+                im.save(f, quality=86)
+                print(f"  {f.name}")
+    print("done")
+
+
+if __name__ == "__main__":
+    main(Path(sys.argv[1] if len(sys.argv) > 1 else "site/ladder"))

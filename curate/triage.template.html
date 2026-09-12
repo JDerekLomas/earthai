@@ -1,0 +1,332 @@
+<title>Tile Triage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#e9edf1; --surface:#ffffff; --sunk:#dde3e9; --rail:#f3f5f7;
+    --ink:#13202e; --muted:#5b6b7d; --faint:#8493a4;
+    --line:#c7d1da; --hair:#dbe2e8;
+    --ochre:#b3652a; --cool:#37718f;
+    --ok:#2f7d5b; --okbg:rgba(47,125,91,.12); --no:#a33a2a; --nobg:rgba(163,58,42,.12);
+    --shadow:0 1px 2px rgba(15,34,51,.08), 0 8px 24px rgba(15,34,51,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826; --rail:#0e1927;
+      --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+      --line:#27394b; --hair:#1c2c3c;
+      --ochre:#dd8b4b; --cool:#6aa9c9;
+      --ok:#5cb98d; --okbg:rgba(92,185,141,.16); --no:#e0765f; --nobg:rgba(224,118,95,.16);
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826; --rail:#0e1927;
+    --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+    --line:#27394b; --hair:#1c2c3c;
+    --ochre:#dd8b4b; --cool:#6aa9c9;
+    --ok:#5cb98d; --okbg:rgba(92,185,141,.16); --no:#e0765f; --nobg:rgba(224,118,95,.16);
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+  *{box-sizing:border-box}
+  body{background:var(--ground); color:var(--ink); font:400 14px/1.45 "IBM Plex Sans",system-ui,sans-serif; -webkit-font-smoothing:antialiased; padding-left:16px; padding-right:16px; padding-block:0}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+  button{font:inherit; color:inherit}
+
+  /* top bar */
+  .top{position:sticky; top:0; z-index:5; background:var(--ground); border-bottom:1px solid var(--line); padding:12px 0 10px; display:flex; flex-wrap:wrap; align-items:center; gap:10px 22px}
+  .top h1{font:600 20px/1 "IBM Plex Sans Condensed",sans-serif; margin:0; letter-spacing:-.01em}
+  .progress{display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted)}
+  .bar{width:180px; height:6px; background:var(--sunk); border-radius:3px; overflow:hidden; display:flex}
+  .bar i{display:block; height:100%}
+  .bar .k{background:var(--ok)} .bar .r{background:var(--no)}
+  .save{font-size:12px; color:var(--faint); font-family:"IBM Plex Mono",monospace}
+  .save.on{color:var(--ok)} .save.err{color:var(--no)}
+  .keys{margin-left:auto; font-size:12px; color:var(--faint); display:flex; gap:12px; flex-wrap:wrap}
+  .keys kbd{font-family:"IBM Plex Mono",monospace; border:1px solid var(--line); border-radius:3px; padding:0 5px; color:var(--muted); background:var(--surface)}
+
+  /* layout */
+  .layout{display:grid; grid-template-columns:230px 1fr; gap:22px; padding-block:16px 60px}
+  @media (max-width:760px){ .layout{grid-template-columns:1fr} .rail{position:static} }
+  .rail{position:sticky; top:62px; align-self:start; display:flex; flex-direction:column; gap:16px; max-height:calc(100vh - 80px); overflow:auto; padding-right:4px}
+  .facet{display:flex; flex-direction:column; gap:4px}
+  .facet h3{margin:0 0 3px; font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.14em; text-transform:uppercase; color:var(--faint)}
+  .chip{display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:4px 8px; border:1px solid transparent; border-radius:3px; background:none; cursor:pointer; font-size:13px}
+  .chip:hover{background:var(--surface)}
+  .chip.on{background:var(--surface); border-color:var(--line)}
+  .chip:focus-visible{outline:2px solid var(--ochre); outline-offset:1px}
+  .chip .n{margin-left:auto; font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--faint); font-variant-numeric:tabular-nums}
+  .chip .kr{font-family:"IBM Plex Mono",monospace; font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap}
+  .chip .kr b{color:var(--ok); font-weight:500} .chip .kr s{color:var(--no); text-decoration:none}
+  .bulk{display:flex; flex-direction:column; gap:6px; border-top:1px solid var(--line); padding-top:14px}
+  .bulk button{padding:6px 10px; border:1px solid var(--line); background:var(--surface); border-radius:3px; cursor:pointer; font-size:13px; text-align:left}
+  .bulk button:hover{border-color:var(--ochre)}
+  .bulk button.arm{border-color:var(--no); color:var(--no)}
+  .bulk .hint{font-size:12px; color:var(--faint)}
+
+  /* grid */
+  .main{display:flex; flex-direction:column; gap:10px; min-width:0}
+  .shown{font-size:13px; color:var(--muted); display:flex; gap:14px; flex-wrap:wrap; align-items:baseline}
+  .shown b{color:var(--ink); font-weight:600}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px}
+  .cell{position:relative; border-radius:3px; overflow:hidden; background:var(--sunk); border:2px solid transparent; cursor:pointer; padding:0; display:block; width:100%}
+  .cell .img{aspect-ratio:1; width:100%; background-color:var(--sunk); background-repeat:no-repeat; image-rendering:auto}
+  .cell.keep{border-color:var(--ok)}
+  .cell.reject{border-color:var(--no)} .cell.reject .img{filter:saturate(.25) brightness(.55)}
+  .cell:focus-visible, .cell.cur{outline:3px solid var(--ochre); outline-offset:1px}
+  .cell .tag{position:absolute; left:0; right:0; bottom:0; padding:3px 6px; font:500 10.5px/1.25 "IBM Plex Mono",monospace; color:#e8eef4; background:linear-gradient(transparent, rgba(6,10,16,.78)); text-align:left; display:flex; justify-content:space-between; gap:6px; white-space:nowrap; overflow:hidden}
+  .cell .tag span{overflow:hidden; text-overflow:ellipsis}
+  .cell .v{position:absolute; top:5px; left:5px; width:18px; height:18px; border-radius:50%; font:600 11px/18px "IBM Plex Mono",monospace; text-align:center; color:#fff; display:none}
+  .cell.keep .v{display:block; background:var(--ok)} .cell.reject .v{display:block; background:var(--no)}
+  .empty{color:var(--muted); padding:40px 0; text-align:center}
+
+  /* zoom */
+  dialog{border:none; padding:0; background:transparent; max-width:min(96vw,720px)}
+  dialog::backdrop{background:rgba(8,16,26,.86)}
+  .zoom{background:var(--surface); border-radius:4px; overflow:hidden; box-shadow:var(--shadow)}
+  .zoom .big{width:min(92vw,512px); aspect-ratio:1; background-repeat:no-repeat; margin:0 auto; image-rendering:pixelated}
+  .zoom .meta{padding:12px 16px; display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:6px 16px; font-size:12px; color:var(--muted)}
+  .zoom .meta b{display:block; color:var(--ink); font-family:"IBM Plex Mono",monospace; font-weight:500}
+  .zoom .acts{display:flex; gap:8px; padding:0 16px 14px; flex-wrap:wrap}
+  .zoom .acts button{padding:6px 12px; border-radius:3px; border:1px solid var(--line); background:var(--surface); cursor:pointer}
+  .zoom .acts .k{border-color:var(--ok); color:var(--ok)} .zoom .acts .r{border-color:var(--no); color:var(--no)}
+  @media (prefers-reduced-motion:no-preference){ .cell{transition:border-color .1s} }
+</style>
+
+<div class="top">
+  <h1>Tile triage</h1>
+  <div class="progress"><span id="prog" class="mono">0 / 0</span><div class="bar"><i class="k" id="bar-k"></i><i class="r" id="bar-r"></i></div><span id="prog-kr" class="mono"></span></div>
+  <span class="save" id="save">connecting…</span>
+  <div class="keys"><span><kbd>←</kbd><kbd>→</kbd> move</span><span><kbd>K</kbd> keep</span><span><kbd>R</kbd> reject</span><span><kbd>U</kbd> clear</span><span><kbd>Z</kbd> zoom</span></div>
+</div>
+
+<div class="layout">
+  <aside class="rail" id="rail"></aside>
+  <div class="main">
+    <div class="shown" id="shown"></div>
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+
+<dialog id="dlg"><div class="zoom">
+  <div class="big" id="big"></div>
+  <div class="meta" id="zmeta"></div>
+  <div class="acts">
+    <button class="k" id="zk">Keep <kbd>K</kbd></button>
+    <button class="r" id="zr">Reject <kbd>R</kbd></button>
+    <button id="zu">Clear <kbd>U</kbd></button>
+    <button id="zn">Next <kbd>→</kbd></button>
+    <button id="zc">Close <kbd>Esc</kbd></button>
+  </div>
+</div></dialog>
+
+<script>
+const TILES = /*TILES*/[];
+const SHEET = i => `sheets/sheet_${String(i).padStart(2,"0")}.jpg`;
+const SRC = {modis:"MODIS", viirs:"VIIRS", s2:"Sentinel-2"};
+const SET = {clouds256:"clouds256 (training now)", land256:"land256 (training now)", alternative:"alternatives (fresh)"};
+
+// ---- facets: which fields, in which order, with display labels ----
+const FACETS = [
+  ["set","set", v => SET[v] || v],
+  ["src","source", v => SRC[v] || v],
+  ["z","window", v => `z${v} &middot; ~${KM_BY_Z[v] || "?"} km`],
+  ["b","cloud fraction", v => v === "fresh" ? "— (fresh)" : v === "land" ? "— (land)" : v],
+  ["rgm","regime", v => v.replace(/_/g," ")],
+];
+const VERDICT_FACET = ["verdict","verdict", v => v];
+const KM_BY_Z = (() => { const m = {}; for (const t of TILES) (m[t.z] = m[t.z] || []).push(t.km); for (const z in m) { const a = m[z].sort((x,y)=>x-y); m[z] = a[a.length >> 1]; } return m; })();
+
+// ---- state ----
+const verdicts = new Map();       // id -> "keep"|"reject"
+const active = {};                // facet -> Set of values
+for (const [f] of FACETS) active[f] = new Set();
+active.verdict = new Set();
+let shown = [];                   // filtered tiles in grid order
+let cur = -1;                     // index into shown
+let db = null, saveEl = document.getElementById("save");
+
+// ---- persistence: db first, localStorage as the fallback ----
+const LS = "earthai-triage-verdicts";
+function loadLocal(){ try{ const o = JSON.parse(localStorage.getItem(LS) || "{}"); for (const k in o) verdicts.set(k, o[k]); }catch(e){} }
+function saveLocal(){ try{ localStorage.setItem(LS, JSON.stringify(Object.fromEntries(verdicts))); }catch(e){} }
+let pending = new Map(), flushing = false;
+async function flush(){
+  if (!db || flushing || pending.size === 0) return;
+  flushing = true;
+  const batch = [...pending]; pending.clear();
+  try {
+    await Promise.all(batch.map(([id, v]) => v ? db.doc(`verdicts/${id}`).set({v, t: Date.now()}) : db.doc(`verdicts/${id}`).delete()));
+    saveEl.textContent = `saved, ${verdicts.size} verdicts`; saveEl.className = "save on";
+  } catch (e) {
+    for (const [id, v] of batch) if (!pending.has(id)) pending.set(id, v);
+    saveEl.textContent = `save failed (${e.code || "error"}) — kept locally`; saveEl.className = "save err";
+  }
+  flushing = false;
+  if (pending.size) setTimeout(flush, 800);
+}
+function setVerdict(id, v){
+  if (v) verdicts.set(id, v); else verdicts.delete(id);
+  saveLocal(); pending.set(id, v || null);
+  if (db) { saveEl.textContent = "saving…"; saveEl.className = "save"; setTimeout(flush, 250); }
+  paintCell(id); renderRail(); renderProgress();
+}
+
+// ---- filtering ----
+function tileVal(t, f){ return f === "verdict" ? (verdicts.get(t.id) || "unreviewed") : t[f]; }
+function passes(t, except){
+  for (const f in active) {
+    if (f === except || active[f].size === 0) continue;
+    if (!active[f].has(String(tileVal(t, f)))) return false;
+  }
+  return true;
+}
+
+// ---- rail ----
+function renderRail(){
+  const rail = document.getElementById("rail");
+  const parts = [];
+  for (const [f, label, fmt] of [VERDICT_FACET, ...FACETS]) {
+    const counts = new Map();
+    for (const t of TILES) {
+      if (!passes(t, f)) continue;
+      const v = String(tileVal(t, f));
+      const c = counts.get(v) || {n:0,k:0,r:0}; c.n++;
+      const vd = verdicts.get(t.id); if (vd === "keep") c.k++; else if (vd === "reject") c.r++;
+      counts.set(v, c);
+    }
+    let vals = [...counts.keys()];
+    vals.sort(f === "z" ? (a,b) => a - b : f === "verdict" ? (a,b) => ["unreviewed","keep","reject"].indexOf(a) - ["unreviewed","keep","reject"].indexOf(b) : undefined);
+    if (f === "verdict") for (const v of ["unreviewed","keep","reject"]) if (!counts.has(v)) { counts.set(v,{n:0,k:0,r:0}); vals.push(v); }
+    parts.push(`<div class="facet"><h3>${label}</h3>` + vals.map(v => {
+      const c = counts.get(v), on = active[f].has(v) ? " on" : "";
+      const kr = f === "verdict" ? "" : `<span class="kr"><b>${c.k}</b>/<s>${c.r}</s></span>`;
+      return `<button class="chip${on}" data-f="${f}" data-v="${v}">${fmt(v)}${kr}<span class="n">${c.n}</span></button>`;
+    }).join("") + `</div>`);
+  }
+  parts.push(`<div class="bulk">
+    <button id="bk">Keep all shown</button>
+    <button id="br">Reject all shown</button>
+    <button id="bc">Copy verdicts as JSON</button>
+    <span class="hint">Bulk buttons ask twice. Counts beside each facet are keep / reject.</span>
+  </div>`);
+  rail.innerHTML = parts.join("");
+  rail.querySelectorAll(".chip").forEach(b => b.addEventListener("click", () => {
+    const f = b.dataset.f, v = b.dataset.v;
+    if (active[f].has(v)) active[f].delete(v); else active[f].add(v);
+    renderAll();
+  }));
+  armBulk("bk", "keep"); armBulk("br", "reject");
+  document.getElementById("bc").addEventListener("click", async () => {
+    const out = {}; for (const t of TILES) if (verdicts.has(t.id)) out[t.id] = {v: verdicts.get(t.id), set:t.set, src:t.src, z:t.z, km:t.km, b:t.b, rgm:t.rgm, cf:t.cf, sd:t.sd};
+    try { await navigator.clipboard.writeText(JSON.stringify(out)); saveEl.textContent = `copied ${Object.keys(out).length} verdicts`; } catch(e){ saveEl.textContent = "clipboard blocked"; }
+  });
+}
+function armBulk(id, v){
+  const b = document.getElementById(id); let armed = false;
+  b.addEventListener("click", () => {
+    if (!armed) { armed = true; b.classList.add("arm"); b.textContent = `Really ${v} ${shown.length} shown?`; setTimeout(() => { armed = false; b.classList.remove("arm"); b.textContent = `${v[0].toUpperCase()+v.slice(1)} all shown`; }, 3000); return; }
+    for (const t of shown) { verdicts.set(t.id, v); pending.set(t.id, v); }
+    saveLocal(); if (db) setTimeout(flush, 100); renderAll();
+  });
+}
+
+// ---- grid ----
+const io = new IntersectionObserver(es => { for (const e of es) if (e.isIntersecting) { const el = e.target; el.style.backgroundImage = `url(${SHEET(el.dataset.s)})`; io.unobserve(el); } }, {rootMargin:"600px"});
+function cellHTML(t){
+  const v = verdicts.get(t.id) || "";
+  return `<button class="cell ${v}" data-id="${t.id}" aria-label="${SRC[t.src]} z${t.z}, ${t.km} km, ${t.rgm}">
+    <div class="img" data-s="${t.s}" style="background-size:1000% 1000%;background-position:${t.ix*100/9}% ${t.iy*100/9}%"></div>
+    <span class="v">${v === "keep" ? "✓" : "✕"}</span>
+    <span class="tag"><span>${SRC[t.src]} z${t.z} &middot; ${t.km}km</span><span>cf ${t.cf.toFixed(2)}</span></span>
+  </button>`;
+}
+function renderGrid(){
+  shown = TILES.filter(t => passes(t, null));
+  const g = document.getElementById("grid");
+  g.innerHTML = shown.length ? shown.map(cellHTML).join("") : `<div class="empty">Nothing matches these filters.</div>`;
+  g.querySelectorAll(".img").forEach(el => io.observe(el));
+  g.querySelectorAll(".cell").forEach((el, i) => {
+    el.addEventListener("click", ev => { cur = i; markCur(); if (ev.shiftKey) openZoom(); else cycle(shown[i].id); });
+    el.addEventListener("dblclick", () => { cur = i; openZoom(); });
+  });
+  if (cur >= shown.length) cur = shown.length - 1;
+  markCur();
+  const n = shown.length, k = shown.filter(t => verdicts.get(t.id) === "keep").length, r = shown.filter(t => verdicts.get(t.id) === "reject").length;
+  document.getElementById("shown").innerHTML = `<span><b>${n}</b> shown</span><span style="color:var(--ok)">${k} keep</span><span style="color:var(--no)">${r} reject</span><span>${n-k-r} unreviewed</span><span style="color:var(--faint)">click cycles keep &rarr; reject &rarr; clear &middot; shift-click or double-click zooms</span>`;
+}
+function paintCell(id){
+  const el = document.querySelector(`.cell[data-id="${id}"]`); if (!el) return;
+  const v = verdicts.get(id) || ""; el.className = `cell ${v}` + (shown[cur] && shown[cur].id === id ? " cur" : "");
+  el.querySelector(".v").textContent = v === "keep" ? "✓" : "✕";
+}
+function cycle(id){ const v = verdicts.get(id); setVerdict(id, !v ? "keep" : v === "keep" ? "reject" : null); }
+function markCur(){
+  document.querySelectorAll(".cell.cur").forEach(e => e.classList.remove("cur"));
+  if (cur < 0 || !shown[cur]) return;
+  const el = document.querySelector(`.cell[data-id="${shown[cur].id}"]`); if (!el) return;
+  el.classList.add("cur"); el.scrollIntoView({block:"nearest"});
+}
+function renderProgress(){
+  const n = TILES.length, k = [...verdicts.values()].filter(v => v === "keep").length, r = verdicts.size - k;
+  document.getElementById("prog").textContent = `${verdicts.size} / ${n} reviewed`;
+  document.getElementById("bar-k").style.width = (k / n * 100) + "%"; document.getElementById("bar-r").style.width = (r / n * 100) + "%";
+  document.getElementById("prog-kr").innerHTML = `<span style="color:var(--ok)">${k}</span> &middot; <span style="color:var(--no)">${r}</span>`;
+}
+function renderAll(){ renderRail(); renderGrid(); renderProgress(); }
+
+// ---- zoom ----
+const dlg = document.getElementById("dlg");
+function openZoom(){
+  const t = shown[cur]; if (!t) return;
+  const big = document.getElementById("big");
+  big.style.backgroundImage = `url(${SHEET(t.s)})`; big.style.backgroundSize = "1000% 1000%"; big.style.backgroundPosition = `${t.ix*100/9}% ${t.iy*100/9}%`;
+  document.getElementById("zmeta").innerHTML = [["source",`${SRC[t.src]} z${t.z}`],["footprint",`${t.km} km`],["set",t.set],["region",`${t.reg} &middot; ${t.rgm}`],["date",t.date||"composite"],["cloud frac",t.cf.toFixed(3)],["lum std",t.sd.toFixed(3)],["lum mean",t.lm.toFixed(3)],["black",t.bk.toFixed(3)],["verdict",verdicts.get(t.id)||"—"]]
+    .map(([k,v]) => `<div>${k}<b>${v}</b></div>`).join("");
+  if (!dlg.open) dlg.showModal();
+}
+document.getElementById("zk").onclick = () => { setVerdict(shown[cur].id,"keep"); openZoom(); };
+document.getElementById("zr").onclick = () => { setVerdict(shown[cur].id,"reject"); openZoom(); };
+document.getElementById("zu").onclick = () => { setVerdict(shown[cur].id,null); openZoom(); };
+document.getElementById("zn").onclick = () => { if (cur < shown.length-1) { cur++; markCur(); openZoom(); } };
+document.getElementById("zc").onclick = () => dlg.close();
+
+// ---- keyboard ----
+const cols = () => { const g = document.getElementById("grid"); const first = g.querySelector(".cell"); if (!first) return 1; return Math.max(1, Math.floor(g.clientWidth / (first.offsetWidth + 8))); };
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT") return;
+  const k = e.key.toLowerCase(); let h = true;
+  if (k === "arrowright") cur = Math.min(shown.length-1, cur+1);
+  else if (k === "arrowleft") cur = Math.max(0, cur-1);
+  else if (k === "arrowdown") cur = Math.min(shown.length-1, cur + cols());
+  else if (k === "arrowup") cur = Math.max(0, cur - cols());
+  else if (k === "k" && shown[cur]) { setVerdict(shown[cur].id,"keep"); if (!dlg.open) cur = Math.min(shown.length-1, cur+1); }
+  else if (k === "r" && shown[cur]) { setVerdict(shown[cur].id,"reject"); if (!dlg.open) cur = Math.min(shown.length-1, cur+1); }
+  else if (k === "u" && shown[cur]) setVerdict(shown[cur].id,null);
+  else if (k === "z" || (k === " " && !dlg.open)) { if (cur < 0) cur = 0; if (dlg.open) dlg.close(); else openZoom(); }
+  else h = false;
+  if (h) { e.preventDefault(); markCur(); if (dlg.open && k !== "z" && k !== " ") openZoom(); }
+});
+
+// ---- boot ----
+loadLocal();
+renderAll();
+(async () => {
+  db = window.claude && window.claude.use ? await window.claude.use("db") : null;
+  if (!db) { saveEl.textContent = "no server store here — verdicts stay in this browser"; saveEl.className = "save"; return; }
+  try {
+    const snap = await db.collection("verdicts").get();
+    let merged = 0;
+    snap.docs.forEach(d => { const v = d.data() && d.data().v; if (v && (v === "keep" || v === "reject")) { verdicts.set(d.id, v); merged++; } });
+    saveLocal();
+    saveEl.textContent = `saved, ${verdicts.size} verdicts`; saveEl.className = "save on";
+    renderAll();
+    // anything only in this browser goes up
+    for (const [id, v] of verdicts) if (!snap.docs.some(d => d.id === id)) pending.set(id, v);
+    if (pending.size) flush();
+  } catch (e) {
+    saveEl.textContent = `store unavailable (${e.code || "error"}) — verdicts stay in this browser`; saveEl.className = "save err";
+  }
+})();
+</script>
