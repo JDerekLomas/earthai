@@ -27,7 +27,10 @@ def stats(img: np.ndarray) -> dict:
     sat = np.where(mx > 0, (mx - mn) / np.maximum(mx, 1e-6), 0)
     black = float((lum < 0.04).mean())
     cloud = float(((lum > 0.42) & (sat < 0.35)).mean())
-    return {"black": black, "cloud": cloud, "std": float(lum.std()), "mean": float(lum.mean())}
+    # land: warm-hued (red >= blue), saturated, mid-brightness pixels. Ocean is
+    # blue-dominant, cloud is unsaturated, so this isolates desert/vegetation.
+    land = float(((f[..., 0] >= f[..., 2]) & (sat > 0.25) & (lum > 0.12) & (lum < 0.75)).mean())
+    return {"black": black, "cloud": cloud, "land": land, "std": float(lum.std()), "mean": float(lum.mean())}
 
 
 def dhash(img: Image.Image, size: int = 8) -> int:
@@ -44,12 +47,13 @@ def dhash(img: Image.Image, size: int = 8) -> int:
 @click.option("--min-cloud", default=0.12, type=float, help="drop tiles with less cloud than this")
 @click.option("--max-black", default=0.01, type=float, help="drop tiles with more nodata than this")
 @click.option("--min-std", default=0.04, type=float, help="drop near-uniform tiles")
+@click.option("--max-land", default=0.03, type=float, help="drop tiles with more land-coloured pixels than this")
 @click.option("--hash-bits", default=4, type=int, help="max differing dhash bits to call a duplicate")
-def main(tiles, raw_manifest, out, size, min_cloud, max_black, min_std, hash_bits):
+def main(tiles, raw_manifest, out, size, min_cloud, max_black, min_std, max_land, hash_bits):
     rows = list(csv.DictReader(open(raw_manifest)))
     out.mkdir(parents=True, exist_ok=True)
     seen: list[int] = []
-    kept, dropped = [], {"black": 0, "cloud": 0, "uniform": 0, "dup": 0, "missing": 0}
+    kept, dropped = [], {"black": 0, "land": 0, "cloud": 0, "uniform": 0, "dup": 0, "missing": 0}
     for r in tqdm(rows, unit="tile"):
         p = tiles.parent / r["path"]
         if not p.exists():
@@ -61,6 +65,8 @@ def main(tiles, raw_manifest, out, size, min_cloud, max_black, min_std, hash_bit
         s = stats(np.asarray(im))
         if s["black"] > max_black:
             dropped["black"] += 1; continue
+        if s["land"] > max_land:
+            dropped["land"] += 1; continue
         if s["cloud"] < min_cloud:
             dropped["cloud"] += 1; continue
         if s["std"] < min_std:

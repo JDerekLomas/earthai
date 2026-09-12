@@ -1,7 +1,8 @@
 """Ocean regions per cloud regime, and the date sampler.
 
 Each region is a lon/lat box chosen to sit over open ocean so the background is
-uniform and the model learns clouds, not coastlines. Boxes are generous; the
+uniform and the model learns clouds, not coastlines. Boxes stay a few degrees
+off every coast and out of winter sea ice (Bering, Labrador). Boxes are generous; the
 fetcher samples random tiles inside them per date, so coverage is statistical.
 """
 from __future__ import annotations
@@ -23,10 +24,10 @@ class Region:
 
 REGIONS: list[Region] = [
     # Subtropical marine stratocumulus decks: closed/open cells, pockets of open cells
-    Region("california", "stratocumulus", -138, 18, -120, 34),
-    Region("namibia", "stratocumulus", -8, -30, 10, -10),
-    Region("peru", "stratocumulus", -100, -32, -78, -6),
-    Region("canaries", "stratocumulus", -30, 22, -14, 34),
+    Region("california", "stratocumulus", -138, 18, -122, 32),
+    Region("namibia", "stratocumulus", -8, -30, 9, -12),
+    Region("peru", "stratocumulus", -100, -32, -84, -6),
+    Region("canaries", "stratocumulus", -32, 22, -17, 33),
     # Trade-wind cumulus: streets, sugar/gravel/flower/fish organisation
     Region("tradewind_atlantic", "tradewind_cumulus", -60, 8, -35, 24),
     Region("tradewind_pacific", "tradewind_cumulus", -160, 10, -135, 25),
@@ -35,14 +36,14 @@ REGIONS: list[Region] = [
     Region("itcz_indian", "convection", 60, -8, 95, 8),
     Region("westpac_warmpool", "convection", 135, 0, 165, 18),
     # Mid-latitude cyclones and fronts
-    Region("north_atlantic", "cyclone", -45, 42, -12, 60),
-    Region("north_pacific", "cyclone", -180, 38, -150, 56),
+    Region("north_atlantic", "cyclone", -45, 42, -14, 58),
+    Region("north_pacific", "cyclone", -178, 38, -150, 52),
     Region("southern_ocean_indian", "cyclone", 50, -62, 110, -44),
     Region("southern_ocean_pacific", "cyclone", -150, -62, -90, -44),
     # Cold-air outbreaks, cloud streets, polar lows
-    Region("norwegian_sea", "cold_air_outbreak", -10, 62, 15, 74),
-    Region("labrador_sea", "cold_air_outbreak", -60, 52, -40, 64),
-    Region("bering_sea", "cold_air_outbreak", -180, 52, -160, 62),
+    Region("norwegian_sea", "cold_air_outbreak", -8, 62, 12, 73),
+    Region("labrador_sea", "cold_air_outbreak", -54, 52, -40, 62),
+    Region("bering_sea", "cold_air_outbreak", -180, 51, -162, 57),
 ]
 
 REGIMES = sorted({r.regime for r in REGIONS})

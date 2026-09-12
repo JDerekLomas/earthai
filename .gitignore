@@ -1,6 +1,6 @@
 # data and model outputs never go in git
-data/
-runs/
+data/*
+runs/*
 *.pkl
 *.pt
 *.pth
