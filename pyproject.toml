@@ -1,7 +1,7 @@
 [project]
 name = "earthai"
 version = "0.1.0"
-description = "Satellite-imagery GAN with latent-space exploration and animation"
+description = "Satellite cloud GAN with latent-space exploration and animation"
 requires-python = ">=3.11,<3.13"
 dependencies = [
     "torch>=2.5",

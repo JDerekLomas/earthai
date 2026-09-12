@@ -1,7 +1,7 @@
 # earthai
 
-Train a GAN on satellite imagery so it learns the space of plausible landforms,
-then explore and steer its latent space to generate new landscapes and smooth
+Train a GAN on satellite cloud imagery so it learns the space of plausible skies,
+then explore and steer its latent space to generate new skies and smooth
 morphing animations between them.
 
 The plan, decisions, and phase checklist live in the tracking issue:
@@ -28,7 +28,7 @@ python -c "import torch; print(torch.backends.mps.is_available())"   # expect Tr
 
 ## Pipeline at a glance
 
-1. `scripts/fetch_tiles.py`   pull cloud-free Sentinel-2 tiles for chosen regions
+1. `scripts/fetch_tiles.py`   pull MODIS/VIIRS true-colour tiles (NASA GIBS) for chosen cloud regimes
 2. `scripts/build_dataset.py` filter, crop, dedupe, pack into a training set
 3. `scripts/train.py`         train the GAN, write checkpoints and sample grids
 4. `scripts/latent.py`        sample, interpolate, find directions, render video
