@@ -28,7 +28,7 @@ import requests
 from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).parent))
-from regions import REGIONS, sample_dates  # noqa: E402
+from regions import regions_for, sample_dates  # noqa: E402
 
 GIBS = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/{layer}/default/{day}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg"
 
@@ -88,14 +88,16 @@ def fetch_one(session: requests.Session, job: dict, out_dir: Path, retries: int 
 @click.option("--start", default="2015-01-01")
 @click.option("--end", default="2025-12-31")
 @click.option("--sensors", default="terra,aqua,snpp,noaa20")
+@click.option("--surface", default="ocean", type=click.Choice(["ocean", "land", "all"]), help="ocean = cloud set, land = landscape set")
 @click.option("--regions", "region_names", multiple=True, help="subset of region names")
 @click.option("--workers", default=8, type=int, help="concurrent requests (be polite to GIBS)")
 @click.option("--out", default="data/tiles", type=click.Path(path_type=Path))
+@click.option("--manifest", default=None, type=click.Path(path_type=Path), help="default: <out parent>/manifest_raw.csv")
 @click.option("--seed", default=0, type=int)
 @click.option("--limit", default=0, type=int, help="stop after N downloads (for testing)")
-def main(zoom, per_region, every, start, end, sensors, region_names, workers, out, seed, limit):
+def main(zoom, per_region, every, start, end, sensors, surface, region_names, workers, out, manifest, seed, limit):
     rng = random.Random(seed)
-    regions = [r for r in REGIONS if not region_names or r.name in region_names]
+    regions = [r for r in regions_for(surface) if not region_names or r.name in region_names]
     sensor_list = [s.strip() for s in sensors.split(",")]
     days = sample_dates(date.fromisoformat(start), date.fromisoformat(end), every, seed)
 
@@ -118,7 +120,7 @@ def main(zoom, per_region, every, start, end, sensors, region_names, workers, ou
     click.echo(f"{len(jobs)} tile jobs over {len(days)} days, {len(regions)} regions, {len(sensor_list)} sensors -> {out}")
 
     out.mkdir(parents=True, exist_ok=True)
-    manifest = out.parent / "manifest_raw.csv"
+    manifest = manifest or out.parent / "manifest_raw.csv"
     new_file = not manifest.exists()
     written = 0
     with open(manifest, "a", newline="") as mf, requests.Session() as session:

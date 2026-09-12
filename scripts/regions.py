@@ -20,6 +20,7 @@ class Region:
     lat_min: float
     lon_max: float
     lat_max: float
+    surface: str = "ocean"   # "ocean" for the cloud set, "land" for the landscape set
 
 
 REGIONS: list[Region] = [
@@ -46,7 +47,32 @@ REGIONS: list[Region] = [
     Region("bering_sea", "cold_air_outbreak", -180, 51, -162, 57),
 ]
 
+# Landscape set: cloud-free land at the same 600 m/px scale. Regime = landform type.
+REGIONS += [
+    Region("sahara", "desert", -8, 19, 24, 29, "land"),
+    Region("arabia", "desert", 42, 19, 55, 28, "land"),
+    Region("australia_interior", "desert", 121, -30, 138, -21, "land"),
+    Region("gobi", "desert", 96, 40, 110, 46, "land"),
+    Region("himalaya", "mountains", 76, 28, 95, 36, "land"),
+    Region("andes", "mountains", -74, -30, -66, -15, "land"),
+    Region("rockies", "mountains", -117, 38, -106, 50, "land"),
+    Region("tibet_plateau", "mountains", 82, 31, 96, 36, "land"),
+    Region("us_midwest", "farmland", -100, 38, -86, 46, "land"),
+    Region("ukraine_steppe", "farmland", 30, 46, 40, 52, "land"),
+    Region("pampas", "farmland", -64, -38, -58, -32, "land"),
+    Region("north_china_plain", "farmland", 113, 33, 120, 39, "land"),
+    Region("siberia_taiga", "boreal", 90, 58, 130, 68, "land"),
+    Region("canadian_shield", "boreal", -100, 54, -72, 62, "land"),
+    Region("amazon", "rainforest_rivers", -70, -8, -55, 0, "land"),
+    Region("congo", "rainforest_rivers", 15, -5, 28, 3, "land"),
+    Region("ganges_delta", "rainforest_rivers", 86, 21, 92, 26, "land"),
+]
+
 REGIMES = sorted({r.regime for r in REGIONS})
+
+
+def regions_for(surface: str) -> list[Region]:
+    return [r for r in REGIONS if surface == "all" or r.surface == surface]
 
 
 def sample_dates(start: date, end: date, every_n_days: int, seed: int = 0) -> list[date]:
@@ -64,5 +90,5 @@ def sample_dates(start: date, end: date, every_n_days: int, seed: int = 0) -> li
 
 if __name__ == "__main__":
     for r in REGIONS:
-        print(f"{r.regime:20} {r.name:24} lon {r.lon_min:>6} .. {r.lon_max:<6} lat {r.lat_min:>4} .. {r.lat_max}")
+        print(f"{r.surface:6} {r.regime:20} {r.name:24} lon {r.lon_min:>6} .. {r.lon_max:<6} lat {r.lat_min:>4} .. {r.lat_max}")
     print(len(sample_dates(date(2015, 1, 1), date(2025, 12, 31), 5)), "dates at every 5 days")

@@ -43,13 +43,21 @@ def dhash(img: Image.Image, size: int = 8) -> int:
 @click.option("--tiles", default="data/tiles", type=click.Path(path_type=Path))
 @click.option("--raw-manifest", default="data/manifest_raw.csv", type=click.Path(path_type=Path))
 @click.option("--out", default="data/dataset", type=click.Path(path_type=Path))
+@click.option("--manifest-out", default=None, type=click.Path(path_type=Path), help="default: <out parent>/manifest.csv")
 @click.option("--size", default=256, type=int)
+@click.option("--mode", default="clouds", type=click.Choice(["clouds", "land"]), help="land: keep cloud-free land instead (inverts the cloud and land filters)")
 @click.option("--min-cloud", default=0.12, type=float, help="drop tiles with less cloud than this")
 @click.option("--max-black", default=0.01, type=float, help="drop tiles with more nodata than this")
 @click.option("--min-std", default=0.04, type=float, help="drop near-uniform tiles")
 @click.option("--max-land", default=0.03, type=float, help="drop tiles with more land-coloured pixels than this")
 @click.option("--hash-bits", default=4, type=int, help="max differing dhash bits to call a duplicate")
-def main(tiles, raw_manifest, out, size, min_cloud, max_black, min_std, max_land, hash_bits):
+def main(tiles, raw_manifest, out, manifest_out, size, mode, min_cloud, max_black, min_std, max_land, hash_bits):
+    if mode == "land":
+        # keep tiles that are mostly land and mostly cloud-free; snow reads as cloud, so
+        # allow some "cloud" fraction rather than losing every winter mountain tile
+        max_cloud, min_cloud, min_land, max_land = 0.15, 0.0, 0.0, 1.0
+    else:
+        max_cloud, min_land = 1.0, 0.0
     rows = list(csv.DictReader(open(raw_manifest)))
     out.mkdir(parents=True, exist_ok=True)
     seen: list[int] = []
@@ -65,9 +73,9 @@ def main(tiles, raw_manifest, out, size, min_cloud, max_black, min_std, max_land
         s = stats(np.asarray(im))
         if s["black"] > max_black:
             dropped["black"] += 1; continue
-        if s["land"] > max_land:
+        if s["land"] > max_land or s["land"] < min_land:
             dropped["land"] += 1; continue
-        if s["cloud"] < min_cloud:
+        if s["cloud"] < min_cloud or s["cloud"] > max_cloud:
             dropped["cloud"] += 1; continue
         if s["std"] < min_std:
             dropped["uniform"] += 1; continue
@@ -79,7 +87,7 @@ def main(tiles, raw_manifest, out, size, min_cloud, max_black, min_std, max_land
         im.save(out / name, optimize=True)
         kept.append({**r, "path": f"{out.name}/{name}", "cloud_frac": f"{s['cloud']:.3f}", "lum_mean": f"{s['mean']:.3f}", "lum_std": f"{s['std']:.3f}"})
 
-    with open(out.parent / "manifest.csv", "w", newline="") as f:
+    with open(manifest_out or out.parent / "manifest.csv", "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=list(kept[0].keys()) if kept else ["path"])
         w.writeheader(); w.writerows(kept)
     click.echo(f"kept {len(kept)} / {len(rows)}   dropped: {dropped}")
