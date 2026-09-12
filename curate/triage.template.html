@@ -88,7 +88,7 @@
   .grid.s .tag span:last-child{display:none}
   .grid.s .tag{font-size:9.5px; padding:2px 4px}
   .cell{position:relative; border-radius:3px; overflow:hidden; background:var(--sunk); border:2px solid transparent; cursor:pointer; padding:0; display:block; width:100%}
-  .cell .img{aspect-ratio:1; width:100%; background-color:var(--sunk); background-repeat:no-repeat; image-rendering:auto}
+  .cell .img{aspect-ratio:1; width:100%; background-color:var(--sunk); background-repeat:no-repeat; image-rendering:auto; background-origin:border-box}
   .cell.keep{border-color:var(--ok)}
   .cell.reject{border-color:var(--no)} .cell.reject .img{filter:saturate(.25) brightness(.55)}
   .cell:focus-visible, .cell.cur{outline:3px solid var(--ochre); outline-offset:1px}
@@ -277,11 +277,15 @@ function armBulk(id, v){
 }
 
 // ---- grid ----
-const io = new IntersectionObserver(es => { for (const e of es) if (e.isIntersecting) { const el = e.target; el.style.backgroundImage = `url(${SHEET(el.dataset.s)}), url(${LOW(el.dataset.s)})`; io.unobserve(el); } }, {rootMargin:"600px"});
+let cellPx = 236;
+const io = new IntersectionObserver(es => { for (const e of es) if (e.isIntersecting) { const el = e.target;
+  if (el.dataset.f && cellPx >= 200) { el.style.backgroundImage = `url(${el.dataset.f}), url(${LOW(el.dataset.s)})`; el.style.backgroundSize = "100% 100%, 1000% 1000%"; el.style.backgroundPosition = `0 0, ${el.style.backgroundPosition}`; }
+  else el.style.backgroundImage = `url(${SHEET(el.dataset.s)}), url(${LOW(el.dataset.s)})`;
+  io.unobserve(el); } }, {rootMargin:"600px"});
 function cellHTML(t){
   const v = verdicts.get(t.id) || "", c = comments.has(t.id) ? " commented" : "";
   return `<button class="cell ${v}${c}" data-id="${t.id}" aria-label="${SRC[t.src]} z${t.z}, ${t.km} km, ${t.rgm}">
-    <div class="img" data-s="${t.s}" style="background-image:url(${LOW(t.s)});background-size:1000% 1000%;background-position:${t.ix*100/9}% ${t.iy*100/9}%"></div>
+    <div class="img" data-s="${t.s}"${t.f ? ` data-f="${t.f}"` : ""} style="background-image:url(${LOW(t.s)});background-size:1000% 1000%;background-position:${t.ix*100/9}% ${t.iy*100/9}%"></div>
     <span class="v">${v === "keep" ? "&#10003;" : "&#10005;"}</span><span class="c">&#9998;</span>
     <span class="tag"><span>${SRC[t.src]} z${t.z} &middot; ${t.km}km</span><span>cf ${t.cf.toFixed(2)}</span></span>
   </button>`;
@@ -363,7 +367,7 @@ document.addEventListener("keydown", e => {
 
 // ---- size + filters ----
 const SZ = "earthai-triage-size-2x";
-function setSize(px){ document.documentElement.style.setProperty("--cell", px + "px"); document.getElementById("grid").classList.toggle("s", +px < 130); document.querySelectorAll(".size button").forEach(b => b.classList.toggle("on", b.dataset.size === String(px))); try{ localStorage.setItem(SZ, px); }catch(e){} }
+function setSize(px){ const changed = cellPx !== +px; cellPx = +px; document.documentElement.style.setProperty("--cell", px + "px"); if (changed && document.querySelector(".cell")) renderGrid(); document.getElementById("grid").classList.toggle("s", +px < 130); document.querySelectorAll(".size button").forEach(b => b.classList.toggle("on", b.dataset.size === String(px))); try{ localStorage.setItem(SZ, px); }catch(e){} }
 document.querySelectorAll(".size button").forEach(b => b.addEventListener("click", () => setSize(b.dataset.size)));
 document.getElementById("filt").addEventListener("click", () => document.getElementById("rail").classList.toggle("open"));
 

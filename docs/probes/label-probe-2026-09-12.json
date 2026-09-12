@@ -1,0 +1,7085 @@
+{
+ "sample": [
+  {
+   "id": "t0475",
+   "s": 4,
+   "ix": 5,
+   "iy": 7,
+   "km": 145,
+   "set": "clouds256",
+   "src": "viirs",
+   "z": 8,
+   "reg": "tradewind_pacific",
+   "rgm": "tradewind_cumulus",
+   "b": "0.12-0.30",
+   "date": "2021-08-16",
+   "cf": 0.178,
+   "sd": 0.208,
+   "lm": 0.219,
+   "bk": 0
+  },
+  {
+   "id": "t0215",
+   "s": 2,
+   "ix": 5,
+   "iy": 1,
+   "km": 139,
+   "set": "clouds256",
+   "src": "viirs",
+   "z": 8,
+   "reg": "peru",
+   "rgm": "stratocumulus",
+   "b": "0.12-0.30",
+   "date": "2022-05-07",
+   "cf": 0.285,
+   "sd": 0.232,
+   "lm": 0.282,
+   "bk": 0
+  },
+  {
+   "id": "t0586",
+   "s": 5,
+   "ix": 6,
+   "iy": 8,
+   "km": 156,
+   "set": "clouds256",
+   "src": "viirs",
+   "z": 8,
+   "reg": "itcz_pacific",
+   "rgm": "convection",
+   "b": "0.12-0.30",
+   "date": "2022-12-17",
+   "cf": 0.192,
+   "sd": 0.214,
+   "lm": 0.245,
+   "bk": 0
+  },
+  {
+   "id": "t0984",
+   "s": 9,
+   "ix": 4,
+   "iy": 8,
+   "km": 156,
+   "set": "clouds256",
+   "src": "viirs",
+   "z": 8,
+   "reg": "westpac_warmpool",
+   "rgm": "convection",
+   "b": "0.12-0.30",
+   "date": "2017-06-02",
+   "cf": 0.143,
+   "sd": 0.189,
+   "lm": 0.209,
+   "bk": 0
+  },
+  {
+   "id": "t0107",
+   "s": 1,
+   "ix": 7,
+   "iy": 0,
+   "km": 134,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "peru",
+   "rgm": "stratocumulus",
+   "b": "0.12-0.30",
+   "date": "2023-07-01",
+   "cf": 0.277,
+   "sd": 0.243,
+   "lm": 0.313,
+   "bk": 0
+  },
+  {
+   "id": "t0134",
+   "s": 1,
+   "ix": 4,
+   "iy": 3,
+   "km": 157,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "itcz_indian",
+   "rgm": "convection",
+   "b": "0.12-0.30",
+   "date": "2016-06-27",
+   "cf": 0.123,
+   "sd": 0.133,
+   "lm": 0.268,
+   "bk": 0
+  },
+  {
+   "id": "t0778",
+   "s": 7,
+   "ix": 8,
+   "iy": 7,
+   "km": 151,
+   "set": "clouds256",
+   "src": "viirs",
+   "z": 8,
+   "reg": "namibia",
+   "rgm": "stratocumulus",
+   "b": "0.12-0.30",
+   "date": "2025-07-14",
+   "cf": 0.172,
+   "sd": 0.213,
+   "lm": 0.232,
+   "bk": 0
+  },
+  {
+   "id": "t0156",
+   "s": 1,
+   "ix": 6,
+   "iy": 5,
+   "km": 142,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "tradewind_pacific",
+   "rgm": "tradewind_cumulus",
+   "b": "0.12-0.30",
+   "date": "2021-08-24",
+   "cf": 0.299,
+   "sd": 0.236,
+   "lm": 0.317,
+   "bk": 0
+  },
+  {
+   "id": "t0519",
+   "s": 5,
+   "ix": 9,
+   "iy": 1,
+   "km": 152,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "tradewind_pacific",
+   "rgm": "tradewind_cumulus",
+   "b": "0.12-0.30",
+   "date": "2020-07-12",
+   "cf": 0.15,
+   "sd": 0.186,
+   "lm": 0.214,
+   "bk": 0
+  },
+  {
+   "id": "t0868",
+   "s": 8,
+   "ix": 8,
+   "iy": 6,
+   "km": 85,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "southern_ocean_indian",
+   "rgm": "cyclone",
+   "b": "0.30-0.50",
+   "date": "2018-04-14",
+   "cf": 0.452,
+   "sd": 0.307,
+   "lm": 0.425,
+   "bk": 0
+  },
+  {
+   "id": "t0061",
+   "s": 0,
+   "ix": 1,
+   "iy": 6,
+   "km": 156,
+   "set": "clouds256",
+   "src": "viirs",
+   "z": 8,
+   "reg": "itcz_pacific",
+   "rgm": "convection",
+   "b": "0.30-0.50",
+   "date": "2022-07-06",
+   "cf": 0.396,
+   "sd": 0.312,
+   "lm": 0.371,
+   "bk": 0
+  },
+  {
+   "id": "t0722",
+   "s": 7,
+   "ix": 2,
+   "iy": 2,
+   "km": 157,
+   "set": "clouds256",
+   "src": "viirs",
+   "z": 8,
+   "reg": "itcz_indian",
+   "rgm": "convection",
+   "b": "0.30-0.50",
+   "date": "2021-03-01",
+   "cf": 0.361,
+   "sd": 0.283,
+   "lm": 0.416,
+   "bk": 0
+  },
+  {
+   "id": "t0261",
+   "s": 2,
+   "ix": 1,
+   "iy": 6,
+   "km": 152,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "tradewind_pacific",
+   "rgm": "tradewind_cumulus",
+   "b": "0.30-0.50",
+   "date": "2016-07-13",
+   "cf": 0.363,
+   "sd": 0.289,
+   "lm": 0.362,
+   "bk": 0
+  },
+  {
+   "id": "t0033",
+   "s": 0,
+   "ix": 3,
+   "iy": 3,
+   "km": 135,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "namibia",
+   "rgm": "stratocumulus",
+   "b": "0.30-0.50",
+   "date": "2022-10-06",
+   "cf": 0.377,
+   "sd": 0.233,
+   "lm": 0.383,
+   "bk": 0
+  },
+  {
+   "id": "t0090",
+   "s": 0,
+   "ix": 0,
+   "iy": 9,
+   "km": 148,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "california",
+   "rgm": "stratocumulus",
+   "b": "0.30-0.50",
+   "date": "2019-01-19",
+   "cf": 0.484,
+   "sd": 0.244,
+   "lm": 0.417,
+   "bk": 0
+  },
+  {
+   "id": "t0621",
+   "s": 6,
+   "ix": 1,
+   "iy": 2,
+   "km": 147,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "tradewind_atlantic",
+   "rgm": "tradewind_cumulus",
+   "b": "0.30-0.50",
+   "date": "2023-10-29",
+   "cf": 0.301,
+   "sd": 0.143,
+   "lm": 0.359,
+   "bk": 0
+  },
+  {
+   "id": "t0607",
+   "s": 6,
+   "ix": 7,
+   "iy": 0,
+   "km": 135,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "peru",
+   "rgm": "stratocumulus",
+   "b": "0.30-0.50",
+   "date": "2025-04-25",
+   "cf": 0.386,
+   "sd": 0.28,
+   "lm": 0.375,
+   "bk": 0
+  },
+  {
+   "id": "t0062",
+   "s": 0,
+   "ix": 2,
+   "iy": 6,
+   "km": 96,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "bering_sea",
+   "rgm": "cold_air_outbreak",
+   "b": "0.30-0.50",
+   "date": "2022-03-04",
+   "cf": 0.391,
+   "sd": 0.274,
+   "lm": 0.368,
+   "bk": 0
+  },
+  {
+   "id": "t0328",
+   "s": 3,
+   "ix": 8,
+   "iy": 2,
+   "km": 85,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "north_atlantic",
+   "rgm": "cyclone",
+   "b": "0.50-0.70",
+   "date": "2025-04-13",
+   "cf": 0.618,
+   "sd": 0.28,
+   "lm": 0.505,
+   "bk": 0
+  },
+  {
+   "id": "t0122",
+   "s": 1,
+   "ix": 2,
+   "iy": 2,
+   "km": 145,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "canaries",
+   "rgm": "stratocumulus",
+   "b": "0.50-0.70",
+   "date": "2019-02-04",
+   "cf": 0.504,
+   "sd": 0.211,
+   "lm": 0.448,
+   "bk": 0
+  },
+  {
+   "id": "t0891",
+   "s": 8,
+   "ix": 1,
+   "iy": 9,
+   "km": 153,
+   "set": "clouds256",
+   "src": "viirs",
+   "z": 8,
+   "reg": "tradewind_pacific",
+   "rgm": "tradewind_cumulus",
+   "b": "0.50-0.70",
+   "date": "2019-03-24",
+   "cf": 0.596,
+   "sd": 0.165,
+   "lm": 0.431,
+   "bk": 0
+  },
+  {
+   "id": "t0692",
+   "s": 6,
+   "ix": 2,
+   "iy": 9,
+   "km": 149,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "peru",
+   "rgm": "stratocumulus",
+   "b": "0.50-0.70",
+   "date": "2025-04-09",
+   "cf": 0.563,
+   "sd": 0.252,
+   "lm": 0.459,
+   "bk": 0
+  },
+  {
+   "id": "t0057",
+   "s": 0,
+   "ix": 7,
+   "iy": 5,
+   "km": 96,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "southern_ocean_indian",
+   "rgm": "cyclone",
+   "b": "0.50-0.70",
+   "date": "2016-10-05",
+   "cf": 0.639,
+   "sd": 0.259,
+   "lm": 0.515,
+   "bk": 0
+  },
+  {
+   "id": "t0917",
+   "s": 9,
+   "ix": 7,
+   "iy": 1,
+   "km": 153,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "tradewind_pacific",
+   "rgm": "tradewind_cumulus",
+   "b": "0.50-0.70",
+   "date": "2023-03-03",
+   "cf": 0.516,
+   "sd": 0.181,
+   "lm": 0.44,
+   "bk": 0
+  },
+  {
+   "id": "t0175",
+   "s": 1,
+   "ix": 5,
+   "iy": 7,
+   "km": 156,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "itcz_indian",
+   "rgm": "convection",
+   "b": "0.50-0.70",
+   "date": "2019-10-18",
+   "cf": 0.673,
+   "sd": 0.301,
+   "lm": 0.562,
+   "bk": 0
+  },
+  {
+   "id": "t0307",
+   "s": 3,
+   "ix": 7,
+   "iy": 0,
+   "km": 154,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "peru",
+   "rgm": "stratocumulus",
+   "b": "0.50-0.70",
+   "date": "2025-10-02",
+   "cf": 0.684,
+   "sd": 0.282,
+   "lm": 0.559,
+   "bk": 0
+  },
+  {
+   "id": "t1001",
+   "s": 10,
+   "ix": 1,
+   "iy": 0,
+   "km": 146,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "peru",
+   "rgm": "stratocumulus",
+   "b": "0.50-0.70",
+   "date": "2021-04-14",
+   "cf": 0.57,
+   "sd": 0.269,
+   "lm": 0.453,
+   "bk": 0
+  },
+  {
+   "id": "t0967",
+   "s": 9,
+   "ix": 7,
+   "iy": 6,
+   "km": 85,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "north_atlantic",
+   "rgm": "cyclone",
+   "b": "0.70-0.85",
+   "date": "2018-05-12",
+   "cf": 0.849,
+   "sd": 0.253,
+   "lm": 0.75,
+   "bk": 0
+  },
+  {
+   "id": "t0861",
+   "s": 8,
+   "ix": 1,
+   "iy": 6,
+   "km": 87,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "north_atlantic",
+   "rgm": "cyclone",
+   "b": "0.70-0.85",
+   "date": "2016-10-13",
+   "cf": 0.768,
+   "sd": 0.24,
+   "lm": 0.611,
+   "bk": 0
+  },
+  {
+   "id": "t0130",
+   "s": 1,
+   "ix": 0,
+   "iy": 3,
+   "km": 137,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "peru",
+   "rgm": "stratocumulus",
+   "b": "0.70-0.85",
+   "date": "2022-07-22",
+   "cf": 0.715,
+   "sd": 0.241,
+   "lm": 0.545,
+   "bk": 0
+  },
+  {
+   "id": "t0847",
+   "s": 8,
+   "ix": 7,
+   "iy": 4,
+   "km": 146,
+   "set": "clouds256",
+   "src": "viirs",
+   "z": 8,
+   "reg": "tradewind_pacific",
+   "rgm": "tradewind_cumulus",
+   "b": "0.70-0.85",
+   "date": "2022-01-31",
+   "cf": 0.727,
+   "sd": 0.256,
+   "lm": 0.571,
+   "bk": 0
+  },
+  {
+   "id": "t0591",
+   "s": 5,
+   "ix": 1,
+   "iy": 9,
+   "km": 154,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "itcz_pacific",
+   "rgm": "convection",
+   "b": "0.70-0.85",
+   "date": "2017-07-24",
+   "cf": 0.795,
+   "sd": 0.279,
+   "lm": 0.697,
+   "bk": 0
+  },
+  {
+   "id": "t0109",
+   "s": 1,
+   "ix": 9,
+   "iy": 0,
+   "km": 145,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "peru",
+   "rgm": "stratocumulus",
+   "b": "0.70-0.85",
+   "date": "2024-06-05",
+   "cf": 0.7,
+   "sd": 0.238,
+   "lm": 0.541,
+   "bk": 0
+  },
+  {
+   "id": "t0332",
+   "s": 3,
+   "ix": 2,
+   "iy": 3,
+   "km": 156,
+   "set": "clouds256",
+   "src": "viirs",
+   "z": 8,
+   "reg": "itcz_pacific",
+   "rgm": "convection",
+   "b": "0.70-0.85",
+   "date": "2017-04-03",
+   "cf": 0.717,
+   "sd": 0.216,
+   "lm": 0.598,
+   "bk": 0
+  },
+  {
+   "id": "t0096",
+   "s": 0,
+   "ix": 6,
+   "iy": 9,
+   "km": 139,
+   "set": "clouds256",
+   "src": "viirs",
+   "z": 8,
+   "reg": "california",
+   "rgm": "stratocumulus",
+   "b": "0.70-0.85",
+   "date": "2018-07-23",
+   "cf": 0.796,
+   "sd": 0.163,
+   "lm": 0.592,
+   "bk": 0
+  },
+  {
+   "id": "t0831",
+   "s": 8,
+   "ix": 1,
+   "iy": 3,
+   "km": 117,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "north_atlantic",
+   "rgm": "cyclone",
+   "b": "0.70-0.85",
+   "date": "2022-09-12",
+   "cf": 0.74,
+   "sd": 0.24,
+   "lm": 0.603,
+   "bk": 0
+  },
+  {
+   "id": "t0222",
+   "s": 2,
+   "ix": 2,
+   "iy": 2,
+   "km": 156,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "westpac_warmpool",
+   "rgm": "convection",
+   "b": "0.85-0.95",
+   "date": "2021-06-17",
+   "cf": 0.851,
+   "sd": 0.226,
+   "lm": 0.676,
+   "bk": 0
+  },
+  {
+   "id": "t0398",
+   "s": 3,
+   "ix": 8,
+   "iy": 9,
+   "km": 145,
+   "set": "clouds256",
+   "src": "viirs",
+   "z": 8,
+   "reg": "peru",
+   "rgm": "stratocumulus",
+   "b": "0.85-0.95",
+   "date": "2019-12-21",
+   "cf": 0.941,
+   "sd": 0.051,
+   "lm": 0.456,
+   "bk": 0
+  },
+  {
+   "id": "t0533",
+   "s": 5,
+   "ix": 3,
+   "iy": 3,
+   "km": 146,
+   "set": "clouds256",
+   "src": "viirs",
+   "z": 8,
+   "reg": "peru",
+   "rgm": "stratocumulus",
+   "b": "0.85-0.95",
+   "date": "2017-08-13",
+   "cf": 0.932,
+   "sd": 0.152,
+   "lm": 0.683,
+   "bk": 0
+  },
+  {
+   "id": "t0233",
+   "s": 2,
+   "ix": 3,
+   "iy": 3,
+   "km": 156,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "itcz_pacific",
+   "rgm": "convection",
+   "b": "0.85-0.95",
+   "date": "2021-11-08",
+   "cf": 0.921,
+   "sd": 0.183,
+   "lm": 0.74,
+   "bk": 0
+  },
+  {
+   "id": "t0782",
+   "s": 7,
+   "ix": 2,
+   "iy": 8,
+   "km": 155,
+   "set": "clouds256",
+   "src": "viirs",
+   "z": 8,
+   "reg": "tradewind_atlantic",
+   "rgm": "tradewind_cumulus",
+   "b": "0.85-0.95",
+   "date": "2022-01-19",
+   "cf": 0.867,
+   "sd": 0.202,
+   "lm": 0.673,
+   "bk": 0
+  },
+  {
+   "id": "t0187",
+   "s": 1,
+   "ix": 7,
+   "iy": 8,
+   "km": 156,
+   "set": "clouds256",
+   "src": "viirs",
+   "z": 8,
+   "reg": "westpac_warmpool",
+   "rgm": "convection",
+   "b": "0.85-0.95",
+   "date": "2024-02-26",
+   "cf": 0.941,
+   "sd": 0.16,
+   "lm": 0.699,
+   "bk": 0
+  },
+  {
+   "id": "t0894",
+   "s": 8,
+   "ix": 4,
+   "iy": 9,
+   "km": 84,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "southern_ocean_pacific",
+   "rgm": "cyclone",
+   "b": "0.85-0.95",
+   "date": "2024-09-17",
+   "cf": 0.887,
+   "sd": 0.196,
+   "lm": 0.699,
+   "bk": 0
+  },
+  {
+   "id": "t0409",
+   "s": 4,
+   "ix": 9,
+   "iy": 0,
+   "km": 143,
+   "set": "clouds256",
+   "src": "viirs",
+   "z": 8,
+   "reg": "tradewind_atlantic",
+   "rgm": "tradewind_cumulus",
+   "b": "0.85-0.95",
+   "date": "2024-08-28",
+   "cf": 0.902,
+   "sd": 0.16,
+   "lm": 0.659,
+   "bk": 0
+  },
+  {
+   "id": "t0841",
+   "s": 8,
+   "ix": 1,
+   "iy": 4,
+   "km": 106,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "southern_ocean_pacific",
+   "rgm": "cyclone",
+   "b": "0.85-0.95",
+   "date": "2019-10-30",
+   "cf": 0.935,
+   "sd": 0.154,
+   "lm": 0.756,
+   "bk": 0
+  },
+  {
+   "id": "t1120",
+   "s": 11,
+   "ix": 0,
+   "iy": 2,
+   "km": 84,
+   "set": "clouds256",
+   "src": "viirs",
+   "z": 8,
+   "reg": "north_atlantic",
+   "rgm": "cyclone",
+   "b": "0.95-1.01",
+   "date": "2020-04-19",
+   "cf": 1.0,
+   "sd": 0.057,
+   "lm": 0.897,
+   "bk": 0
+  },
+  {
+   "id": "t0313",
+   "s": 3,
+   "ix": 3,
+   "iy": 1,
+   "km": 93,
+   "set": "clouds256",
+   "src": "viirs",
+   "z": 8,
+   "reg": "southern_ocean_pacific",
+   "rgm": "cyclone",
+   "b": "0.95-1.01",
+   "date": "2019-02-28",
+   "cf": 0.998,
+   "sd": 0.077,
+   "lm": 0.783,
+   "bk": 0
+  },
+  {
+   "id": "t0184",
+   "s": 1,
+   "ix": 4,
+   "iy": 8,
+   "km": 85,
+   "set": "clouds256",
+   "src": "viirs",
+   "z": 8,
+   "reg": "bering_sea",
+   "rgm": "cold_air_outbreak",
+   "b": "0.95-1.01",
+   "date": "2022-06-12",
+   "cf": 0.995,
+   "sd": 0.1,
+   "lm": 0.878,
+   "bk": 0
+  },
+  {
+   "id": "t0903",
+   "s": 9,
+   "ix": 3,
+   "iy": 0,
+   "km": 87,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "north_atlantic",
+   "rgm": "cyclone",
+   "b": "0.95-1.01",
+   "date": "2024-12-14",
+   "cf": 1.0,
+   "sd": 0.05,
+   "lm": 0.903,
+   "bk": 0
+  },
+  {
+   "id": "t0896",
+   "s": 8,
+   "ix": 6,
+   "iy": 9,
+   "km": 137,
+   "set": "clouds256",
+   "src": "viirs",
+   "z": 8,
+   "reg": "namibia",
+   "rgm": "stratocumulus",
+   "b": "0.95-1.01",
+   "date": "2018-06-05",
+   "cf": 0.985,
+   "sd": 0.093,
+   "lm": 0.721,
+   "bk": 0
+  },
+  {
+   "id": "t0989",
+   "s": 9,
+   "ix": 9,
+   "iy": 8,
+   "km": 91,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "southern_ocean_pacific",
+   "rgm": "cyclone",
+   "b": "0.95-1.01",
+   "date": "2017-10-12",
+   "cf": 1.0,
+   "sd": 0.06,
+   "lm": 0.831,
+   "bk": 0
+  },
+  {
+   "id": "t0316",
+   "s": 3,
+   "ix": 6,
+   "iy": 1,
+   "km": 156,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "itcz_indian",
+   "rgm": "convection",
+   "b": "0.95-1.01",
+   "date": "2019-09-28",
+   "cf": 1.0,
+   "sd": 0.077,
+   "lm": 0.906,
+   "bk": 0
+  },
+  {
+   "id": "t0649",
+   "s": 6,
+   "ix": 9,
+   "iy": 4,
+   "km": 91,
+   "set": "clouds256",
+   "src": "viirs",
+   "z": 8,
+   "reg": "labrador_sea",
+   "rgm": "cold_air_outbreak",
+   "b": "0.95-1.01",
+   "date": "2024-12-18",
+   "cf": 0.999,
+   "sd": 0.064,
+   "lm": 0.83,
+   "bk": 0
+  },
+  {
+   "id": "t0159",
+   "s": 1,
+   "ix": 9,
+   "iy": 5,
+   "km": 79,
+   "set": "clouds256",
+   "src": "modis",
+   "z": 8,
+   "reg": "labrador_sea",
+   "rgm": "cold_air_outbreak",
+   "b": "0.95-1.01",
+   "date": "2017-01-13",
+   "cf": 1.0,
+   "sd": 0.081,
+   "lm": 0.762,
+   "bk": 0
+  },
+  {
+   "id": "L0736",
+   "s": 17,
+   "ix": 0,
+   "iy": 6,
+   "km": 9,
+   "set": "landshapes",
+   "src": "s2",
+   "z": 13,
+   "reg": "ennedi-tibesti",
+   "rgm": "canyon",
+   "b": "stratified",
+   "date": "composite",
+   "cf": 0.0,
+   "sd": 0.091,
+   "lm": 0.594,
+   "bk": 0.0,
+   "f": "full/L0736.jpg",
+   "file": "ennedi-tibesti/ennedi-tibesti_z13_4457_3608_0_0.jpg",
+   "x": {
+    "white": 0.0,
+    "deep_water": 0.0,
+    "detail": 4.76,
+    "sat": 97.641
+   }
+  },
+  {
+   "id": "L1094",
+   "s": 12,
+   "ix": 4,
+   "iy": 6,
+   "km": 5,
+   "set": "landshapes",
+   "src": "s2",
+   "z": 13,
+   "reg": "norwegian-fjords",
+   "rgm": "water",
+   "b": "stratified",
+   "date": "composite",
+   "cf": 0.006,
+   "sd": 0.164,
+   "lm": 0.251,
+   "bk": 0.0,
+   "f": "full/L1094.jpg",
+   "file": "norwegian-fjords/norwegian-fjords_z13_4237_2317_0_0.jpg",
+   "x": {
+    "white": 0.006,
+    "deep_water": 0.05,
+    "detail": 7.098,
+    "sat": 18.901
+   }
+  },
+  {
+   "id": "L1157",
+   "s": 17,
+   "ix": 7,
+   "iy": 7,
+   "km": 6,
+   "set": "landshapes",
+   "src": "s2",
+   "z": 13,
+   "reg": "patagonia-icefield",
+   "rgm": "ice",
+   "b": "white 0.30-0.70",
+   "date": "composite",
+   "cf": 0.36,
+   "sd": 0.334,
+   "lm": 0.6,
+   "bk": 0.001,
+   "f": "full/L1157.jpg",
+   "file": "patagonia-icefield/patagonia-icefield_z13_2416_5376_0_0.jpg",
+   "x": {
+    "white": 0.36,
+    "deep_water": 0.054,
+    "detail": 9.777,
+    "sat": 16.337
+   }
+  },
+  {
+   "id": "L1144",
+   "s": 12,
+   "ix": 1,
+   "iy": 6,
+   "km": 9,
+   "set": "landshapes",
+   "src": "s2",
+   "z": 13,
+   "reg": "pantanal",
+   "rgm": "wetland",
+   "b": "stratified",
+   "date": "composite",
+   "cf": 0.0,
+   "sd": 0.036,
+   "lm": 0.182,
+   "bk": 0.0,
+   "f": "full/L1144.jpg",
+   "file": "pantanal/pantanal_z13_2802_4494_0_0.jpg",
+   "x": {
+    "white": 0.0,
+    "deep_water": 0.0,
+    "detail": 4.075,
+    "sat": 33.084
+   }
+  },
+  {
+   "id": "L0871",
+   "s": 18,
+   "ix": 3,
+   "iy": 3,
+   "km": 6,
+   "set": "landshapes",
+   "src": "s2",
+   "z": 13,
+   "reg": "patagonia-icefield",
+   "rgm": "ice",
+   "b": "stratified",
+   "date": "composite",
+   "cf": 0.141,
+   "sd": 0.269,
+   "lm": 0.438,
+   "bk": 0.0,
+   "f": "full/L0871.jpg",
+   "file": "patagonia-icefield/patagonia-icefield_z13_2438_5382_0_0.jpg",
+   "x": {
+    "white": 0.141,
+    "deep_water": 0.001,
+    "detail": 14.227,
+    "sat": 26.473
+   }
+  },
+  {
+   "id": "L1274",
+   "s": 14,
+   "ix": 0,
+   "iy": 1,
+   "km": 9,
+   "set": "landshapes",
+   "src": "s2",
+   "z": 13,
+   "reg": "great-barrier-reef",
+   "rgm": "reef",
+   "b": "detail 3.0-4.5",
+   "date": "composite",
+   "cf": 0.0,
+   "sd": 0.05,
+   "lm": 0.144,
+   "bk": 0.0,
+   "f": "full/L1274.jpg",
+   "file": "great-barrier-reef/great-barrier-reef_z13_7439_4549_0_0.jpg",
+   "x": {
+    "white": 0.0,
+    "deep_water": 0.0,
+    "detail": 4.072,
+    "sat": 21.489
+   }
+  },
+  {
+   "id": "L0160",
+   "s": 17,
+   "ix": 8,
+   "iy": 0,
+   "km": 5,
+   "set": "landshapes",
+   "src": "s2",
+   "z": 13,
+   "reg": "norwegian-fjords",
+   "rgm": "water",
+   "b": "white 0.30-0.70",
+   "date": "composite",
+   "cf": 0.547,
+   "sd": 0.32,
+   "lm": 0.73,
+   "bk": 0.0,
+   "f": "full/L0160.jpg",
+   "file": "norwegian-fjords/norwegian-fjords_z13_4247_2306_0_0.jpg",
+   "x": {
+    "white": 0.547,
+    "deep_water": 0.007,
+    "detail": 6.359,
+    "sat": 9.9
+   }
+  },
+  {
+   "id": "L0726",
+   "s": 17,
+   "ix": 4,
+   "iy": 4,
+   "km": 9,
+   "set": "landshapes",
+   "src": "s2",
+   "z": 13,
+   "reg": "tassili-najjer",
+   "rgm": "canyon",
+   "b": "stratified",
+   "date": "composite",
+   "cf": 0.0,
+   "sd": 0.132,
+   "lm": 0.45,
+   "bk": 0.0,
+   "f": "full/L0726.jpg",
+   "file": "tassili-najjer/tassili-najjer_z13_4311_3480_0_0.jpg",
+   "x": {
+    "white": 0.0,
+    "deep_water": 0.0,
+    "detail": 7.664,
+    "sat": 98.175
+   }
+  },
+  {
+   "id": "L1133",
+   "s": 16,
+   "ix": 7,
+   "iy": 3,
+   "km": 9,
+   "set": "landshapes",
+   "src": "s2",
+   "z": 13,
+   "reg": "pantanal",
+   "rgm": "wetland",
+   "b": "stratified",
+   "date": "composite",
+   "cf": 0.0,
+   "sd": 0.043,
+   "lm": 0.183,
+   "bk": 0.001,
+   "f": "full/L1133.jpg",
+   "file": "pantanal/pantanal_z13_2789_4510_0_0.jpg",
+   "x": {
+    "white": 0.0,
+    "deep_water": 0.0,
+    "detail": 4.268,
+    "sat": 28.866
+   }
+  },
+  {
+   "id": "L1287",
+   "s": 15,
+   "ix": 1,
+   "iy": 2,
+   "km": 7,
+   "set": "landshapes",
+   "src": "s2",
+   "z": 13,
+   "reg": "great-salt-lake",
+   "rgm": "salt",
+   "b": "detail 3.0-4.5",
+   "date": "composite",
+   "cf": 0.0,
+   "sd": 0.224,
+   "lm": 0.309,
+   "bk": 0.0,
+   "f": "full/L1287.jpg",
+   "file": "great-salt-lake/great-salt-lake_z13_1534_3071_0_0.jpg",
+   "x": {
+    "white": 0.0,
+    "deep_water": 0.0,
+    "detail": 3.437,
+    "sat": 27.468
+   }
+  },
+  {
+   "id": "L1223",
+   "s": 16,
+   "ix": 6,
+   "iy": 7,
+   "km": 8,
+   "set": "landshapes",
+   "src": "s2",
+   "z": 13,
+   "reg": "coast-00827",
+   "rgm": "coast",
+   "b": "deep_water 0.55-0.75",
+   "date": "composite",
+   "cf": 0.053,
+   "sd": 0.275,
+   "lm": 0.178,
+   "bk": 0.0,
+   "f": "full/L1223.jpg",
+   "file": "coast-00827/coast-00827_z13_7163_4904_0_0.jpg",
+   "x": {
+    "white": 0.053,
+    "deep_water": 0.71,
+    "detail": 3.349,
+    "sat": 22.596
+   }
+  },
+  {
+   "id": "L1282",
+   "s": 17,
+   "ix": 9,
+   "iy": 9,
+   "km": 9,
+   "set": "landshapes",
+   "src": "s2",
+   "z": 13,
+   "reg": "rub-al-khali",
+   "rgm": "dunes",
+   "b": "detail 3.0-4.5",
+   "date": "composite",
+   "cf": 0.0,
+   "sd": 0.038,
+   "lm": 0.705,
+   "bk": 0.0,
+   "f": "full/L1282.jpg",
+   "file": "rub-al-khali/rub-al-khali_z13_5340_3636_0_0.jpg",
+   "x": {
+    "white": 0.0,
+    "deep_water": 0.0,
+    "detail": 3.761,
+    "sat": 113.662
+   }
+  },
+  {
+   "id": "L1017",
+   "s": 16,
+   "ix": 4,
+   "iy": 6,
+   "km": 9,
+   "set": "landshapes",
+   "src": "s2",
+   "z": 13,
+   "reg": "richat-adrar",
+   "rgm": "rock",
+   "b": "stratified",
+   "date": "composite",
+   "cf": 0.0,
+   "sd": 0.059,
+   "lm": 0.576,
+   "bk": 0.0,
+   "f": "full/L1017.jpg",
+   "file": "richat-adrar/richat-adrar_z13_3799_3608_0_0.jpg",
+   "x": {
+    "white": 0.0,
+    "deep_water": 0.0,
+    "detail": 3.303,
+    "sat": 153.786
+   }
+  },
+  {
+   "id": "L0703",
+   "s": 15,
+   "ix": 0,
+   "iy": 7,
+   "km": 9,
+   "set": "landshapes",
+   "src": "s2",
+   "z": 13,
+   "reg": "kufra-libya",
+   "rgm": "agriculture",
+   "b": "stratified",
+   "date": "composite",
+   "cf": 0.0,
+   "sd": 0.083,
+   "lm": 0.567,
+   "bk": 0.0,
+   "f": "full/L0703.jpg",
+   "file": "kufra-libya/kufra-libya_z13_4624_3526_0_0.jpg",
+   "x": {
+    "white": 0.0,
+    "deep_water": 0.0,
+    "detail": 5.769,
+    "sat": 145.738
+   }
+  },
+  {
+   "id": "L1108",
+   "s": 15,
+   "ix": 6,
+   "iy": 0,
+   "km": 5,
+   "set": "landshapes",
+   "src": "s2",
+   "z": 13,
+   "reg": "norwegian-fjords",
+   "rgm": "water",
+   "b": "stratified",
+   "date": "composite",
+   "cf": 0.002,
+   "sd": 0.161,
+   "lm": 0.262,
+   "bk": 0.004,
+   "f": "full/L1108.jpg",
+   "file": "norwegian-fjords/norwegian-fjords_z13_4221_2299_0_0.jpg",
+   "x": {
+    "white": 0.002,
+    "deep_water": 0.023,
+    "detail": 7.02,
+    "sat": 17.821
+   }
+  },
+  {
+   "id": "L0786",
+   "s": 14,
+   "ix": 4,
+   "iy": 5,
+   "km": 7,
+   "set": "landshapes",
+   "src": "s2",
+   "z": 13,
+   "reg": "coast-00517",
+   "rgm": "coast",
+   "b": "stratified",
+   "date": "composite",
+   "cf": 0.0,
+   "sd": 0.101,
+   "lm": 0.132,
+   "bk": 0.0,
+   "f": "full/L0786.jpg",
+   "file": "coast-00517/coast-00517_z13_4417_2944_0_0.jpg",
+   "x": {
+    "white": 0.0,
+    "deep_water": 0.375,
+    "detail": 5.074,
+    "sat": 20.279
+   }
+  },
+  {
+   "id": "L0383",
+   "s": 13,
+   "ix": 4,
+   "iy": 8,
+   "km": 9,
+   "set": "landshapes",
+   "src": "s2",
+   "z": 13,
+   "reg": "salar-de-uyuni",
+   "rgm": "salt",
+   "b": "white 0.30-0.70",
+   "date": "composite",
+   "cf": 0.461,
+   "sd": 0.352,
+   "lm": 0.638,
+   "bk": 0.0,
+   "f": "full/L0383.jpg",
+   "file": "salar-de-uyuni/salar-de-uyuni_z13_2558_4556_0_0.jpg",
+   "x": {
+    "white": 0.461,
+    "deep_water": 0.0,
+    "detail": 3.329,
+    "sat": 19.035
+   }
+  },
+  {
+   "id": "L0068",
+   "s": 14,
+   "ix": 9,
+   "iy": 4,
+   "km": 4,
+   "set": "landshapes",
+   "src": "s2",
+   "z": 13,
+   "reg": "iceland-highlands",
+   "rgm": "volcanic",
+   "b": "stratified",
+   "date": "composite",
+   "cf": 0.0,
+   "sd": 0.076,
+   "lm": 0.252,
+   "bk": 0.0,
+   "f": "full/L0068.jpg",
+   "file": "iceland-highlands/iceland-highlands_z13_3674_2145_0_0.jpg",
+   "x": {
+    "white": 0.0,
+    "deep_water": 0.001,
+    "detail": 3.99,
+    "sat": 9.742
+   }
+  }
+ ],
+ "results": {
+  "single": {
+   "t0475": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective clouds over open ocean."
+   },
+   "t0215": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "cirrus",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Wispy cirrus clouds over open ocean water."
+   },
+   "t0586": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear example of cloud streets over the open ocean."
+   },
+   "t0984": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective clouds over open ocean."
+   },
+   "t0107": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Classic open cell convection over the open ocean."
+   },
+   "t0134": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Well-defined cloud streets over the ocean surface."
+   },
+   "t0778": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear example of open cell convection over the ocean."
+   },
+   "t0156": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective clouds over open ocean."
+   },
+   "t0519": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Ocean scene with organized cloud streets and some scattered cumulus."
+   },
+   "t0868": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Scattered convective clouds over open ocean."
+   },
+   "t0061": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective clouds over open ocean."
+   },
+   "t0722": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Open cell convection over the ocean with some larger cloud clusters."
+   },
+   "t0261": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Cloud streets over open ocean with clear water visible."
+   },
+   "t0033": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Scattered convective clouds over open ocean water."
+   },
+   "t0090": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear example of open cell cloud structures over the ocean."
+   },
+   "t0621": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Well defined cloud streets over open ocean."
+   },
+   "t0607": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Scattered convective clouds over open ocean."
+   },
+   "t0062": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective clouds over open ocean."
+   },
+   "t0328": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear example of open cell cloud structures over the ocean."
+   },
+   "t0122": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear example of open cell cloud structures over the ocean."
+   },
+   "t0891": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "cirrus",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Wispy cirrus clouds over open ocean water."
+   },
+   "t0692": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective clouds over open ocean water."
+   },
+   "t0057": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective cloud clusters over open ocean."
+   },
+   "t0917": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Open cell cloud structures over the ocean."
+   },
+   "t0175": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective clouds over open ocean water."
+   },
+   "t0307": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear example of open cell cloud convection over the ocean."
+   },
+   "t1001": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective clouds over open ocean with some wispy cirrus."
+   },
+   "t0967": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 80,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 3,
+    "note": "Dense cloud cover over ocean with minimal visible surface features."
+   },
+   "t0861": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear example of open cell cloud structures over the ocean."
+   },
+   "t0130": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "frontal",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "A clear example of a frontal cloud system over the ocean."
+   },
+   "t0847": {
+    "cell": "A1",
+    "surface": "mixed",
+    "cloud_cover": 80,
+    "cloud_form": "convective",
+    "landform": "coast",
+    "artifacts": [
+     "cloud_in_land_tile"
+    ],
+    "usable": 3,
+    "note": "Heavy convective cloud cover over coastal islands."
+   },
+   "t0591": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 80,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective cloud formation over open ocean."
+   },
+   "t0109": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Excellent example of open cell cloud structures over the ocean."
+   },
+   "t0332": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective clouds over open ocean."
+   },
+   "t0096": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective cloud clusters over open ocean."
+   },
+   "t0831": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective clouds over open ocean water."
+   },
+   "t0222": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective clouds over open ocean with some vertical development."
+   },
+   "t0398": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 5,
+    "cloud_form": "other",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 3,
+    "note": "Sparse scattered small clouds over open ocean."
+   },
+   "t0533": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 90,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Dense field of closed cell stratocumulus clouds over the ocean."
+   },
+   "t0233": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective cloud clusters over open ocean."
+   },
+   "t0782": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 85,
+    "cloud_form": "frontal",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense frontal cloud system over the ocean."
+   },
+   "t0187": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 85,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective cloud cover over the ocean."
+   },
+   "t0894": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 75,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective clouds over open ocean waters."
+   },
+   "t0409": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 80,
+    "cloud_form": "cirrus",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense cirrus cloud formation over the ocean surface."
+   },
+   "t0841": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 85,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Dense field of closed cell marine stratocumulus clouds."
+   },
+   "t1120": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 2,
+    "note": "Dense overcast cloud cover with no visible surface features."
+   },
+   "t0313": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "swath_gap"
+    ],
+    "usable": 2,
+    "note": "Heavy cloud cover with a clear swath gap artifact."
+   },
+   "t0184": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 95,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 2,
+    "note": "Dense cloud cover obscures the surface, limiting utility."
+   },
+   "t0903": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 2,
+    "note": "Dense cloud cover with no visible surface features."
+   },
+   "t0896": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 90,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Excellent example of closed cell stratocumulus clouds over the ocean."
+   },
+   "t0989": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 2,
+    "note": "Dense overcast cloud cover obscuring the ocean surface."
+   },
+   "t0316": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 2,
+    "note": "Dense overcast cloud cover obscuring the surface entirely."
+   },
+   "t0649": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "ice",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 2,
+    "note": "Extensive ice cover with thick cloud layer obscuring surface details."
+   },
+   "t0159": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 2,
+    "note": "Dense overcast cloud cover obscures the surface entirely."
+   },
+   "L0736": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "volcanic",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of volcanic rock formations in an arid landscape."
+   },
+   "L1094": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 10,
+    "cloud_form": "other",
+    "landform": "river",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Satellite view of a river system with some light cloud cover."
+   },
+   "L1157": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 40,
+    "cloud_form": "other",
+    "landform": "ice",
+    "artifacts": [
+     "cloud_in_land_tile"
+    ],
+    "usable": 4,
+    "note": "Glacial ice and snow cover with some cloud obscuration."
+   },
+   "L1144": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "river",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Dense river network with meandering channels in a green landscape."
+   },
+   "L0871": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 40,
+    "cloud_form": "other",
+    "landform": "mountains",
+    "artifacts": [
+     "cloud_in_land_tile"
+    ],
+    "usable": 2,
+    "note": "Rugged mountainous terrain partially obscured by significant cloud cover."
+   },
+   "L1274": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 5,
+    "cloud_form": "clear",
+    "landform": "mountains",
+    "artifacts": [
+     "cloud_in_land_tile",
+     "none"
+    ],
+    "usable": 5,
+    "note": "Rugged mountainous terrain with some agricultural fields in the corner."
+   },
+   "L0160": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 60,
+    "cloud_form": "other",
+    "landform": "ice",
+    "artifacts": [
+     "swath_gap"
+    ],
+    "usable": 2,
+    "note": "Glacial ice with significant data loss due to swath gap."
+   },
+   "L0726": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "canyon",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "High contrast desert canyon landscape with intricate drainage patterns."
+   },
+   "L1133": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "wetland",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Dense wetland landscape with numerous small ponds and meandering channels."
+   },
+   "L1287": {
+    "cell": "A1",
+    "surface": "coast",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "coast",
+    "artifacts": [
+     "swath_gap"
+    ],
+    "usable": 4,
+    "note": "Coastal region with visible sediment patterns and a clear swath gap."
+   },
+   "L1223": {
+    "cell": "A1",
+    "surface": "coast",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "coast",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear coastal view showing shallow water and sandy shoreline."
+   },
+   "L1282": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "dunes",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of barchan-like sand dunes in a desert landscape."
+   },
+   "L1017": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "dunes",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "High resolution view of desert sand dunes and rocky outcrops."
+   },
+   "L0703": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "dunes",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Arid desert landscape with sand dunes and some human infrastructure."
+   },
+   "L1108": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "rock",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of folded rock strata and small lakes."
+   },
+   "L0786": {
+    "cell": "A1",
+    "surface": "coast",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "coast",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear satellite view of a forested coastline with deep blue water."
+   },
+   "L0383": {
+    "cell": "A1",
+    "surface": "coast",
+    "cloud_cover": 40,
+    "cloud_form": "other",
+    "landform": "coast",
+    "artifacts": [
+     "haze"
+    ],
+    "usable": 2,
+    "note": "High contrast coastal image with significant haze and overexposure."
+   },
+   "L0068": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 5,
+    "cloud_form": "clear",
+    "landform": "river",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Braided river channels with glacial meltwater ponds on the left."
+   }
+  },
+  "single+meta": {
+   "t0475": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 25,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective cumulus clouds over deep blue ocean water."
+   },
+   "t0215": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "cirrus",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Wispy cirrus clouds over open ocean."
+   },
+   "t0586": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Small convective cloud streets over the open ocean."
+   },
+   "t0984": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective clouds over open ocean in the warm pool region."
+   },
+   "t0107": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered small convective clouds over open ocean."
+   },
+   "t0134": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Well defined cloud streets over the Indian Ocean."
+   },
+   "t0778": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Excellent example of closed cell stratocumulus clouds over the ocean."
+   },
+   "t0156": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Typical trade wind cumulus clouds over the open Pacific ocean."
+   },
+   "t0519": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 25,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Typical tradewind cumulus cloud streets over the Pacific ocean."
+   },
+   "t0868": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Convective cloud formations over the southern Indian Ocean."
+   },
+   "t0061": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Dense convective cloud clusters over open ocean."
+   },
+   "t0722": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective clouds over open ocean with larger cloud mass below."
+   },
+   "t0261": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Typical trade wind cumulus clouds over the Pacific ocean."
+   },
+   "t0033": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Scattered convective clouds over dark ocean surface."
+   },
+   "t0090": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Excellent example of open cell stratocumulus clouds over the ocean."
+   },
+   "t0621": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Well defined cloud streets over the Atlantic ocean."
+   },
+   "t0607": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear example of open cell stratocumulus clouds over the ocean."
+   },
+   "t0062": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective clouds over open ocean in Bering Sea."
+   },
+   "t0328": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Excellent example of open cell convection over the North Atlantic."
+   },
+   "t0122": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Typical stratocumulus closed cell patterns over the Atlantic ocean."
+   },
+   "t0891": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective clouds over open ocean with some wispy cirrus."
+   },
+   "t0692": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective cloud clusters over open ocean."
+   },
+   "t0057": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Convective cloud clusters over the southern Indian Ocean."
+   },
+   "t0917": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Typical trade wind cumulus clouds over the Pacific ocean."
+   },
+   "t0175": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective clouds over open ocean in the ITCZ region."
+   },
+   "t0307": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Excellent example of open cell stratocumulus clouds over the ocean."
+   },
+   "t1001": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective clouds over open ocean waters."
+   },
+   "t0967": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 80,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 3,
+    "note": "Dense cloud cover over ocean with minimal visible surface features."
+   },
+   "t0861": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Excellent example of open cell convection over the North Atlantic."
+   },
+   "t0130": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense stratocumulus cloud deck over the ocean."
+   },
+   "t0847": {
+    "cell": "A1",
+    "surface": "mixed",
+    "cloud_cover": 70,
+    "cloud_form": "convective",
+    "landform": "coast",
+    "artifacts": [
+     "cloud_in_land_tile"
+    ],
+    "usable": 3,
+    "note": "Dense convective clouds over small island chain with significant cloud cover."
+   },
+   "t0591": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 85,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective cloud cluster over the Pacific ocean."
+   },
+   "t0109": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 75,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Excellent example of closed cell stratocumulus clouds over the ocean."
+   },
+   "t0332": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective cloud clusters over the tropical Pacific ocean."
+   },
+   "t0096": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective cloud formations over the open ocean."
+   },
+   "t0831": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Convective cloud clusters over the open ocean."
+   },
+   "t0222": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective cloud clusters over the open ocean."
+   },
+   "t0398": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 10,
+    "cloud_form": "other",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 3,
+    "note": "Sparse small cumulus clouds over open ocean water."
+   },
+   "t0533": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 95,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Excellent example of closed cell stratocumulus clouds over the ocean."
+   },
+   "t0233": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective cloud clusters over the tropical Pacific ocean."
+   },
+   "t0782": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 85,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 3,
+    "note": "Dense cloud cover over ocean with some visible texture."
+   },
+   "t0187": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 85,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective cloud cover over the ocean."
+   },
+   "t0894": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 85,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective cloud field over the southern Pacific ocean."
+   },
+   "t0409": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 85,
+    "cloud_form": "cirrus",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense cirrus cloud formation over the Atlantic ocean."
+   },
+   "t0841": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 85,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Dense field of closed cell stratocumulus over the ocean."
+   },
+   "t1120": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 2,
+    "note": "Dense overcast cloud cover with no visible surface features."
+   },
+   "t0313": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "swath_gap"
+    ],
+    "usable": 2,
+    "note": "Dense overcast cloud cover with a visible swath gap artifact."
+   },
+   "t0184": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 95,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 2,
+    "note": "Dense overcast cloud cover obscuring the ocean surface."
+   },
+   "t0903": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "swath_gap"
+    ],
+    "usable": 2,
+    "note": "Tile shows heavy cloud cover with a distinct swath gap artifact."
+   },
+   "t0896": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 90,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Excellent example of closed cell stratocumulus clouds over the ocean."
+   },
+   "t0989": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 3,
+    "note": "Dense overcast cloud cover, likely part of a large cyclonic system."
+   },
+   "t0316": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 2,
+    "note": "Thick overcast cloud layer obscuring the surface completely."
+   },
+   "t0649": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 2,
+    "note": "Dense overcast cloud cover obscuring the ocean surface."
+   },
+   "t0159": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 2,
+    "note": "Thick overcast cloud layer obscuring the ocean surface."
+   },
+   "L0736": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "canyon",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of volcanic rock formations and arid desert terrain."
+   },
+   "L1094": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 5,
+    "cloud_form": "clear",
+    "landform": "river",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Satellite view of river network and surrounding vegetation."
+   },
+   "L1157": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "ice",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of Patagonian ice field with exposed rock and glaciers."
+   },
+   "L1144": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "wetland",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Excellent high resolution view of meandering river channels in wetland terrain."
+   },
+   "L0871": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 30,
+    "cloud_form": "other",
+    "landform": "ice",
+    "artifacts": [
+     "cloud_in_land_tile"
+    ],
+    "usable": 3,
+    "note": "Patagonian ice field with significant cloud cover obscuring the terrain."
+   },
+   "L1274": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 5,
+    "cloud_form": "clear",
+    "landform": "mountains",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Rugged mountainous terrain with some agricultural land in the corner."
+   },
+   "L0160": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "mountains",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "High resolution mountain terrain with deep shadows and snow patches."
+   },
+   "L0726": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "canyon",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "High resolution desert canyon landscape in Tassili n'Ajjer."
+   },
+   "L1133": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "wetland",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "High resolution view of complex wetland channels and small ponds."
+   },
+   "L1287": {
+    "cell": "A1",
+    "surface": "coast",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "salt",
+    "artifacts": [
+     "swath_gap"
+    ],
+    "usable": 4,
+    "note": "Great Salt Lake shoreline with visible swath gap artifact."
+   },
+   "L1223": {
+    "cell": "A1",
+    "surface": "coast",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "coast",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear coastal view showing shallow water and sandy shoreline."
+   },
+   "L1282": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "dunes",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Excellent high-resolution view of barchan dunes in the desert."
+   },
+   "L1017": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "rock",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear desert landscape showing rock formations and sand patterns."
+   },
+   "L0703": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "agriculture",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Desert agriculture with center pivot irrigation systems in Kufra, Libya."
+   },
+   "L1108": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "water",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of lakes and surrounding terrain in a mountainous region."
+   },
+   "L0786": {
+    "cell": "A1",
+    "surface": "coast",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "coast",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear coastal view showing dense forest and irregular shoreline."
+   },
+   "L0383": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "salt",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "High contrast satellite view of salt flat terrain."
+   },
+   "L0068": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "volcanic",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Icelandic volcanic terrain with glacial meltwater streams and small blue ponds."
+   }
+  },
+  "grid2": {
+   "t0475": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 25,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Scattered tradewind cumulus clouds over open ocean."
+   },
+   "t0215": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Dense stratocumulus cloud deck with cellular structure."
+   },
+   "t0586": {
+    "cell": "B1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Cloud streets forming over the tropical Pacific."
+   },
+   "t0984": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective clouds in the western Pacific."
+   },
+   "t0107": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Scattered convective cumulus over open ocean."
+   },
+   "t0134": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Linear cloud streets with some diffuse cirrus haze."
+   },
+   "t0778": {
+    "cell": "B1",
+    "surface": "ocean",
+    "cloud_cover": 35,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Bright convective cumulus clusters over dark ocean."
+   },
+   "t0156": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 45,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Typical trade wind cumulus field."
+   },
+   "t0519": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 20,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Excellent example of tradewind cumulus cloud streets over the Pacific."
+   },
+   "t0868": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective cloud clusters over the Southern Indian Ocean."
+   },
+   "t0061": {
+    "cell": "B1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Strong convective activity typical of the Pacific ITCZ."
+   },
+   "t0722": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective clouds over the Indian Ocean."
+   },
+   "t0261": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered trade wind cumulus clouds over deep ocean."
+   },
+   "t0033": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Well-defined stratocumulus closed cells over the ocean."
+   },
+   "t0090": {
+    "cell": "B1",
+    "surface": "ocean",
+    "cloud_cover": 80,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense stratocumulus cloud deck with closed cell structure."
+   },
+   "t0621": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 50,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear cloud streets forming over the Atlantic ocean."
+   },
+   "t0607": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Scattered convective clouds over open ocean."
+   },
+   "t0062": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Open cell cloud structures over the ocean."
+   },
+   "t0328": {
+    "cell": "B1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Dense closed cell cloud field over ocean."
+   },
+   "t0122": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Extensive closed cell stratocumulus deck."
+   },
+   "t0891": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Typical tradewind cumulus clouds over the Pacific ocean."
+   },
+   "t0692": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 50,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Large stratocumulus cloud deck off the coast of Peru."
+   },
+   "t0057": {
+    "cell": "B1",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Dense convective cloud field in the Southern Indian Ocean."
+   },
+   "t0917": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered tradewind cumulus clouds forming light streets."
+   },
+   "t0175": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Scattered convective clouds over deep ocean water."
+   },
+   "t0307": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Well-defined closed cell stratocumulus clouds."
+   },
+   "t1001": {
+    "cell": "B1",
+    "surface": "ocean",
+    "cloud_cover": 50,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Mixed convective and wispy cloud structures."
+   },
+   "t0967": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 90,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense overcast cloud deck with sharp edge."
+   },
+   "t0861": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Well-defined open cell cloud structures over the ocean."
+   },
+   "t0130": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 80,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense stratocumulus cloud deck covering most of the tile."
+   },
+   "t0847": {
+    "cell": "B1",
+    "surface": "mixed",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "coast",
+    "artifacts": [
+     "cloud_in_land_tile"
+    ],
+    "usable": 4,
+    "note": "Small island partially obscured by convective clouds."
+   },
+   "t0591": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 90,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Extensive convective cloud field typical of the ITCZ."
+   },
+   "t0109": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Excellent example of closed cell stratocumulus clouds over ocean."
+   },
+   "t0332": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 80,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective cloud clusters over the tropical Pacific."
+   },
+   "t0096": {
+    "cell": "B1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Stratocumulus clouds with some breaks in the cloud deck."
+   },
+   "t0831": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 50,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Cloud streets forming over the North Atlantic ocean."
+   },
+   "t0222": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Bright convective clouds over deep ocean water."
+   },
+   "t0398": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 10,
+    "cloud_form": "clear",
+    "landform": "other",
+    "artifacts": [
+     "sun_glint"
+    ],
+    "usable": 3,
+    "note": "Mostly clear ocean with some sun glint and sparse clouds."
+   },
+   "t0533": {
+    "cell": "B1",
+    "surface": "ocean",
+    "cloud_cover": 95,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Dense field of closed cell stratocumulus clouds."
+   },
+   "t0233": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Widespread convective cloud cover over the ocean."
+   },
+   "t0782": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Well-defined cloud streets over the Atlantic ocean."
+   },
+   "t0187": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 90,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective cloud formations over the western Pacific."
+   },
+   "t0894": {
+    "cell": "B1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "frontal",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 3,
+    "note": "Mixed cloud types showing frontal characteristics."
+   },
+   "t0409": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 85,
+    "cloud_form": "other",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Complex cloud patterns over the Atlantic."
+   },
+   "t0841": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 80,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear open cell cloud structures over the ocean."
+   },
+   "t1120": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 2,
+    "note": "Featureless thick overcast cloud cover."
+   },
+   "t0313": {
+    "cell": "B1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "swath_gap"
+    ],
+    "usable": 2,
+    "note": "Overcast clouds with a visible swath gap artifact."
+   },
+   "t0184": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 90,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 3,
+    "note": "Dense cloud cover with some texture visible."
+   },
+   "t0903": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 3,
+    "note": "Dense cloud cover over the ocean with no visible surface features."
+   },
+   "t0896": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 90,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Excellent example of closed cell stratocumulus clouds over the ocean."
+   },
+   "t0989": {
+    "cell": "B1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 2,
+    "note": "Thick, featureless cloud deck typical of a cyclone system."
+   },
+   "t0316": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 3,
+    "note": "Dense convective cloud mass with limited structural detail."
+   },
+   "t0649": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Dense closed cell cloud formation over the ocean."
+   },
+   "t0159": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 3,
+    "note": "Thick overcast cloud layer with little structural detail."
+   },
+   "L0736": {
+    "cell": "B1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "canyon",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of arid canyon terrain and rock formations."
+   },
+   "L1094": {
+    "cell": "B2",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "water",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Detailed view of coastal water bodies and green landscape."
+   },
+   "L1157": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "ice",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of Patagonian ice field with glaciers and rocky peaks."
+   },
+   "L1144": {
+    "cell": "A2",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "wetland",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Detailed view of Pantanal wetlands with intricate river channels."
+   },
+   "L0871": {
+    "cell": "B1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "ice",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "High mountain terrain with glacial ice and small alpine lakes."
+   },
+   "L1274": {
+    "cell": "B2",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Green mountainous terrain with visible drainage patterns."
+   },
+   "L0160": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 40,
+    "cloud_form": "other",
+    "landform": "water",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 3,
+    "note": "High contrast mountain lakes with significant cloud cover."
+   },
+   "L0726": {
+    "cell": "A2",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "canyon",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of desert canyon terrain and drainage patterns."
+   },
+   "L1133": {
+    "cell": "B1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "wetland",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Detailed view of wetland vegetation and water bodies."
+   },
+   "L1287": {
+    "cell": "B2",
+    "surface": "coast",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "salt",
+    "artifacts": [
+     "swath_gap"
+    ],
+    "usable": 4,
+    "note": "Salt flats meeting water with a visible swath gap artifact."
+   },
+   "L1223": {
+    "cell": "A1",
+    "surface": "coast",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "coast",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear coastal view with distinct turquoise water and sandy beach."
+   },
+   "L1282": {
+    "cell": "A2",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "dunes",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Well-defined barchan dunes in a desert landscape."
+   },
+   "L1017": {
+    "cell": "B1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "rock",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Arid rocky terrain with visible geological formations."
+   },
+   "L0703": {
+    "cell": "B2",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "agriculture",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Desert landscape with road infrastructure and small agricultural plots."
+   },
+   "L1108": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "water",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of rugged terrain with lakes and geological features."
+   },
+   "L0786": {
+    "cell": "A2",
+    "surface": "coast",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "coast",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "High quality coastal imagery showing land and water interface."
+   },
+   "L0383": {
+    "cell": "B1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "salt",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Distinctive salt flat landscape with high contrast."
+   },
+   "L0068": {
+    "cell": "B2",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "volcanic",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Volcanic terrain with glacial melt ponds and river channels."
+   }
+  },
+  "grid3": {
+   "t0475": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "convective",
+    "landform": "water",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Scattered convective cumulus clouds over open ocean."
+   },
+   "t0215": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "closed_cells",
+    "landform": "water",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Closed cell stratocumulus clouds over the ocean."
+   },
+   "t0586": {
+    "cell": "A3",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "streets",
+    "landform": "water",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Cloud streets forming over the Pacific ocean."
+   },
+   "t0984": {
+    "cell": "B1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "convective",
+    "landform": "water",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective clouds over the warm pool."
+   },
+   "t0107": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 50,
+    "cloud_form": "closed_cells",
+    "landform": "water",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Typical closed cell stratocumulus pattern."
+   },
+   "t0134": {
+    "cell": "B3",
+    "surface": "ocean",
+    "cloud_cover": 50,
+    "cloud_form": "convective",
+    "landform": "water",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Convective cloud clusters with some haze."
+   },
+   "t0778": {
+    "cell": "C1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "closed_cells",
+    "landform": "water",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Stratocumulus clouds off the coast of Namibia."
+   },
+   "t0156": {
+    "cell": "C2",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "convective",
+    "landform": "water",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Small convective cumulus clouds over the ocean."
+   },
+   "t0519": {
+    "cell": "C3",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "streets",
+    "landform": "water",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Organized cloud streets over the Pacific."
+   },
+   "t0868": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Convective clouds over the southern Indian Ocean."
+   },
+   "t0061": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 50,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Scattered convective clouds in the Pacific ITCZ."
+   },
+   "t0722": {
+    "cell": "A3",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective cloud clusters over the Indian Ocean."
+   },
+   "t0261": {
+    "cell": "B1",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Typical trade wind cumulus streets over the Pacific."
+   },
+   "t0033": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 50,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Stratocumulus closed cells off the coast of Namibia."
+   },
+   "t0090": {
+    "cell": "B3",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Well-defined stratocumulus closed cells off California."
+   },
+   "t0621": {
+    "cell": "C1",
+    "surface": "ocean",
+    "cloud_cover": 20,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Fine trade wind cumulus cloud streets in the Atlantic."
+   },
+   "t0607": {
+    "cell": "C2",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Stratocumulus cloud deck off the coast of Peru."
+   },
+   "t0062": {
+    "cell": "C3",
+    "surface": "ocean",
+    "cloud_cover": 50,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Open cell convection in the Bering Sea."
+   },
+   "t0328": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Dense convective clouds over the North Atlantic."
+   },
+   "t0122": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 50,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Stratocumulus cloud field near the Canary Islands."
+   },
+   "t0891": {
+    "cell": "A3",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "cirrus",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Wispy cirrus clouds over the Pacific."
+   },
+   "t0692": {
+    "cell": "B1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Stratocumulus clouds off the coast of Peru."
+   },
+   "t0057": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Convective cloud structure in the Southern Indian Ocean."
+   },
+   "t0917": {
+    "cell": "B3",
+    "surface": "ocean",
+    "cloud_cover": 50,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Trade wind cumulus cloud streets over the Pacific."
+   },
+   "t0175": {
+    "cell": "C1",
+    "surface": "ocean",
+    "cloud_cover": 50,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Convective activity in the Indian Ocean ITCZ."
+   },
+   "t0307": {
+    "cell": "C2",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Dense stratocumulus closed cells off Peru."
+   },
+   "t1001": {
+    "cell": "C3",
+    "surface": "ocean",
+    "cloud_cover": 50,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Stratocumulus cloud field off the Peruvian coast."
+   },
+   "t0967": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 80,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense overcast cloud cover over ocean."
+   },
+   "t0861": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear open cell cloud structure over ocean."
+   },
+   "t0130": {
+    "cell": "A3",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Cloud streets forming over the ocean."
+   },
+   "t0847": {
+    "cell": "B1",
+    "surface": "mixed",
+    "cloud_cover": 50,
+    "cloud_form": "convective",
+    "landform": "coast",
+    "artifacts": [
+     "cloud_in_land_tile"
+    ],
+    "usable": 4,
+    "note": "Small island partially obscured by convective clouds."
+   },
+   "t0591": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 90,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective cloud mass over ocean."
+   },
+   "t0109": {
+    "cell": "B3",
+    "surface": "ocean",
+    "cloud_cover": 90,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Well-defined closed cell stratocumulus clouds."
+   },
+   "t0332": {
+    "cell": "C1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective clouds over dark ocean."
+   },
+   "t0096": {
+    "cell": "C2",
+    "surface": "ocean",
+    "cloud_cover": 80,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Closed cell stratocumulus over ocean."
+   },
+   "t0831": {
+    "cell": "C3",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "frontal",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Frontal cloud bands over ocean."
+   },
+   "t0222": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Large convective cloud clusters over the ocean."
+   },
+   "t0398": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 10,
+    "cloud_form": "clear",
+    "landform": "other",
+    "artifacts": [
+     "sun_glint"
+    ],
+    "usable": 3,
+    "note": "Mostly clear ocean with some sun glint."
+   },
+   "t0533": {
+    "cell": "A3",
+    "surface": "ocean",
+    "cloud_cover": 95,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Dense field of closed cell stratocumulus clouds."
+   },
+   "t0233": {
+    "cell": "B1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective clouds over open ocean."
+   },
+   "t0782": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 80,
+    "cloud_form": "other",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Complex cloud patterns, likely frontal or transition."
+   },
+   "t0187": {
+    "cell": "B3",
+    "surface": "ocean",
+    "cloud_cover": 85,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Deep convective cloud structures over tropical ocean."
+   },
+   "t0894": {
+    "cell": "C1",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "frontal",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Frontal cloud bands with some cellular structure."
+   },
+   "t0409": {
+    "cell": "C2",
+    "surface": "coast",
+    "cloud_cover": 70,
+    "cloud_form": "convective",
+    "landform": "coast",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Coastal clouds with visible land and water interface."
+   },
+   "t0841": {
+    "cell": "C3",
+    "surface": "ocean",
+    "cloud_cover": 80,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Well-defined open cell cloud patterns over ocean."
+   },
+   "t1120": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "swath_gap"
+    ],
+    "usable": 3,
+    "note": "Thick overcast cloud layer with a visible swath gap."
+   },
+   "t0313": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "swath_gap"
+    ],
+    "usable": 3,
+    "note": "Dense cloud cover with a clear swath gap artifact."
+   },
+   "t0184": {
+    "cell": "A3",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Solid overcast cloud deck over the ocean."
+   },
+   "t0903": {
+    "cell": "B1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "swath_gap"
+    ],
+    "usable": 3,
+    "note": "Thick clouds with a prominent swath gap."
+   },
+   "t0896": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 95,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Excellent example of closed cell stratocumulus clouds."
+   },
+   "t0989": {
+    "cell": "B3",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Uniform overcast cloud cover."
+   },
+   "t0316": {
+    "cell": "C1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 3,
+    "note": "Thick, featureless overcast cloud cover."
+   },
+   "t0649": {
+    "cell": "C2",
+    "surface": "ocean",
+    "cloud_cover": 90,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear open cell cloud structures over the ocean."
+   },
+   "t0159": {
+    "cell": "C3",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense overcast cloud layer."
+   },
+   "L0736": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "canyon",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Arid landscape with distinct canyon formations and rocky outcrops."
+   },
+   "L1094": {
+    "cell": "A2",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "water",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Green landscape with numerous water bodies and river channels."
+   },
+   "L1157": {
+    "cell": "A3",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "ice",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Glacial ice field with exposed dark mountain ridges."
+   },
+   "L1144": {
+    "cell": "B1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "wetland",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Lush green wetland area with intricate river meanders."
+   },
+   "L0871": {
+    "cell": "B2",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "ice",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Rugged mountain terrain with significant snow and ice cover."
+   },
+   "L1274": {
+    "cell": "B3",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "forest",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Dense forested terrain with visible drainage patterns."
+   },
+   "L0160": {
+    "cell": "C1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "water",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "High contrast view of dark water bodies against bright ice."
+   },
+   "L0726": {
+    "cell": "C2",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "canyon",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Dramatic contrast between sandy plateau and deep canyon networks."
+   },
+   "L1133": {
+    "cell": "C3",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "wetland",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Complex wetland ecosystem with many small ponds and vegetation."
+   },
+   "L1287": {
+    "cell": "A1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "salt",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of salt flats and coastal water interface."
+   },
+   "L1223": {
+    "cell": "A2",
+    "surface": "coast",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "coast",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear coastal scene with vibrant water colors."
+   },
+   "L1282": {
+    "cell": "A3",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "dunes",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Excellent example of desert dune formations."
+   },
+   "L1017": {
+    "cell": "B1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "rock",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of rocky desert terrain."
+   },
+   "L0703": {
+    "cell": "B2",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "agriculture",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of desert agricultural irrigation patterns."
+   },
+   "L1108": {
+    "cell": "B3",
+    "surface": "mixed",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "water",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of mountainous terrain and water bodies."
+   },
+   "L0786": {
+    "cell": "C1",
+    "surface": "coast",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "coast",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear coastal landscape with lush vegetation."
+   },
+   "L0383": {
+    "cell": "C2",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "salt",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "High contrast view of salt flat landscape."
+   },
+   "L0068": {
+    "cell": "C3",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "volcanic",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of volcanic terrain with glacial melt."
+   }
+  },
+  "grid4": {
+   "t0475": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Scattered tradewind cumulus clouds over deep ocean."
+   },
+   "t0215": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "other",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Thin stratocumulus or cirrus streaks over ocean."
+   },
+   "t0586": {
+    "cell": "A3",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Cloud streets forming over the Pacific ocean."
+   },
+   "t0984": {
+    "cell": "A4",
+    "surface": "ocean",
+    "cloud_cover": 50,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Typical convective cumulus clouds in warm pool region."
+   },
+   "t0107": {
+    "cell": "B1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Closed cell stratocumulus pattern over ocean."
+   },
+   "t0134": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "other",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Complex convective cloud structures with haze."
+   },
+   "t0778": {
+    "cell": "B3",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Well-defined closed cell stratocumulus off Namibia coast."
+   },
+   "t0156": {
+    "cell": "B4",
+    "surface": "ocean",
+    "cloud_cover": 50,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Scattered convective cumulus clouds over ocean."
+   },
+   "t0519": {
+    "cell": "C1",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Small convective cumulus clouds over ocean."
+   },
+   "t0868": {
+    "cell": "C2",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense convective clouds with some cyclonic structure."
+   },
+   "t0061": {
+    "cell": "C3",
+    "surface": "ocean",
+    "cloud_cover": 50,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Large convective cloud clusters over ocean."
+   },
+   "t0722": {
+    "cell": "C4",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense cloud cover over the Indian ocean."
+   },
+   "t0261": {
+    "cell": "D1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Convective cumulus clouds over deep ocean."
+   },
+   "t0033": {
+    "cell": "D2",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Closed cell stratocumulus clouds over ocean."
+   },
+   "t0090": {
+    "cell": "D3",
+    "surface": "ocean",
+    "cloud_cover": 50,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Closed cell stratocumulus off California coast."
+   },
+   "t0621": {
+    "cell": "D4",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Cloud streets over the Atlantic ocean."
+   },
+   "t0607": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Scattered cumulus clouds over open ocean."
+   },
+   "t0062": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Cold air outbreak pattern with open cells."
+   },
+   "t0328": {
+    "cell": "A3",
+    "surface": "ocean",
+    "cloud_cover": 80,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Dense closed cell stratocumulus field."
+   },
+   "t0122": {
+    "cell": "A4",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Cloud streets forming over the ocean."
+   },
+   "t0891": {
+    "cell": "B1",
+    "surface": "ocean",
+    "cloud_cover": 30,
+    "cloud_form": "cirrus",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Thin wispy cirrus clouds over ocean."
+   },
+   "t0692": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 50,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Large patches of closed cell stratocumulus."
+   },
+   "t0057": {
+    "cell": "B3",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Well defined closed cell cloud structure."
+   },
+   "t0917": {
+    "cell": "B4",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "streets",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Linear cloud streets over the ocean."
+   },
+   "t0175": {
+    "cell": "C1",
+    "surface": "ocean",
+    "cloud_cover": 50,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Convective cloud clusters over tropical ocean."
+   },
+   "t0307": {
+    "cell": "C2",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Extensive closed cell stratocumulus deck."
+   },
+   "t1001": {
+    "cell": "C3",
+    "surface": "ocean",
+    "cloud_cover": 50,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Mixed closed cell and convective clouds."
+   },
+   "t0967": {
+    "cell": "C4",
+    "surface": "ocean",
+    "cloud_cover": 90,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 3,
+    "note": "Thick overcast cloud layer."
+   },
+   "t0861": {
+    "cell": "D1",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense field of closed cell clouds."
+   },
+   "t0130": {
+    "cell": "D2",
+    "surface": "ocean",
+    "cloud_cover": 80,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Solid deck of closed cell stratocumulus."
+   },
+   "t0847": {
+    "cell": "D3",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Deep convective clouds over the ocean."
+   },
+   "t0591": {
+    "cell": "D4",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Convective cloud development over ocean."
+   },
+   "t0109": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 90,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Dense stratocumulus field over the ocean."
+   },
+   "t0332": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Scattered convective clouds over the Pacific."
+   },
+   "t0096": {
+    "cell": "A3",
+    "surface": "ocean",
+    "cloud_cover": 80,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Stratocumulus clouds with some breaks."
+   },
+   "t0831": {
+    "cell": "A4",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "frontal",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Cyclonic cloud structures over the North Atlantic."
+   },
+   "t0222": {
+    "cell": "B1",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Large convective cloud clusters."
+   },
+   "t0398": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 10,
+    "cloud_form": "clear",
+    "landform": "other",
+    "artifacts": [
+     "sun_glint"
+    ],
+    "usable": 3,
+    "note": "Mostly clear ocean with sun glint."
+   },
+   "t0533": {
+    "cell": "B3",
+    "surface": "ocean",
+    "cloud_cover": 95,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Excellent example of closed cell stratocumulus."
+   },
+   "t0233": {
+    "cell": "B4",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Convective clouds over the Pacific."
+   },
+   "t0782": {
+    "cell": "C1",
+    "surface": "ocean",
+    "cloud_cover": 50,
+    "cloud_form": "other",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Mixed cloud types over the Atlantic."
+   },
+   "t0187": {
+    "cell": "C2",
+    "surface": "ocean",
+    "cloud_cover": 60,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Convective cloud formations."
+   },
+   "t0894": {
+    "cell": "C3",
+    "surface": "ocean",
+    "cloud_cover": 80,
+    "cloud_form": "frontal",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Frontal cloud bands over the Southern Ocean."
+   },
+   "t0409": {
+    "cell": "C4",
+    "surface": "ocean",
+    "cloud_cover": 70,
+    "cloud_form": "other",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Complex cloud patterns over the Atlantic."
+   },
+   "t0841": {
+    "cell": "D1",
+    "surface": "ocean",
+    "cloud_cover": 40,
+    "cloud_form": "open_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Open cell convection over the Southern Ocean."
+   },
+   "t1120": {
+    "cell": "D2",
+    "surface": "ocean",
+    "cloud_cover": 90,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "swath_gap"
+    ],
+    "usable": 2,
+    "note": "Overcast with a visible swath gap."
+   },
+   "t0313": {
+    "cell": "D3",
+    "surface": "ocean",
+    "cloud_cover": 90,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "swath_gap"
+    ],
+    "usable": 2,
+    "note": "Overcast with a visible swath gap."
+   },
+   "t0184": {
+    "cell": "D4",
+    "surface": "ocean",
+    "cloud_cover": 95,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 3,
+    "note": "Dense overcast cloud cover."
+   },
+   "t0903": {
+    "cell": "A1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "swath_gap"
+    ],
+    "usable": 3,
+    "note": "Thick cloud cover with a visible swath gap artifact."
+   },
+   "t0896": {
+    "cell": "A2",
+    "surface": "ocean",
+    "cloud_cover": 90,
+    "cloud_form": "closed_cells",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Excellent example of closed cell stratocumulus clouds."
+   },
+   "t0989": {
+    "cell": "A3",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Dense overcast cloud deck over the ocean."
+   },
+   "t0316": {
+    "cell": "A4",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "convective",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 4,
+    "note": "Bright convective cloud field."
+   },
+   "t0649": {
+    "cell": "B1",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 3,
+    "note": "Uniform cloud cover over ocean."
+   },
+   "t0159": {
+    "cell": "B2",
+    "surface": "ocean",
+    "cloud_cover": 100,
+    "cloud_form": "overcast",
+    "landform": "other",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 3,
+    "note": "Thick cloud cover over ocean."
+   },
+   "L0736": {
+    "cell": "B3",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "canyon",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of desert canyon terrain."
+   },
+   "L1094": {
+    "cell": "B4",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "water",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of fjords and water bodies."
+   },
+   "L1157": {
+    "cell": "C1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "ice",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of glacial ice fields."
+   },
+   "L1144": {
+    "cell": "C2",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "wetland",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of wetland vegetation and water."
+   },
+   "L0871": {
+    "cell": "C3",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "ice",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of mountainous ice fields."
+   },
+   "L1274": {
+    "cell": "C4",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "forest",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of dense forest terrain."
+   },
+   "L0160": {
+    "cell": "D1",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "water",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of water and rocky terrain."
+   },
+   "L0726": {
+    "cell": "D2",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "canyon",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of desert canyon landscape."
+   },
+   "L1133": {
+    "cell": "D3",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "wetland",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of wetland landscape."
+   },
+   "L1287": {
+    "cell": "D4",
+    "surface": "land",
+    "cloud_cover": 0,
+    "cloud_form": "clear",
+    "landform": "salt",
+    "artifacts": [
+     "none"
+    ],
+    "usable": 5,
+    "note": "Clear view of salt flats and water."
+   }
+  }
+ },
+ "usage": {
+  "single": [
+   {
+    "ok": true,
+    "dt": 3.6504950523376465,
+    "tin": 1203,
+    "tout": 81,
+    "tthink": 0,
+    "bytes": 14842
+   },
+   {
+    "ok": true,
+    "dt": 3.802244186401367,
+    "tin": 1203,
+    "tout": 89,
+    "tthink": 0,
+    "bytes": 15491
+   },
+   {
+    "ok": true,
+    "dt": 3.668058156967163,
+    "tin": 1203,
+    "tout": 88,
+    "tthink": 0,
+    "bytes": 24997
+   },
+   {
+    "ok": true,
+    "dt": 3.8570809364318848,
+    "tin": 1203,
+    "tout": 81,
+    "tthink": 0,
+    "bytes": 18454
+   },
+   {
+    "ok": true,
+    "dt": 3.1197092533111572,
+    "tin": 1203,
+    "tout": 89,
+    "tthink": 0,
+    "bytes": 26535
+   },
+   {
+    "ok": true,
+    "dt": 3.0895323753356934,
+    "tin": 1203,
+    "tout": 88,
+    "tthink": 0,
+    "bytes": 19764
+   },
+   {
+    "ok": true,
+    "dt": 3.549210786819458,
+    "tin": 1203,
+    "tout": 90,
+    "tthink": 0,
+    "bytes": 22588
+   },
+   {
+    "ok": true,
+    "dt": 3.530466079711914,
+    "tin": 1203,
+    "tout": 87,
+    "tthink": 0,
+    "bytes": 17841
+   },
+   {
+    "ok": true,
+    "dt": 2.391932249069214,
+    "tin": 1203,
+    "tout": 90,
+    "tthink": 0,
+    "bytes": 16434
+   },
+   {
+    "ok": true,
+    "dt": 2.501772880554199,
+    "tin": 1203,
+    "tout": 87,
+    "tthink": 0,
+    "bytes": 24079
+   },
+   {
+    "ok": true,
+    "dt": 2.4607720375061035,
+    "tin": 1203,
+    "tout": 87,
+    "tthink": 0,
+    "bytes": 21633
+   },
+   {
+    "ok": true,
+    "dt": 2.5806210041046143,
+    "tin": 1203,
+    "tout": 92,
+    "tthink": 0,
+    "bytes": 19502
+   },
+   {
+    "ok": true,
+    "dt": 2.6195309162139893,
+    "tin": 1203,
+    "tout": 88,
+    "tthink": 0,
+    "bytes": 17364
+   },
+   {
+    "ok": true,
+    "dt": 2.974050760269165,
+    "tin": 1203,
+    "tout": 82,
+    "tthink": 0,
+    "bytes": 18882
+   },
+   {
+    "ok": true,
+    "dt": 2.8146767616271973,
+    "tin": 1203,
+    "tout": 91,
+    "tthink": 0,
+    "bytes": 25512
+   },
+   {
+    "ok": true,
+    "dt": 2.6595962047576904,
+    "tin": 1203,
+    "tout": 86,
+    "tthink": 0,
+    "bytes": 19266
+   },
+   {
+    "ok": true,
+    "dt": 2.475261926651001,
+    "tin": 1203,
+    "tout": 81,
+    "tthink": 0,
+    "bytes": 26136
+   },
+   {
+    "ok": true,
+    "dt": 2.5898468494415283,
+    "tin": 1203,
+    "tout": 87,
+    "tthink": 0,
+    "bytes": 17011
+   },
+   {
+    "ok": true,
+    "dt": 2.680870294570923,
+    "tin": 1203,
+    "tout": 91,
+    "tthink": 0,
+    "bytes": 25151
+   },
+   {
+    "ok": true,
+    "dt": 2.6924667358398438,
+    "tin": 1203,
+    "tout": 91,
+    "tthink": 0,
+    "bytes": 19824
+   },
+   {
+    "ok": true,
+    "dt": 2.9505538940429688,
+    "tin": 1203,
+    "tout": 89,
+    "tthink": 0,
+    "bytes": 12684
+   },
+   {
+    "ok": true,
+    "dt": 2.6005330085754395,
+    "tin": 1203,
+    "tout": 88,
+    "tthink": 0,
+    "bytes": 14000
+   },
+   {
+    "ok": true,
+    "dt": 2.830742120742798,
+    "tin": 1203,
+    "tout": 81,
+    "tthink": 0,
+    "bytes": 22458
+   },
+   {
+    "ok": true,
+    "dt": 2.5598809719085693,
+    "tin": 1203,
+    "tout": 88,
+    "tthink": 0,
+    "bytes": 19624
+   },
+   {
+    "ok": true,
+    "dt": 2.7451090812683105,
+    "tin": 1203,
+    "tout": 88,
+    "tthink": 0,
+    "bytes": 23403
+   },
+   {
+    "ok": true,
+    "dt": 2.8674399852752686,
+    "tin": 1203,
+    "tout": 85,
+    "tthink": 0,
+    "bytes": 30216
+   },
+   {
+    "ok": true,
+    "dt": 2.6098110675811768,
+    "tin": 1203,
+    "tout": 93,
+    "tthink": 0,
+    "bytes": 25141
+   },
+   {
+    "ok": true,
+    "dt": 3.1947309970855713,
+    "tin": 1203,
+    "tout": 90,
+    "tthink": 0,
+    "bytes": 9752
+   },
+   {
+    "ok": true,
+    "dt": 3.2144429683685303,
+    "tin": 1203,
+    "tout": 91,
+    "tthink": 0,
+    "bytes": 24123
+   },
+   {
+    "ok": true,
+    "dt": 3.096437931060791,
+    "tin": 1203,
+    "tout": 90,
+    "tthink": 0,
+    "bytes": 23787
+   },
+   {
+    "ok": true,
+    "dt": 3.328021287918091,
+    "tin": 1203,
+    "tout": 93,
+    "tthink": 0,
+    "bytes": 15426
+   },
+   {
+    "ok": true,
+    "dt": 3.0378592014312744,
+    "tin": 1203,
+    "tout": 87,
+    "tthink": 0,
+    "bytes": 15003
+   },
+   {
+    "ok": true,
+    "dt": 3.0046257972717285,
+    "tin": 1203,
+    "tout": 91,
+    "tthink": 0,
+    "bytes": 34040
+   },
+   {
+    "ok": true,
+    "dt": 2.5996580123901367,
+    "tin": 1203,
+    "tout": 87,
+    "tthink": 0,
+    "bytes": 21801
+   },
+   {
+    "ok": true,
+    "dt": 2.682710886001587,
+    "tin": 1203,
+    "tout": 87,
+    "tthink": 0,
+    "bytes": 13631
+   },
+   {
+    "ok": true,
+    "dt": 2.7872698307037354,
+    "tin": 1203,
+    "tout": 82,
+    "tthink": 0,
+    "bytes": 17187
+   },
+   {
+    "ok": true,
+    "dt": 2.874936103820801,
+    "tin": 1203,
+    "tout": 90,
+    "tthink": 0,
+    "bytes": 14293
+   },
+   {
+    "ok": true,
+    "dt": 2.76763916015625,
+    "tin": 1203,
+    "tout": 85,
+    "tthink": 0,
+    "bytes": 7008
+   },
+   {
+    "ok": true,
+    "dt": 2.837496757507324,
+    "tin": 1203,
+    "tout": 94,
+    "tthink": 0,
+    "bytes": 25384
+   },
+   {
+    "ok": true,
+    "dt": 2.97279691696167,
+    "tin": 1203,
+    "tout": 87,
+    "tthink": 0,
+    "bytes": 12471
+   },
+   {
+    "ok": true,
+    "dt": 2.480031967163086,
+    "tin": 1203,
+    "tout": 86,
+    "tthink": 0,
+    "bytes": 16416
+   },
+   {
+    "ok": true,
+    "dt": 2.5405969619750977,
+    "tin": 1203,
+    "tout": 87,
+    "tthink": 0,
+    "bytes": 13809
+   },
+   {
+    "ok": true,
+    "dt": 2.457202911376953,
+    "tin": 1203,
+    "tout": 87,
+    "tthink": 0,
+    "bytes": 19050
+   },
+   {
+    "ok": true,
+    "dt": 2.8222579956054688,
+    "tin": 1203,
+    "tout": 83,
+    "tthink": 0,
+    "bytes": 16484
+   },
+   {
+    "ok": true,
+    "dt": 2.5684878826141357,
+    "tin": 1203,
+    "tout": 92,
+    "tthink": 0,
+    "bytes": 14182
+   },
+   {
+    "ok": true,
+    "dt": 2.7209360599517822,
+    "tin": 1203,
+    "tout": 90,
+    "tthink": 0,
+    "bytes": 3714
+   },
+   {
+    "ok": true,
+    "dt": 2.762012004852295,
+    "tin": 1203,
+    "tout": 93,
+    "tthink": 0,
+    "bytes": 9581
+   },
+   {
+    "ok": true,
+    "dt": 2.426179885864258,
+    "tin": 1203,
+    "tout": 89,
+    "tthink": 0,
+    "bytes": 4938
+   },
+   {
+    "ok": true,
+    "dt": 2.5678870677948,
+    "tin": 1203,
+    "tout": 89,
+    "tthink": 0,
+    "bytes": 6023
+   },
+   {
+    "ok": true,
+    "dt": 2.4424099922180176,
+    "tin": 1203,
+    "tout": 94,
+    "tthink": 0,
+    "bytes": 17962
+   },
+   {
+    "ok": true,
+    "dt": 2.6589250564575195,
+    "tin": 1203,
+    "tout": 90,
+    "tthink": 0,
+    "bytes": 7671
+   },
+   {
+    "ok": true,
+    "dt": 2.4052350521087646,
+    "tin": 1203,
+    "tout": 90,
+    "tthink": 0,
+    "bytes": 4622
+   },
+   {
+    "ok": true,
+    "dt": 3.0051140785217285,
+    "tin": 1203,
+    "tout": 93,
+    "tthink": 0,
+    "bytes": 12548
+   },
+   {
+    "ok": true,
+    "dt": 2.952024221420288,
+    "tin": 1203,
+    "tout": 89,
+    "tthink": 0,
+    "bytes": 7920
+   },
+   {
+    "ok": true,
+    "dt": 2.8136708736419678,
+    "tin": 1203,
+    "tout": 83,
+    "tthink": 0,
+    "bytes": 23143
+   },
+   {
+    "ok": true,
+    "dt": 3.14127779006958,
+    "tin": 1203,
+    "tout": 90,
+    "tthink": 0,
+    "bytes": 26337
+   },
+   {
+    "ok": true,
+    "dt": 2.8222081661224365,
+    "tin": 1203,
+    "tout": 97,
+    "tthink": 0,
+    "bytes": 26259
+   },
+   {
+    "ok": true,
+    "dt": 2.8383710384368896,
+    "tin": 1203,
+    "tout": 88,
+    "tthink": 0,
+    "bytes": 35888
+   },
+   {
+    "ok": true,
+    "dt": 2.718257188796997,
+    "tin": 1203,
+    "tout": 97,
+    "tthink": 0,
+    "bytes": 33311
+   },
+   {
+    "ok": true,
+    "dt": 2.9449667930603027,
+    "tin": 1203,
+    "tout": 102,
+    "tthink": 0,
+    "bytes": 29448
+   },
+   {
+    "ok": true,
+    "dt": 2.75361704826355,
+    "tin": 1203,
+    "tout": 93,
+    "tthink": 0,
+    "bytes": 19027
+   },
+   {
+    "ok": true,
+    "dt": 2.6209890842437744,
+    "tin": 1203,
+    "tout": 82,
+    "tthink": 0,
+    "bytes": 30508
+   },
+   {
+    "ok": true,
+    "dt": 2.80293607711792,
+    "tin": 1203,
+    "tout": 89,
+    "tthink": 0,
+    "bytes": 31936
+   },
+   {
+    "ok": true,
+    "dt": 2.7982258796691895,
+    "tin": 1203,
+    "tout": 92,
+    "tthink": 0,
+    "bytes": 17587
+   },
+   {
+    "ok": true,
+    "dt": 2.772268056869507,
+    "tin": 1203,
+    "tout": 87,
+    "tthink": 0,
+    "bytes": 14483
+   },
+   {
+    "ok": true,
+    "dt": 2.758166790008545,
+    "tin": 1203,
+    "tout": 93,
+    "tthink": 0,
+    "bytes": 25824
+   },
+   {
+    "ok": true,
+    "dt": 2.832534074783325,
+    "tin": 1203,
+    "tout": 89,
+    "tthink": 0,
+    "bytes": 26691
+   },
+   {
+    "ok": true,
+    "dt": 3.0133612155914307,
+    "tin": 1203,
+    "tout": 90,
+    "tthink": 0,
+    "bytes": 27511
+   },
+   {
+    "ok": true,
+    "dt": 2.8227639198303223,
+    "tin": 1203,
+    "tout": 87,
+    "tthink": 0,
+    "bytes": 24527
+   },
+   {
+    "ok": true,
+    "dt": 2.728584051132202,
+    "tin": 1203,
+    "tout": 89,
+    "tthink": 0,
+    "bytes": 23952
+   },
+   {
+    "ok": true,
+    "dt": 2.504300832748413,
+    "tin": 1203,
+    "tout": 90,
+    "tthink": 0,
+    "bytes": 16282
+   },
+   {
+    "ok": true,
+    "dt": 2.9236459732055664,
+    "tin": 1203,
+    "tout": 90,
+    "tthink": 0,
+    "bytes": 20501
+   }
+  ],
+  "single+meta": [
+   {
+    "ok": true,
+    "dt": 2.421610116958618,
+    "tin": 1250,
+    "tout": 91,
+    "tthink": 0,
+    "bytes": 14842
+   },
+   {
+    "ok": true,
+    "dt": 2.4118452072143555,
+    "tin": 1244,
+    "tout": 88,
+    "tthink": 0,
+    "bytes": 15491
+   },
+   {
+    "ok": true,
+    "dt": 2.398482322692871,
+    "tin": 1245,
+    "tout": 87,
+    "tthink": 0,
+    "bytes": 24997
+   },
+   {
+    "ok": true,
+    "dt": 2.394601821899414,
+    "tin": 1246,
+    "tout": 86,
+    "tthink": 0,
+    "bytes": 18454
+   },
+   {
+    "ok": true,
+    "dt": 2.9302709102630615,
+    "tin": 1244,
+    "tout": 82,
+    "tthink": 0,
+    "bytes": 26535
+   },
+   {
+    "ok": true,
+    "dt": 3.221942901611328,
+    "tin": 1245,
+    "tout": 87,
+    "tthink": 0,
+    "bytes": 19764
+   },
+   {
+    "ok": true,
+    "dt": 2.931849956512451,
+    "tin": 1245,
+    "tout": 94,
+    "tthink": 0,
+    "bytes": 22588
+   },
+   {
+    "ok": true,
+    "dt": 2.8145289421081543,
+    "tin": 1250,
+    "tout": 91,
+    "tthink": 0,
+    "bytes": 17841
+   },
+   {
+    "ok": true,
+    "dt": 2.224557876586914,
+    "tin": 1250,
+    "tout": 91,
+    "tthink": 0,
+    "bytes": 16434
+   },
+   {
+    "ok": true,
+    "dt": 2.1951959133148193,
+    "tin": 1245,
+    "tout": 83,
+    "tthink": 0,
+    "bytes": 24079
+   },
+   {
+    "ok": true,
+    "dt": 2.099695920944214,
+    "tin": 1245,
+    "tout": 87,
+    "tthink": 0,
+    "bytes": 21633
+   },
+   {
+    "ok": true,
+    "dt": 2.2189669609069824,
+    "tin": 1245,
+    "tout": 86,
+    "tthink": 0,
+    "bytes": 19502
+   },
+   {
+    "ok": true,
+    "dt": 2.0991151332855225,
+    "tin": 1250,
+    "tout": 90,
+    "tthink": 0,
+    "bytes": 17364
+   },
+   {
+    "ok": true,
+    "dt": 2.091125965118408,
+    "tin": 1245,
+    "tout": 82,
+    "tthink": 0,
+    "bytes": 18882
+   },
+   {
+    "ok": true,
+    "dt": 2.3124330043792725,
+    "tin": 1244,
+    "tout": 94,
+    "tthink": 0,
+    "bytes": 25512
+   },
+   {
+    "ok": true,
+    "dt": 2.115354299545288,
+    "tin": 1250,
+    "tout": 87,
+    "tthink": 0,
+    "bytes": 19266
+   },
+   {
+    "ok": true,
+    "dt": 2.147829055786133,
+    "tin": 1244,
+    "tout": 88,
+    "tthink": 0,
+    "bytes": 26136
+   },
+   {
+    "ok": true,
+    "dt": 2.203956127166748,
+    "tin": 1248,
+    "tout": 90,
+    "tthink": 0,
+    "bytes": 17011
+   },
+   {
+    "ok": true,
+    "dt": 2.206116199493408,
+    "tin": 1243,
+    "tout": 91,
+    "tthink": 0,
+    "bytes": 25151
+   },
+   {
+    "ok": true,
+    "dt": 2.1356098651885986,
+    "tin": 1245,
+    "tout": 87,
+    "tthink": 0,
+    "bytes": 19824
+   },
+   {
+    "ok": true,
+    "dt": 2.1417558193206787,
+    "tin": 1250,
+    "tout": 93,
+    "tthink": 0,
+    "bytes": 12684
+   },
+   {
+    "ok": true,
+    "dt": 2.1390750408172607,
+    "tin": 1244,
+    "tout": 81,
+    "tthink": 0,
+    "bytes": 14000
+   },
+   {
+    "ok": true,
+    "dt": 2.398664951324463,
+    "tin": 1245,
+    "tout": 89,
+    "tthink": 0,
+    "bytes": 22458
+   },
+   {
+    "ok": true,
+    "dt": 2.3420050144195557,
+    "tin": 1250,
+    "tout": 84,
+    "tthink": 0,
+    "bytes": 19624
+   },
+   {
+    "ok": true,
+    "dt": 2.040921926498413,
+    "tin": 1245,
+    "tout": 85,
+    "tthink": 0,
+    "bytes": 23403
+   },
+   {
+    "ok": true,
+    "dt": 2.314627170562744,
+    "tin": 1244,
+    "tout": 88,
+    "tthink": 0,
+    "bytes": 30216
+   },
+   {
+    "ok": true,
+    "dt": 2.3084192276000977,
+    "tin": 1244,
+    "tout": 88,
+    "tthink": 0,
+    "bytes": 25141
+   },
+   {
+    "ok": true,
+    "dt": 2.2978811264038086,
+    "tin": 1243,
+    "tout": 90,
+    "tthink": 0,
+    "bytes": 9752
+   },
+   {
+    "ok": true,
+    "dt": 2.589515209197998,
+    "tin": 1243,
+    "tout": 85,
+    "tthink": 0,
+    "bytes": 24123
+   },
+   {
+    "ok": true,
+    "dt": 2.454479932785034,
+    "tin": 1244,
+    "tout": 90,
+    "tthink": 0,
+    "bytes": 23787
+   },
+   {
+    "ok": true,
+    "dt": 2.5355210304260254,
+    "tin": 1250,
+    "tout": 97,
+    "tthink": 0,
+    "bytes": 15426
+   },
+   {
+    "ok": true,
+    "dt": 2.5293447971343994,
+    "tin": 1245,
+    "tout": 88,
+    "tthink": 0,
+    "bytes": 15003
+   },
+   {
+    "ok": true,
+    "dt": 2.4618310928344727,
+    "tin": 1244,
+    "tout": 94,
+    "tthink": 0,
+    "bytes": 34040
+   },
+   {
+    "ok": true,
+    "dt": 2.461029052734375,
+    "tin": 1245,
+    "tout": 83,
+    "tthink": 0,
+    "bytes": 21801
+   },
+   {
+    "ok": true,
+    "dt": 2.293586254119873,
+    "tin": 1244,
+    "tout": 88,
+    "tthink": 0,
+    "bytes": 13631
+   },
+   {
+    "ok": true,
+    "dt": 2.382755756378174,
+    "tin": 1244,
+    "tout": 88,
+    "tthink": 0,
+    "bytes": 17187
+   },
+   {
+    "ok": true,
+    "dt": 2.222797155380249,
+    "tin": 1246,
+    "tout": 88,
+    "tthink": 0,
+    "bytes": 14293
+   },
+   {
+    "ok": true,
+    "dt": 2.3705689907073975,
+    "tin": 1244,
+    "tout": 82,
+    "tthink": 0,
+    "bytes": 7008
+   },
+   {
+    "ok": true,
+    "dt": 2.629038095474243,
+    "tin": 1244,
+    "tout": 94,
+    "tthink": 0,
+    "bytes": 25384
+   },
+   {
+    "ok": true,
+    "dt": 2.506226062774658,
+    "tin": 1245,
+    "tout": 89,
+    "tthink": 0,
+    "bytes": 12471
+   },
+   {
+    "ok": true,
+    "dt": 2.2496771812438965,
+    "tin": 1250,
+    "tout": 89,
+    "tthink": 0,
+    "bytes": 16416
+   },
+   {
+    "ok": true,
+    "dt": 2.119913101196289,
+    "tin": 1246,
+    "tout": 87,
+    "tthink": 0,
+    "bytes": 13809
+   },
+   {
+    "ok": true,
+    "dt": 2.247169017791748,
+    "tin": 1245,
+    "tout": 83,
+    "tthink": 0,
+    "bytes": 19050
+   },
+   {
+    "ok": true,
+    "dt": 2.1300580501556396,
+    "tin": 1250,
+    "tout": 83,
+    "tthink": 0,
+    "bytes": 16484
+   },
+   {
+    "ok": true,
+    "dt": 2.2241768836975098,
+    "tin": 1246,
+    "tout": 93,
+    "tthink": 0,
+    "bytes": 14182
+   },
+   {
+    "ok": true,
+    "dt": 2.065063953399658,
+    "tin": 1243,
+    "tout": 84,
+    "tthink": 0,
+    "bytes": 3714
+   },
+   {
+    "ok": true,
+    "dt": 2.4528071880340576,
+    "tin": 1245,
+    "tout": 88,
+    "tthink": 0,
+    "bytes": 9581
+   },
+   {
+    "ok": true,
+    "dt": 2.3983590602874756,
+    "tin": 1248,
+    "tout": 89,
+    "tthink": 0,
+    "bytes": 4938
+   },
+   {
+    "ok": true,
+    "dt": 2.6034791469573975,
+    "tin": 1243,
+    "tout": 95,
+    "tthink": 0,
+    "bytes": 6023
+   },
+   {
+    "ok": true,
+    "dt": 2.6314620971679688,
+    "tin": 1245,
+    "tout": 94,
+    "tthink": 0,
+    "bytes": 17962
+   },
+   {
+    "ok": true,
+    "dt": 2.298677921295166,
+    "tin": 1245,
+    "tout": 94,
+    "tthink": 0,
+    "bytes": 7671
+   },
+   {
+    "ok": true,
+    "dt": 2.295789957046509,
+    "tin": 1245,
+    "tout": 85,
+    "tthink": 0,
+    "bytes": 4622
+   },
+   {
+    "ok": true,
+    "dt": 2.5483829975128174,
+    "tin": 1247,
+    "tout": 90,
+    "tthink": 0,
+    "bytes": 12548
+   },
+   {
+    "ok": true,
+    "dt": 2.411836862564087,
+    "tin": 1247,
+    "tout": 91,
+    "tthink": 0,
+    "bytes": 7920
+   },
+   {
+    "ok": true,
+    "dt": 2.399075984954834,
+    "tin": 1235,
+    "tout": 83,
+    "tthink": 0,
+    "bytes": 23143
+   },
+   {
+    "ok": true,
+    "dt": 2.4914729595184326,
+    "tin": 1234,
+    "tout": 80,
+    "tthink": 0,
+    "bytes": 26337
+   },
+   {
+    "ok": true,
+    "dt": 2.4401190280914307,
+    "tin": 1234,
+    "tout": 91,
+    "tthink": 0,
+    "bytes": 26259
+   },
+   {
+    "ok": true,
+    "dt": 2.4410240650177,
+    "tin": 1231,
+    "tout": 90,
+    "tthink": 0,
+    "bytes": 35888
+   },
+   {
+    "ok": true,
+    "dt": 2.377135992050171,
+    "tin": 1234,
+    "tout": 98,
+    "tthink": 0,
+    "bytes": 33311
+   },
+   {
+    "ok": true,
+    "dt": 2.394973039627075,
+    "tin": 1234,
+    "tout": 90,
+    "tthink": 0,
+    "bytes": 29448
+   },
+   {
+    "ok": true,
+    "dt": 2.433384895324707,
+    "tin": 1234,
+    "tout": 83,
+    "tthink": 0,
+    "bytes": 19027
+   },
+   {
+    "ok": true,
+    "dt": 2.437833070755005,
+    "tin": 1234,
+    "tout": 86,
+    "tthink": 0,
+    "bytes": 30508
+   },
+   {
+    "ok": true,
+    "dt": 2.3942630290985107,
+    "tin": 1231,
+    "tout": 89,
+    "tthink": 0,
+    "bytes": 31936
+   },
+   {
+    "ok": true,
+    "dt": 2.3357350826263428,
+    "tin": 1234,
+    "tout": 90,
+    "tthink": 0,
+    "bytes": 17587
+   },
+   {
+    "ok": true,
+    "dt": 2.0861549377441406,
+    "tin": 1236,
+    "tout": 87,
+    "tthink": 0,
+    "bytes": 14483
+   },
+   {
+    "ok": true,
+    "dt": 2.2819430828094482,
+    "tin": 1235,
+    "tout": 92,
+    "tthink": 0,
+    "bytes": 25824
+   },
+   {
+    "ok": true,
+    "dt": 2.1618270874023438,
+    "tin": 1234,
+    "tout": 81,
+    "tthink": 0,
+    "bytes": 26691
+   },
+   {
+    "ok": true,
+    "dt": 2.2872238159179688,
+    "tin": 1234,
+    "tout": 91,
+    "tthink": 0,
+    "bytes": 27511
+   },
+   {
+    "ok": true,
+    "dt": 2.2819409370422363,
+    "tin": 1234,
+    "tout": 89,
+    "tthink": 0,
+    "bytes": 24527
+   },
+   {
+    "ok": true,
+    "dt": 2.5983450412750244,
+    "tin": 1236,
+    "tout": 87,
+    "tthink": 0,
+    "bytes": 23952
+   },
+   {
+    "ok": true,
+    "dt": 2.5668580532073975,
+    "tin": 1236,
+    "tout": 86,
+    "tthink": 0,
+    "bytes": 16282
+   },
+   {
+    "ok": true,
+    "dt": 2.537503957748413,
+    "tin": 1233,
+    "tout": 92,
+    "tthink": 0,
+    "bytes": 20501
+   }
+  ],
+  "grid2": [
+   {
+    "ok": true,
+    "dt": 4.74258017539978,
+    "tin": 1424,
+    "tout": 347,
+    "tthink": 0,
+    "bytes": 80864
+   },
+   {
+    "ok": true,
+    "dt": 4.541402101516724,
+    "tin": 1423,
+    "tout": 341,
+    "tthink": 0,
+    "bytes": 93098
+   },
+   {
+    "ok": true,
+    "dt": 4.959611892700195,
+    "tin": 1424,
+    "tout": 349,
+    "tthink": 0,
+    "bytes": 87985
+   },
+   {
+    "ok": true,
+    "dt": 4.647871971130371,
+    "tin": 1428,
+    "tout": 353,
+    "tthink": 0,
+    "bytes": 87351
+   },
+   {
+    "ok": true,
+    "dt": 3.4756078720092773,
+    "tin": 1419,
+    "tout": 344,
+    "tthink": 0,
+    "bytes": 94619
+   },
+   {
+    "ok": true,
+    "dt": 4.009346008300781,
+    "tin": 1428,
+    "tout": 353,
+    "tthink": 0,
+    "bytes": 75430
+   },
+   {
+    "ok": true,
+    "dt": 3.394425868988037,
+    "tin": 1415,
+    "tout": 344,
+    "tthink": 0,
+    "bytes": 94857
+   },
+   {
+    "ok": true,
+    "dt": 3.4870598316192627,
+    "tin": 1421,
+    "tout": 357,
+    "tthink": 0,
+    "bytes": 85316
+   },
+   {
+    "ok": true,
+    "dt": 3.4403960704803467,
+    "tin": 1416,
+    "tout": 352,
+    "tthink": 0,
+    "bytes": 92341
+   },
+   {
+    "ok": true,
+    "dt": 3.305979013442993,
+    "tin": 1418,
+    "tout": 374,
+    "tthink": 0,
+    "bytes": 66099
+   },
+   {
+    "ok": true,
+    "dt": 3.564448833465576,
+    "tin": 1430,
+    "tout": 337,
+    "tthink": 0,
+    "bytes": 72645
+   },
+   {
+    "ok": true,
+    "dt": 3.2263171672821045,
+    "tin": 1421,
+    "tout": 347,
+    "tthink": 0,
+    "bytes": 42625
+   },
+   {
+    "ok": true,
+    "dt": 3.648430824279785,
+    "tin": 1417,
+    "tout": 383,
+    "tthink": 0,
+    "bytes": 46643
+   },
+   {
+    "ok": true,
+    "dt": 3.494448184967041,
+    "tin": 1402,
+    "tout": 346,
+    "tthink": 0,
+    "bytes": 76523
+   },
+   {
+    "ok": true,
+    "dt": 4.091105937957764,
+    "tin": 1372,
+    "tout": 344,
+    "tthink": 0,
+    "bytes": 127849
+   },
+   {
+    "ok": true,
+    "dt": 3.586782217025757,
+    "tin": 1372,
+    "tout": 344,
+    "tthink": 0,
+    "bytes": 104046
+   },
+   {
+    "ok": true,
+    "dt": 3.5404772758483887,
+    "tin": 1378,
+    "tout": 342,
+    "tthink": 0,
+    "bytes": 98582
+   },
+   {
+    "ok": true,
+    "dt": 3.5173702239990234,
+    "tin": 1378,
+    "tout": 341,
+    "tthink": 0,
+    "bytes": 89899
+   }
+  ],
+  "grid3": [
+   {
+    "ok": true,
+    "dt": 6.264021158218384,
+    "tin": 1663,
+    "tout": 771,
+    "tthink": 0,
+    "bytes": 191301
+   },
+   {
+    "ok": true,
+    "dt": 5.8990631103515625,
+    "tin": 1660,
+    "tout": 783,
+    "tthink": 0,
+    "bytes": 203198
+   },
+   {
+    "ok": true,
+    "dt": 6.198909044265747,
+    "tin": 1654,
+    "tout": 780,
+    "tthink": 0,
+    "bytes": 205444
+   },
+   {
+    "ok": true,
+    "dt": 5.9382407665252686,
+    "tin": 1646,
+    "tout": 766,
+    "tthink": 0,
+    "bytes": 189316
+   },
+   {
+    "ok": true,
+    "dt": 5.63860297203064,
+    "tin": 1660,
+    "tout": 770,
+    "tthink": 0,
+    "bytes": 154265
+   },
+   {
+    "ok": true,
+    "dt": 4.845998048782349,
+    "tin": 1652,
+    "tout": 783,
+    "tthink": 0,
+    "bytes": 97542
+   },
+   {
+    "ok": true,
+    "dt": 6.262196063995361,
+    "tin": 1545,
+    "tout": 765,
+    "tthink": 0,
+    "bytes": 263170
+   },
+   {
+    "ok": true,
+    "dt": 5.826412916183472,
+    "tin": 1556,
+    "tout": 744,
+    "tthink": 0,
+    "bytes": 207157
+   }
+  ],
+  "grid4": [
+   {
+    "ok": true,
+    "dt": 7.737178087234497,
+    "tin": 1995,
+    "tout": 1049,
+    "tthink": 0,
+    "bytes": 347718
+   },
+   {
+    "ok": true,
+    "dt": 7.81823205947876,
+    "tin": 1979,
+    "tout": 1035,
+    "tthink": 0,
+    "bytes": 348731
+   },
+   {
+    "ok": true,
+    "dt": 6.938637971878052,
+    "tin": 1981,
+    "tout": 1031,
+    "tthink": 0,
+    "bytes": 272166
+   },
+   {
+    "ok": true,
+    "dt": 7.5887110233306885,
+    "tin": 1859,
+    "tout": 1015,
+    "tthink": 0,
+    "bytes": 353539
+   }
+  ]
+ }
+}

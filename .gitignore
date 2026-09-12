@@ -22,3 +22,4 @@ _tmp-*
 !data/tiles/.gitkeep
 !data/dataset/.gitkeep
 !runs/.gitkeep
+scratch/
