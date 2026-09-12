@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Labeler Examples</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  html{color-scheme:light dark}
+  :root{
+    --ground:#e9edf1; --surface:#ffffff; --sunk:#dde3e9;
+    --ink:#13202e; --muted:#5b6b7d; --faint:#8493a4;
+    --line:#c7d1da; --hair:#dbe2e8;
+    --ochre:#b3652a; --cool:#37718f; --ok:#2f7d5b; --no:#a33a2a;
+    --shadow:0 1px 2px rgba(15,34,51,.08), 0 8px 24px rgba(15,34,51,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+      --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+      --line:#27394b; --hair:#1c2c3c;
+      --ochre:#dd8b4b; --cool:#6aa9c9; --ok:#5cb98d; --no:#e0765f;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+    --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+    --line:#27394b; --hair:#1c2c3c;
+    --ochre:#dd8b4b; --cool:#6aa9c9; --ok:#5cb98d; --no:#e0765f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--ground); color:var(--ink); font:400 14px/1.45 "IBM Plex Sans",system-ui,sans-serif; -webkit-font-smoothing:antialiased; padding-left:16px; padding-right:16px; padding-block:0}
+  img{max-width:100%} button{font:inherit; color:inherit}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+  .top{position:sticky; top:0; z-index:5; background:var(--ground); border-bottom:1px solid var(--line); padding:12px 0 10px; display:flex; flex-wrap:wrap; align-items:center; gap:10px 22px}
+  .top h1{font:600 20px/1 "IBM Plex Sans Condensed",sans-serif; margin:0; letter-spacing:-.01em}
+  .top a{color:var(--cool); font-size:13px; text-decoration:none}
+  .save{font-size:12px; color:var(--faint); font-family:"IBM Plex Mono",monospace} .save.on{color:var(--ok)} .save.err{color:var(--no)}
+  .tally{font-size:13px; color:var(--muted); display:flex; gap:14px}
+  .tally b{color:var(--ink)}
+  .filters{display:flex; gap:6px; flex-wrap:wrap}
+  .filters button{border:1px solid var(--line); background:var(--surface); border-radius:3px; padding:3px 10px; font-size:12px; cursor:pointer; color:var(--muted)}
+  .filters button.on{background:var(--ink); color:var(--ground); border-color:var(--ink)}
+  .intro{max-width:70ch; color:var(--muted); padding-block:16px 4px}
+  .intro b{color:var(--ink)}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(520px,1fr)); gap:14px; padding-block:12px 60px}
+  @media (max-width:600px){ .grid{grid-template-columns:1fr} }
+  .card{background:var(--surface); border:1px solid var(--hair); border-radius:4px; box-shadow:var(--shadow); display:grid; grid-template-columns:256px 1fr; overflow:hidden; border-left:4px solid transparent}
+  @media (max-width:600px){ .card{grid-template-columns:1fr} }
+  .card.agree{border-left-color:var(--ok)} .card.disagree{border-left-color:var(--no)}
+  .card img{display:block; width:256px; height:256px; object-fit:cover; background:var(--sunk)}
+  .card .body{padding:10px 12px; display:flex; flex-direction:column; gap:8px; min-width:0}
+  .who{display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--faint)}
+  .who b{color:var(--muted); font-weight:500}
+  .lab{display:grid; grid-template-columns:auto 1fr; gap:3px 12px; font-size:13px}
+  .lab span:nth-child(odd){font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--faint); padding-top:2px}
+  .lab .big{font-family:"IBM Plex Sans Condensed",sans-serif; font-size:16px; font-weight:600}
+  .lab .pix{color:var(--faint); font-size:12px}
+  .lab .flag{color:var(--no); font-weight:500}
+  .lab .miss{color:var(--no)}
+  .note{font-style:italic; color:var(--muted)}
+  .others{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--faint); line-height:1.7}
+  .others s{text-decoration:none; color:var(--no)}
+  details summary{cursor:pointer; font-size:12px; color:var(--cool)}
+  .acts{display:flex; gap:6px; align-items:center; margin-top:auto; flex-wrap:wrap}
+  .acts button{padding:4px 11px; border-radius:3px; border:1px solid var(--line); background:var(--surface); cursor:pointer; font-size:13px}
+  .acts .a{border-color:var(--ok); color:var(--ok)} .acts .d{border-color:var(--no); color:var(--no)}
+  .card.agree .acts .a{background:var(--ok); color:#fff} .card.disagree .acts .d{background:var(--no); color:#fff}
+  .acts input{flex:1; min-width:140px; font:inherit; font-size:13px; padding:4px 8px; border:1px solid var(--line); border-radius:3px; background:var(--sunk); color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>Labeler examples</h1>
+  <a href="../triage/">tiles &rarr;</a><a href="../scenes/">scenes &rarr;</a>
+  <div class="tally" id="tally"></div>
+  <span class="save" id="save">connecting…</span>
+  <div class="filters" id="filters"></div>
+</div>
+<p class="intro"><b>gemini-3.1-flash-lite, one tile per call, with region / date / window in the prompt.</b> 96 tiles: 72 from the probe (six cloud buckets plus Landshapes), 12 with real swath gaps and 12 clean as the control. Each card shows what the model said next to what the pixels say; the grey line is the pixel count, red marks a miss. Where the same tile was also labelled inside a stitched grid, the other answers are under the disclosure — that is the stitching cost, tile by tile. Agree or disagree with the main label; a word on why is worth more than the click.</p>
+<div class="grid" id="grid"></div>
+
+<script>
+const ROWS = /*ROWS*/[];
+const API = "/api/verdicts?doc=labels";
+const LS = "earthai-labels-verdicts";
+const verdicts = new Map(), comments = new Map();
+const saveEl = document.getElementById("save");
+let key = "";
+try { const m = location.hash.match(/k=([A-Za-z0-9]+)/); key = (m && m[1]) || localStorage.getItem("earthai-triage-key") || ""; if (m) { localStorage.setItem("earthai-triage-key", key); history.replaceState(null, "", location.pathname); } } catch(e) {}
+function saveLocal(){ try{ localStorage.setItem(LS, JSON.stringify({v:Object.fromEntries(verdicts), c:Object.fromEntries(comments)})); }catch(e){} }
+function loadLocal(){ try{ const o = JSON.parse(localStorage.getItem(LS) || "{}"); for (const k in o.v || {}) verdicts.set(k, o.v[k]); for (const k in o.c || {}) comments.set(k, o.c[k]); }catch(e){} }
+function payload(){ return JSON.stringify({v:Object.fromEntries(verdicts), c:Object.fromEntries(comments), n:"", t:Date.now()}); }
+let dirty = false, flushing = false, ft;
+async function flush(){
+  if (!key || flushing || !dirty) return; flushing = true; dirty = false;
+  try { const r = await fetch(API, {method:"PUT", headers:{"content-type":"application/json","x-triage-key":key}, body: payload()}); if (!r.ok) throw new Error(r.status);
+    saveEl.textContent = `saved, ${verdicts.size} judgements`; saveEl.className = "save on"; }
+  catch (e) { dirty = true; saveEl.textContent = `save failed (${e.message}) — kept in this browser`; saveEl.className = "save err"; setTimeout(flush, 5000); }
+  flushing = false; if (dirty) { clearTimeout(ft); ft = setTimeout(flush, 1500); }
+}
+function persist(){ saveLocal(); dirty = true; if (key) { saveEl.textContent = "saving…"; saveEl.className = "save"; clearTimeout(ft); ft = setTimeout(flush, 1500); } }
+addEventListener("pagehide", () => { if (dirty && key && navigator.sendBeacon) navigator.sendBeacon(`${API}&key=${key}`, new Blob([payload()], {type:"application/json"})); });
+
+let group = "all";
+const GROUPS = ["all","probe","swath control","clean control","landshapes"];
+function inGroup(r){ return group === "all" || (group === "landshapes" ? r.set === "landshapes" : r.group === group); }
+function main(r){ return r.labels["single+meta"] || r.labels["single"]; }
+function pct(x){ return Math.round(x * 100) + "%"; }
+function card(r){
+  const L = main(r); if (!L) return "";
+  const v = verdicts.get(r.id) || "";
+  const gapTruth = r.bk > 0.03, gapPred = L.artifacts.includes("swath_gap");
+  const coverOff = Math.abs(L.cloud_cover - r.cf * 100) > 25;
+  const others = Object.entries(r.labels).filter(([c, l]) => c !== "single+meta" && l).map(([c, l]) =>
+    `${c.padEnd(12," ")} cover ${String(l.cloud_cover).padStart(3)}  ${l.cloud_form === L.cloud_form ? l.cloud_form : "<s>" + l.cloud_form + "</s>"}  ${l.landform !== "other" ? l.landform : ""}  usable ${l.usable}  ${l.artifacts.join(",")}`).join("<br>");
+  return `<article class="card ${v}" data-id="${r.id}">
+    <img src="tiles/${r.id}.jpg" alt="${r.reg}" loading="lazy">
+    <div class="body">
+      <div class="who"><span><b>${r.src} z${r.z}</b> · ${r.reg.replace(/_/g," ")} · ${r.date || "composite"}</span><span>${r.km} km · ${r.group}${r.set === "landshapes" ? " · " + r.b : ""}</span></div>
+      <div class="lab">
+        <span>subject</span><span class="big">${L.cloud_form !== "clear" && L.cloud_form !== "other" && r.set !== "landshapes" ? L.cloud_form.replace(/_/g," ") : L.landform.replace(/_/g," ")} <span style="font-weight:400;color:var(--muted)">· ${L.surface}</span></span>
+        <span>cloud cover</span><span>${L.cloud_cover}% <span class="pix">pixels say ${pct(r.cf)}${coverOff ? ' <span class="miss">— off by more than 25</span>' : ""}</span></span>
+        <span>artifacts</span><span>${L.artifacts.map(a => a === "none" ? "none" : `<span class="flag">${a.replace(/_/g," ")}</span>`).join(", ")} <span class="pix">pixels say black ${pct(r.bk)}${gapTruth && !gapPred ? ' <span class="miss">— missed a gap</span>' : ""}${!gapTruth && gapPred ? ' <span class="miss">— no gap there</span>' : ""}</span></span>
+        <span>usable</span><span><b>${L.usable}</b> / 5</span>
+        <span>note</span><span class="note">${L.note}</span>
+      </div>
+      ${others ? `<details><summary>same tile inside stitched grids</summary><div class="others">${others}</div></details>` : ""}
+      <div class="acts"><button class="a">Agree</button><button class="d">Disagree</button><input placeholder="why" value="${(comments.get(r.id) || "").replace(/"/g,"&quot;")}"></div>
+    </div>
+  </article>`;
+}
+function render(){
+  const rows = ROWS.filter(inGroup);
+  document.getElementById("grid").innerHTML = rows.map(card).join("");
+  document.getElementById("filters").innerHTML = GROUPS.map(g => `<button class="${g === group ? "on" : ""}" data-g="${g}">${g}</button>`).join("");
+  document.querySelectorAll("#filters button").forEach(b => b.onclick = () => { group = b.dataset.g; render(); });
+  document.querySelectorAll(".card").forEach(el => {
+    const id = el.dataset.id;
+    el.querySelector(".a").onclick = () => { verdicts.set(id, "agree"); persist(); el.className = "card agree"; tally(); };
+    el.querySelector(".d").onclick = () => { verdicts.set(id, "disagree"); persist(); el.className = "card disagree"; tally(); };
+    const inp = el.querySelector("input"); let t;
+    inp.oninput = () => { clearTimeout(t); t = setTimeout(() => { const s = inp.value.trim(); if (s) comments.set(id, s); else comments.delete(id); persist(); }, 500); };
+  });
+  tally();
+}
+function tally(){ const a = [...verdicts.values()].filter(v => v === "agree").length, d = verdicts.size - a; document.getElementById("tally").innerHTML = `<span><b>${a}</b> agree</span><span><b>${d}</b> disagree</span><span>${ROWS.length - verdicts.size} unjudged</span>`; }
+loadLocal(); render();
+(async () => {
+  if (!key) { saveEl.textContent = "no key — judgements stay in this browser"; saveEl.className = "save err"; return; }
+  try { const r = await fetch(API, {headers:{"x-triage-key":key}}); if (!r.ok) throw new Error(r.status); const o = await r.json();
+    for (const k in o.v || {}) verdicts.set(k, o.v[k]); for (const k in o.c || {}) comments.set(k, o.c[k]); saveLocal(); render();
+    saveEl.textContent = `saved, ${verdicts.size} judgements`; saveEl.className = "save on"; }
+  catch (e) { saveEl.textContent = `server unreachable (${e.message}) — judgements stay in this browser`; saveEl.className = "save err"; }
+})();
+</script>
+</body>
+</html>

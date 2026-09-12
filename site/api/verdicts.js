@@ -3,7 +3,7 @@
 // shared key, so a leaked URL can't overwrite a curation pass.
 import { put, get } from "@vercel/blob";
 
-const DOCS = { verdicts: "triage/verdicts.json", scenes: "triage/scenes.json" };
+const DOCS = { verdicts: "triage/verdicts.json", scenes: "triage/scenes.json", labels: "triage/labels.json" };
 const EMPTY = { v: {}, c: {}, n: "", t: 0 };
 
 export default async function handler(req, res) {
