@@ -34,4 +34,20 @@ python -c "import torch; print(torch.backends.mps.is_available())"   # expect Tr
 4. `scripts/latent.py`        sample, interpolate, find directions, render video
 5. `explore/app.py`           local UI to drive the latent space live
 
+## Exploring
+
+```
+python explore/app.py                                    # stub generator, no checkpoint needed
+python explore/app.py --network runs/.../snapshot.pkl    # a trained net (needs the sg3 env)
+```
+
+Sliders: `seed` picks a point in Z, `truncation` sets how far W may stray from the average
+sky, `blend` walks a straight line in W between two seeds, and `PC 1..6` are the directions W
+actually varies along (PCA over sampled W -- GANSpace), each in units of its own standard
+deviation. `record` writes an mp4 of the path to `out/`.
+
+With no `--network` the app runs on a procedural stub generator, so the UI can be built and
+driven before a checkpoint exists. The stub's skies are not the model's skies; it only
+responds to W the way a real generator does.
+
 Each step is documented in the tracking issue as it lands.

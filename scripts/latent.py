@@ -102,7 +102,10 @@ def write_video(frames, out: Path, fps: int):
     if out.suffix == ".gif":
         imageio.mimsave(out, frames, duration=1000 / fps, loop=0)
     else:
-        w = imageio.get_writer(out, fps=fps, codec="libx264", quality=8, macro_block_size=None)
+        # faststart moves the moov atom to the front, so browsers can start playing
+        # before the whole file arrives (without it a <video> tag just hangs on load).
+        w = imageio.get_writer(out, fps=fps, codec="libx264", quality=8, macro_block_size=None,
+                               output_params=["-movflags", "+faststart"])
         for f in frames:
             w.append_data(f)
         w.close()
