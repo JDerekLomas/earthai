@@ -5,6 +5,8 @@
 set -euo pipefail
 cd /root/earthai
 WAIT=$1; MODE=$2; TILES=$3; RAWM=$4; DSET=$5; ZIP=$6; RUN=$7; KIMG=$8; RESUME=$9
+# train_sg2.sh cds into the stylegan3 tree, so the dataset path must be absolute.
+case "$ZIP" in /*) ;; *) ZIP="/root/earthai/$ZIP" ;; esac
 if [ "$WAIT" != none ]; then while tmux has-session -t "$WAIT" 2>/dev/null; do sleep 60; done; fi
 echo "chain $RUN: wait over $(date)"
 if [ ! -f "$ZIP" ]; then
