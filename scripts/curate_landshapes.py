@@ -35,7 +35,8 @@ BANDS = [("white 0.30-0.70", "white", 0.30, 0.70), ("mean 32-48", "mean", 32, 48
 @click.option("--seed", default=13, type=int)
 @click.option("--sheet-offset", default=0, type=int, help="first sheet number, to sit after the existing sheets")
 @click.option("--grade/--raw", default=True)
-def main(root, out, zoom, per_family, per_band, seed, sheet_offset, grade):
+@click.option("--previous", default=None, type=click.Path(path_type=Path), help="last build's tiles.landshapes.json: a crop keeps its id across rebuilds")
+def main(root, out, zoom, per_family, per_band, seed, sheet_offset, grade, previous):
     rows = {}
     for line in open(root / "data/tiles/manifest.jsonl"):
         r = json.loads(line); rows[r["file"]] = r           # duplicate file -> last row wins
@@ -62,6 +63,17 @@ def main(root, out, zoom, per_family, per_band, seed, sheet_offset, grade):
         tone = auto_tone
     click.echo("grading with auto_tone" if tone else "raw, ungraded")
 
+    prior = {t["file"]: t["id"] for t in json.load(open(previous))} if previous else {}
+    next_id = max([int(i[1:]) for i in prior.values()] + [-1]) + 1
+    ids = {}
+    for r in picked:
+        if r["file"] in prior:
+            ids[r["file"]] = prior[r["file"]]
+        else:
+            ids[r["file"]] = f"L{next_id:04d}"; next_id += 1
+    if prior:
+        kept_ids = sum(1 for r in picked if r["file"] in prior)
+        click.echo(f"ids: {kept_ids} carried over from the previous build, {len(picked) - kept_ids} new, {len(prior) - kept_ids} previous crops no longer sampled")
     (out / "sheets").mkdir(parents=True, exist_ok=True)
     (out / "full").mkdir(exist_ok=True)
     rng.shuffle(picked)
@@ -70,7 +82,7 @@ def main(root, out, zoom, per_family, per_band, seed, sheet_offset, grade):
         chunk = picked[si:si + PER_SHEET]
         sheet = Image.new("RGB", (COLS * CELL, math.ceil(len(chunk) / COLS) * CELL), (8, 12, 18))
         for i, r in enumerate(chunk):
-            tid = f"L{si + i:04d}"
+            tid = ids[r["file"]]
             im = Image.open(root / "data/tiles" / r["file"]).convert("RGB")
             if tone:
                 im = tone(im)

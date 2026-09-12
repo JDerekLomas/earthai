@@ -37,6 +37,7 @@
   /* top bar */
   .top{position:sticky; top:0; z-index:5; background:var(--ground); border-bottom:1px solid var(--line); padding:12px 0 10px; display:flex; flex-wrap:wrap; align-items:center; gap:10px 22px}
   .top h1{font:600 20px/1 "IBM Plex Sans Condensed",sans-serif; margin:0; letter-spacing:-.01em}
+  .top .xl{color:var(--cool); font-size:13px; text-decoration:none}
   .progress{display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted)}
   .bar{width:180px; height:6px; background:var(--sunk); border-radius:3px; overflow:hidden; display:flex}
   .bar i{display:block; height:100%}
@@ -113,6 +114,8 @@
 
 <div class="top">
   <h1>Tile triage</h1>
+  <a class="xl" href="../scenes/">scenes &rarr;</a>
+  <a class="xl" href="https://landshapes-lighttable.vercel.app/mosaics/">landshapes mosaics &rarr;</a>
   <div class="progress"><span id="prog" class="mono">0 / 0</span><div class="bar"><i class="k" id="bar-k"></i><i class="r" id="bar-r"></i></div><span id="prog-kr" class="mono"></span></div>
   <span class="save" id="save">connecting…</span>
   <button class="filt" id="filt">Filters</button>
