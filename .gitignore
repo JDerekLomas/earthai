@@ -1,0 +1,24 @@
+# data and model outputs never go in git
+data/
+runs/
+*.pkl
+*.pt
+*.pth
+*.ckpt
+*.mp4
+*.gif
+*.npz
+
+# python
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# misc
+.DS_Store
+_tmp-*
+
+!data/tiles/.gitkeep
+!data/dataset/.gitkeep
+!runs/.gitkeep
