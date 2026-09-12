@@ -45,6 +45,20 @@
   .save.on{color:var(--ok)} .save.err{color:var(--no)}
   .keys{margin-left:auto; font-size:12px; color:var(--faint); display:flex; gap:12px; flex-wrap:wrap}
   .keys kbd{font-family:"IBM Plex Mono",monospace; border:1px solid var(--line); border-radius:3px; padding:0 5px; color:var(--muted); background:var(--surface)}
+  .size{display:flex; gap:2px; border:1px solid var(--line); border-radius:3px; overflow:hidden}
+  .size button{border:none; background:var(--surface); padding:3px 9px; font-size:12px; cursor:pointer; font-family:"IBM Plex Mono",monospace; color:var(--muted)}
+  .size button.on{background:var(--ink); color:var(--ground)}
+  .filt{display:none; border:1px solid var(--line); background:var(--surface); border-radius:3px; padding:3px 10px; font-size:12px; cursor:pointer}
+  @media (max-width:760px){ .filt{display:inline-block} .rail{display:none} .rail.open{display:flex} .keys{display:none} }
+  .cell .c{position:absolute; top:5px; right:5px; width:18px; height:18px; border-radius:3px; background:rgba(6,10,16,.7); color:#e8eef4; font:600 11px/18px "IBM Plex Mono",monospace; text-align:center; display:none}
+  .cell.commented .c{display:block}
+  .zoom .cmt{padding:0 16px 12px; display:flex; flex-direction:column; gap:6px}
+  .zoom .cmt label{font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.14em; text-transform:uppercase; color:var(--faint)}
+  .zoom textarea, .notes textarea{width:100%; font:inherit; font-size:13px; color:var(--ink); background:var(--sunk); border:1px solid var(--line); border-radius:3px; padding:8px; resize:vertical; min-height:56px; field-sizing:content}
+  .zoom textarea:focus, .notes textarea:focus{outline:2px solid var(--ochre); outline-offset:1px}
+  .notes{display:flex; flex-direction:column; gap:6px; border-top:1px solid var(--line); padding-top:14px}
+  .notes h3{margin:0; font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.14em; text-transform:uppercase; color:var(--faint)}
+  .notes .hint{font-size:12px; color:var(--faint)}
 
   /* layout */
   .layout{display:grid; grid-template-columns:230px 1fr; gap:22px; padding-block:16px 60px}
@@ -69,7 +83,9 @@
   .main{display:flex; flex-direction:column; gap:10px; min-width:0}
   .shown{font-size:13px; color:var(--muted); display:flex; gap:14px; flex-wrap:wrap; align-items:baseline}
   .shown b{color:var(--ink); font-weight:600}
-  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(var(--cell,118px),1fr)); gap:6px}
+  .grid.s .tag span:last-child{display:none}
+  .grid.s .tag{font-size:9.5px; padding:2px 4px}
   .cell{position:relative; border-radius:3px; overflow:hidden; background:var(--sunk); border:2px solid transparent; cursor:pointer; padding:0; display:block; width:100%}
   .cell .img{aspect-ratio:1; width:100%; background-color:var(--sunk); background-repeat:no-repeat; image-rendering:auto}
   .cell.keep{border-color:var(--ok)}
@@ -98,7 +114,9 @@
   <h1>Tile triage</h1>
   <div class="progress"><span id="prog" class="mono">0 / 0</span><div class="bar"><i class="k" id="bar-k"></i><i class="r" id="bar-r"></i></div><span id="prog-kr" class="mono"></span></div>
   <span class="save" id="save">connecting…</span>
-  <div class="keys"><span><kbd>←</kbd><kbd>→</kbd> move</span><span><kbd>K</kbd> keep</span><span><kbd>R</kbd> reject</span><span><kbd>U</kbd> clear</span><span><kbd>Z</kbd> zoom</span></div>
+  <button class="filt" id="filt">Filters</button>
+  <div class="size" role="group" aria-label="tile size"><button data-size="88">S</button><button data-size="118">M</button><button data-size="168">L</button></div>
+  <div class="keys"><span><kbd>←</kbd><kbd>→</kbd> move</span><span><kbd>K</kbd> keep</span><span><kbd>R</kbd> reject</span><span><kbd>U</kbd> clear</span><span><kbd>Z</kbd> zoom</span><span><kbd>C</kbd> comment</span></div>
 </div>
 
 <div class="layout">
@@ -112,6 +130,7 @@
 <dialog id="dlg"><div class="zoom">
   <div class="big" id="big"></div>
   <div class="meta" id="zmeta"></div>
+  <div class="cmt"><label for="zcmt">comment</label><textarea id="zcmt" rows="2" placeholder="anything — why it's wrong, what it is, what to do about tiles like it"></textarea></div>
   <div class="acts">
     <button class="k" id="zk">Keep <kbd>K</kbd></button>
     <button class="r" id="zr">Reject <kbd>R</kbd></button>
@@ -124,6 +143,7 @@
 <script>
 const TILES = /*TILES*/[];
 const SHEET = i => `sheets/sheet_${String(i).padStart(2,"0")}.jpg`;
+const LOW = i => `sheets/low_${String(i).padStart(2,"0")}.jpg`;
 const SRC = {modis:"MODIS", viirs:"VIIRS", s2:"Sentinel-2"};
 const SET = {clouds256:"clouds256 (training now)", land256:"land256 (training now)", alternative:"alternatives (fresh)"};
 
@@ -134,12 +154,15 @@ const FACETS = [
   ["z","window", v => `z${v} &middot; ~${KM_BY_Z[v] || "?"} km`],
   ["b","cloud fraction", v => v === "fresh" ? "— (fresh)" : v === "land" ? "— (land)" : v],
   ["rgm","regime", v => v.replace(/_/g," ")],
+  ["commented","comment", v => v],
 ];
 const VERDICT_FACET = ["verdict","verdict", v => v];
 const KM_BY_Z = (() => { const m = {}; for (const t of TILES) (m[t.z] = m[t.z] || []).push(t.km); for (const z in m) { const a = m[z].sort((x,y)=>x-y); m[z] = a[a.length >> 1]; } return m; })();
 
 // ---- state ----
 const verdicts = new Map();       // id -> "keep"|"reject"
+const comments = new Map();       // id -> text
+let notes = "";                   // free-text, general
 const active = {};                // facet -> Set of values
 for (const [f] of FACETS) active[f] = new Set();
 active.verdict = new Set();
@@ -149,15 +172,16 @@ let db = null, saveEl = document.getElementById("save");
 
 // ---- persistence: db first, localStorage as the fallback ----
 const LS = "earthai-triage-verdicts";
-function loadLocal(){ try{ const o = JSON.parse(localStorage.getItem(LS) || "{}"); for (const k in o) verdicts.set(k, o[k]); }catch(e){} }
-function saveLocal(){ try{ localStorage.setItem(LS, JSON.stringify(Object.fromEntries(verdicts))); }catch(e){} }
+function loadLocal(){ try{ const o = JSON.parse(localStorage.getItem(LS) || "{}"); for (const k in o.v || {}) verdicts.set(k, o.v[k]); for (const k in o.c || {}) comments.set(k, o.c[k]); notes = o.n || ""; }catch(e){} }
+function saveLocal(){ try{ localStorage.setItem(LS, JSON.stringify({v:Object.fromEntries(verdicts), c:Object.fromEntries(comments), n:notes})); }catch(e){} }
+function docFor(id){ const v = verdicts.get(id), c = comments.get(id); return (v || c) ? {v: v || null, c: c || null, t: Date.now()} : null; }
 let pending = new Map(), flushing = false;
 async function flush(){
   if (!db || flushing || pending.size === 0) return;
   flushing = true;
   const batch = [...pending]; pending.clear();
   try {
-    await Promise.all(batch.map(([id, v]) => v ? db.doc(`verdicts/${id}`).set({v, t: Date.now()}) : db.doc(`verdicts/${id}`).delete()));
+    await Promise.all(batch.map(([id, d]) => id === "__notes" ? db.doc("notes/general").set({text: d, t: Date.now()}) : d ? db.doc(`verdicts/${id}`).set(d) : db.doc(`verdicts/${id}`).delete()));
     saveEl.textContent = `saved, ${verdicts.size} verdicts`; saveEl.className = "save on";
   } catch (e) {
     for (const [id, v] of batch) if (!pending.has(id)) pending.set(id, v);
@@ -166,15 +190,22 @@ async function flush(){
   flushing = false;
   if (pending.size) setTimeout(flush, 800);
 }
+function persist(id){
+  saveLocal(); pending.set(id, id === "__notes" ? notes : docFor(id));
+  if (db) { saveEl.textContent = "saving…"; saveEl.className = "save"; setTimeout(flush, 250); }
+}
 function setVerdict(id, v){
   if (v) verdicts.set(id, v); else verdicts.delete(id);
-  saveLocal(); pending.set(id, v || null);
-  if (db) { saveEl.textContent = "saving…"; saveEl.className = "save"; setTimeout(flush, 250); }
-  paintCell(id); renderRail(); renderProgress();
+  persist(id); paintCell(id); renderRail(); renderProgress();
+}
+function setComment(id, text){
+  text = (text || "").trim();
+  if (text) comments.set(id, text); else comments.delete(id);
+  persist(id); paintCell(id); renderRail();
 }
 
 // ---- filtering ----
-function tileVal(t, f){ return f === "verdict" ? (verdicts.get(t.id) || "unreviewed") : t[f]; }
+function tileVal(t, f){ return f === "verdict" ? (verdicts.get(t.id) || "unreviewed") : f === "commented" ? (comments.has(t.id) ? "has comment" : "none") : t[f]; }
 function passes(t, except){
   for (const f in active) {
     if (f === except || active[f].size === 0) continue;
@@ -210,7 +241,8 @@ function renderRail(){
     <button id="br">Reject all shown</button>
     <button id="bc">Copy verdicts as JSON</button>
     <span class="hint">Bulk buttons ask twice. Counts beside each facet are keep / reject.</span>
-  </div>`);
+  </div>
+  <div class="notes"><h3>notes</h3><textarea id="notes" rows="4" placeholder="general observations — what the filter should do, what's missing, anything">${notes.replace(/</g,"&lt;")}</textarea><span class="hint">saved as you type</span></div>`);
   rail.innerHTML = parts.join("");
   rail.querySelectorAll(".chip").forEach(b => b.addEventListener("click", () => {
     const f = b.dataset.f, v = b.dataset.v;
@@ -218,27 +250,29 @@ function renderRail(){
     renderAll();
   }));
   armBulk("bk", "keep"); armBulk("br", "reject");
+  const nb = document.getElementById("notes"); let nt;
+  nb.addEventListener("input", () => { notes = nb.value; clearTimeout(nt); nt = setTimeout(() => persist("__notes"), 600); });
   document.getElementById("bc").addEventListener("click", async () => {
-    const out = {}; for (const t of TILES) if (verdicts.has(t.id)) out[t.id] = {v: verdicts.get(t.id), set:t.set, src:t.src, z:t.z, km:t.km, b:t.b, rgm:t.rgm, cf:t.cf, sd:t.sd};
-    try { await navigator.clipboard.writeText(JSON.stringify(out)); saveEl.textContent = `copied ${Object.keys(out).length} verdicts`; } catch(e){ saveEl.textContent = "clipboard blocked"; }
+    const out = {notes, tiles:{}}; for (const t of TILES) if (verdicts.has(t.id) || comments.has(t.id)) out.tiles[t.id] = {v: verdicts.get(t.id) || null, comment: comments.get(t.id) || null, set:t.set, src:t.src, z:t.z, km:t.km, b:t.b, rgm:t.rgm, cf:t.cf, sd:t.sd};
+    try { await navigator.clipboard.writeText(JSON.stringify(out)); saveEl.textContent = `copied ${Object.keys(out.tiles).length} tiles + notes`; } catch(e){ saveEl.textContent = "clipboard blocked"; }
   });
 }
 function armBulk(id, v){
   const b = document.getElementById(id); let armed = false;
   b.addEventListener("click", () => {
     if (!armed) { armed = true; b.classList.add("arm"); b.textContent = `Really ${v} ${shown.length} shown?`; setTimeout(() => { armed = false; b.classList.remove("arm"); b.textContent = `${v[0].toUpperCase()+v.slice(1)} all shown`; }, 3000); return; }
-    for (const t of shown) { verdicts.set(t.id, v); pending.set(t.id, v); }
+    for (const t of shown) { verdicts.set(t.id, v); pending.set(t.id, docFor(t.id)); }
     saveLocal(); if (db) setTimeout(flush, 100); renderAll();
   });
 }
 
 // ---- grid ----
-const io = new IntersectionObserver(es => { for (const e of es) if (e.isIntersecting) { const el = e.target; el.style.backgroundImage = `url(${SHEET(el.dataset.s)})`; io.unobserve(el); } }, {rootMargin:"600px"});
+const io = new IntersectionObserver(es => { for (const e of es) if (e.isIntersecting) { const el = e.target; el.style.backgroundImage = `url(${SHEET(el.dataset.s)}), url(${LOW(el.dataset.s)})`; io.unobserve(el); } }, {rootMargin:"600px"});
 function cellHTML(t){
-  const v = verdicts.get(t.id) || "";
-  return `<button class="cell ${v}" data-id="${t.id}" aria-label="${SRC[t.src]} z${t.z}, ${t.km} km, ${t.rgm}">
-    <div class="img" data-s="${t.s}" style="background-size:1000% 1000%;background-position:${t.ix*100/9}% ${t.iy*100/9}%"></div>
-    <span class="v">${v === "keep" ? "✓" : "✕"}</span>
+  const v = verdicts.get(t.id) || "", c = comments.has(t.id) ? " commented" : "";
+  return `<button class="cell ${v}${c}" data-id="${t.id}" aria-label="${SRC[t.src]} z${t.z}, ${t.km} km, ${t.rgm}">
+    <div class="img" data-s="${t.s}" style="background-image:url(${LOW(t.s)});background-size:1000% 1000%;background-position:${t.ix*100/9}% ${t.iy*100/9}%"></div>
+    <span class="v">${v === "keep" ? "&#10003;" : "&#10005;"}</span><span class="c">&#9998;</span>
     <span class="tag"><span>${SRC[t.src]} z${t.z} &middot; ${t.km}km</span><span>cf ${t.cf.toFixed(2)}</span></span>
   </button>`;
 }
@@ -258,8 +292,8 @@ function renderGrid(){
 }
 function paintCell(id){
   const el = document.querySelector(`.cell[data-id="${id}"]`); if (!el) return;
-  const v = verdicts.get(id) || ""; el.className = `cell ${v}` + (shown[cur] && shown[cur].id === id ? " cur" : "");
-  el.querySelector(".v").textContent = v === "keep" ? "✓" : "✕";
+  const v = verdicts.get(id) || ""; el.className = `cell ${v}` + (comments.has(id) ? " commented" : "") + (shown[cur] && shown[cur].id === id ? " cur" : "");
+  el.querySelector(".v").innerHTML = v === "keep" ? "&#10003;" : "&#10005;";
 }
 function cycle(id){ const v = verdicts.get(id); setVerdict(id, !v ? "keep" : v === "keep" ? "reject" : null); }
 function markCur(){
@@ -284,8 +318,13 @@ function openZoom(){
   big.style.backgroundImage = `url(${SHEET(t.s)})`; big.style.backgroundSize = "1000% 1000%"; big.style.backgroundPosition = `${t.ix*100/9}% ${t.iy*100/9}%`;
   document.getElementById("zmeta").innerHTML = [["source",`${SRC[t.src]} z${t.z}`],["footprint",`${t.km} km`],["set",t.set],["region",`${t.reg} &middot; ${t.rgm}`],["date",t.date||"composite"],["cloud frac",t.cf.toFixed(3)],["lum std",t.sd.toFixed(3)],["lum mean",t.lm.toFixed(3)],["black",t.bk.toFixed(3)],["verdict",verdicts.get(t.id)||"—"]]
     .map(([k,v]) => `<div>${k}<b>${v}</b></div>`).join("");
+  const ta = document.getElementById("zcmt"); ta.value = comments.get(t.id) || ""; ta.dataset.id = t.id;
   if (!dlg.open) dlg.showModal();
 }
+const zta = document.getElementById("zcmt"); let zt;
+zta.addEventListener("input", () => { clearTimeout(zt); zt = setTimeout(() => setComment(zta.dataset.id, zta.value), 500); });
+zta.addEventListener("blur", () => { clearTimeout(zt); setComment(zta.dataset.id, zta.value); });
+zta.addEventListener("keydown", e => { if (e.key === "Escape") { e.preventDefault(); zta.blur(); dlg.close(); } e.stopPropagation(); });
 document.getElementById("zk").onclick = () => { setVerdict(shown[cur].id,"keep"); openZoom(); };
 document.getElementById("zr").onclick = () => { setVerdict(shown[cur].id,"reject"); openZoom(); };
 document.getElementById("zu").onclick = () => { setVerdict(shown[cur].id,null); openZoom(); };
@@ -295,7 +334,7 @@ document.getElementById("zc").onclick = () => dlg.close();
 // ---- keyboard ----
 const cols = () => { const g = document.getElementById("grid"); const first = g.querySelector(".cell"); if (!first) return 1; return Math.max(1, Math.floor(g.clientWidth / (first.offsetWidth + 8))); };
 document.addEventListener("keydown", e => {
-  if (e.target.tagName === "INPUT") return;
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
   const k = e.key.toLowerCase(); let h = true;
   if (k === "arrowright") cur = Math.min(shown.length-1, cur+1);
   else if (k === "arrowleft") cur = Math.max(0, cur-1);
@@ -305,12 +344,20 @@ document.addEventListener("keydown", e => {
   else if (k === "r" && shown[cur]) { setVerdict(shown[cur].id,"reject"); if (!dlg.open) cur = Math.min(shown.length-1, cur+1); }
   else if (k === "u" && shown[cur]) setVerdict(shown[cur].id,null);
   else if (k === "z" || (k === " " && !dlg.open)) { if (cur < 0) cur = 0; if (dlg.open) dlg.close(); else openZoom(); }
+  else if (k === "c" && shown[cur]) { if (!dlg.open) openZoom(); setTimeout(() => document.getElementById("zcmt").focus(), 50); }
   else h = false;
   if (h) { e.preventDefault(); markCur(); if (dlg.open && k !== "z" && k !== " ") openZoom(); }
 });
 
+// ---- size + filters ----
+const SZ = "earthai-triage-size";
+function setSize(px){ document.documentElement.style.setProperty("--cell", px + "px"); document.getElementById("grid").classList.toggle("s", +px < 100); document.querySelectorAll(".size button").forEach(b => b.classList.toggle("on", b.dataset.size === String(px))); try{ localStorage.setItem(SZ, px); }catch(e){} }
+document.querySelectorAll(".size button").forEach(b => b.addEventListener("click", () => setSize(b.dataset.size)));
+document.getElementById("filt").addEventListener("click", () => document.getElementById("rail").classList.toggle("open"));
+
 // ---- boot ----
 loadLocal();
+setSize((() => { try { return localStorage.getItem(SZ) || 118; } catch(e) { return 118; } })());
 renderAll();
 (async () => {
   db = window.claude && window.claude.use ? await window.claude.use("db") : null;
@@ -318,12 +365,13 @@ renderAll();
   try {
     const snap = await db.collection("verdicts").get();
     let merged = 0;
-    snap.docs.forEach(d => { const v = d.data() && d.data().v; if (v && (v === "keep" || v === "reject")) { verdicts.set(d.id, v); merged++; } });
+    snap.docs.forEach(d => { const x = d.data() || {}; if (x.v === "keep" || x.v === "reject") verdicts.set(d.id, x.v); if (typeof x.c === "string" && x.c) comments.set(d.id, x.c); merged++; });
+    try { const n = await db.doc("notes/general").get(); if (n.exists && typeof n.data().text === "string") notes = n.data().text; } catch(e) {}
     saveLocal();
     saveEl.textContent = `saved, ${verdicts.size} verdicts`; saveEl.className = "save on";
     renderAll();
     // anything only in this browser goes up
-    for (const [id, v] of verdicts) if (!snap.docs.some(d => d.id === id)) pending.set(id, v);
+    const have = new Set(snap.docs.map(d => d.id)); for (const id of new Set([...verdicts.keys(), ...comments.keys()])) if (!have.has(id)) pending.set(id, docFor(id));
     if (pending.size) flush();
   } catch (e) {
     saveEl.textContent = `store unavailable (${e.code || "error"}) — verdicts stay in this browser`; saveEl.className = "save err";
