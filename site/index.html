@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How Much Ground Per Tile</title>
+<meta name="description" content="Real satellite tiles of three places at every available scale, to decide how much ground an earthai training tile should cover.">
+<style>html{color-scheme:light dark} body{margin:0} img{max-width:100%}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#e9edf1; --surface:#ffffff; --sunk:#dfe5ea;
+    --ink:#13202e; --muted:#5b6b7d; --faint:#8493a4;
+    --line:#c7d1da; --hair:#dbe2e8;
+    --ochre:#b3652a; --cool:#37718f; --deep:#0f2233;
+    --ok:#2f7d5b; --no:#a33a2a;
+    --shadow:0 1px 2px rgba(15,34,51,.08), 0 8px 24px rgba(15,34,51,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+      --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+      --line:#27394b; --hair:#1c2c3c;
+      --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+      --ok:#5cb98d; --no:#e0765f;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+    --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+    --line:#27394b; --hair:#1c2c3c;
+    --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+    --ok:#5cb98d; --no:#e0765f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--ground); color:var(--ink);
+    font:400 16px/1.55 "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    padding-block:48px 72px; padding-left:20px; padding-right:20px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px; margin:0 auto; display:flex; flex-direction:column; gap:56px}
+  h1,h2,h3{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif; text-wrap:balance; margin:0}
+  h1{font-size:clamp(30px,4.6vw,46px); font-weight:600; letter-spacing:-.015em; line-height:1.08}
+  h2{font-size:clamp(20px,2.6vw,26px); font-weight:600; letter-spacing:-.01em}
+  h3{font-size:17px; font-weight:600}
+  p{margin:0; max-width:66ch}
+  .lede{font-size:clamp(17px,2vw,19px); color:var(--muted); max-width:62ch}
+  .eyebrow{
+    font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--faint);
+  }
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+  section{display:flex; flex-direction:column; gap:20px}
+  .head{display:flex; flex-direction:column; gap:8px}
+
+  /* ---- thesis ---- */
+  header{display:flex; flex-direction:column; gap:18px; border-bottom:1px solid var(--line); padding-bottom:36px}
+  .claim{
+    font-family:"IBM Plex Sans Condensed",sans-serif; font-size:clamp(19px,2.4vw,23px); line-height:1.35;
+    max-width:30ch; border-left:3px solid var(--ochre); padding-left:18px; color:var(--ink);
+  }
+  .claim b{color:var(--ochre); font-weight:600}
+  .formula{
+    font-family:"IBM Plex Mono",monospace; font-size:14px; color:var(--muted);
+    background:var(--sunk); border:1px solid var(--hair); border-radius:3px;
+    padding:12px 14px; width:fit-content; max-width:100%; overflow-x:auto;
+  }
+
+  /* ---- chart ---- */
+  .chartbox{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:22px 20px 16px; box-shadow:var(--shadow)}
+  .chartbox svg{display:block; width:100%; height:auto; overflow:visible}
+  .key{display:flex; flex-wrap:wrap; gap:18px; margin-top:14px; font-size:13px; color:var(--muted)}
+  .key i{display:inline-block; width:22px; height:8px; border-radius:1px; margin-right:7px; vertical-align:middle}
+
+  /* ---- ladders ---- */
+  .place{display:flex; flex-direction:column; gap:12px}
+  .placehead{display:flex; gap:14px; align-items:baseline; flex-wrap:wrap}
+  .verdict{font-family:"IBM Plex Mono",monospace; font-size:12px; padding:2px 8px; border-radius:2px; white-space:nowrap}
+  .v-ok{color:var(--ok); border:1px solid currentColor}
+  .v-no{color:var(--no); border:1px solid currentColor}
+  .strip{display:flex; gap:10px; overflow-x:auto; padding-bottom:8px; scrollbar-width:thin}
+  figure{margin:0; flex:0 0 auto; width:172px; display:flex; flex-direction:column; gap:7px}
+  figure button{
+    padding:0; border:1px solid var(--line); background:var(--sunk); border-radius:3px; cursor:zoom-in;
+    display:block; width:172px; height:172px; overflow:hidden;
+  }
+  figure img{display:block; width:100%; height:100%; object-fit:cover}
+  figure button:hover{border-color:var(--ochre)}
+  figure button:focus-visible{outline:2px solid var(--ochre); outline-offset:2px}
+  figcaption{display:flex; flex-direction:column; gap:2px; font-size:12px}
+  .fc-km{font-family:"IBM Plex Mono",monospace; font-weight:500; font-size:14px; color:var(--ink); font-variant-numeric:tabular-nums}
+  .fc-src{color:var(--faint); font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:.02em}
+  .note{font-size:13px; color:var(--muted); max-width:66ch}
+
+  /* ---- tables ---- */
+  .tablebox{overflow-x:auto; border:1px solid var(--hair); border-radius:4px; background:var(--surface)}
+  table{border-collapse:collapse; width:100%; font-size:14px; min-width:520px}
+  th,td{text-align:left; padding:11px 14px; border-bottom:1px solid var(--hair)}
+  th{font-family:"IBM Plex Sans Condensed",sans-serif; font-weight:600; font-size:13px; color:var(--muted); white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  td.num{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; white-space:nowrap}
+
+  /* ---- decisions ---- */
+  .decisions{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:1px; background:var(--hair); border:1px solid var(--hair); border-radius:4px; overflow:hidden}
+  .dec{background:var(--surface); padding:20px; display:flex; flex-direction:column; gap:9px}
+  .dec .eyebrow{color:var(--ochre)}
+  .dec p{font-size:14px; color:var(--muted)}
+  .dec .verdict{align-self:flex-start}
+
+  /* ---- lightbox ---- */
+  dialog{
+    border:none; padding:0; background:transparent; max-width:min(92vw,640px);
+  }
+  dialog::backdrop{background:rgba(8,16,26,.82)}
+  .lb{background:var(--surface); border-radius:4px; overflow:hidden; box-shadow:var(--shadow)}
+  .lb img{display:block; width:100%; height:auto; image-rendering:auto}
+  .lb .meta{padding:14px 16px; display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; font-size:13px; color:var(--muted)}
+  .lb .meta b{color:var(--ink); font-weight:600}
+  .lb button{
+    font:inherit; font-size:13px; background:none; border:1px solid var(--line); color:var(--muted);
+    border-radius:2px; padding:3px 10px; cursor:pointer;
+  }
+  footer{border-top:1px solid var(--line); padding-top:24px; font-size:13px; color:var(--faint); display:flex; flex-direction:column; gap:6px}
+  footer a{color:var(--cool)}
+  @media (prefers-reduced-motion:no-preference){
+    figure button{transition:border-color .15s ease}
+  }
+</style>
+
+
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">earthai · dataset design · 12 Sep 2026</div>
+    <h1>How much ground per tile</h1>
+    <p class="lede">A 256&nbsp;px training tile is a window on the ground, and its width is a choice we make — not a property of the satellite. Every image below is a real 256&nbsp;px tile of the same place, pulled today, differing only in how much world it holds.</p>
+    <div class="formula">footprint = 256 px &times; ground sample distance &nbsp;→&nbsp; MODIS z8 = 256 &times; 567 m = <b>145 km</b></div>
+    <p class="claim">Finer is not better. A feature is learnable only when it is <b>coarser than a few pixels</b> and <b>smaller than the frame</b>. Both ends bite.</p>
+  </header>
+
+  <section>
+    <div class="head">
+      <div class="eyebrow">The instrument</div>
+      <h2>What each window can see</h2>
+      <p>Each bar spans from the smallest thing that window resolves (three pixels) to the largest thing that fits inside it. A subject is learnable where its band overlaps a bar — and unlearnable off either end.</p>
+    </div>
+    <div class="chartbox">
+      <svg id="chart" viewBox="0 0 900 540" role="img" aria-label="Log scale of feature size against the resolvable range of each source and zoom level"></svg>
+      <div class="key">
+        <span><i style="background:var(--cool)"></i>MODIS / VIIRS window</span>
+        <span><i style="background:var(--ochre)"></i>Sentinel-2 window</span>
+        <span><i style="background:var(--faint);opacity:.55"></i>subject, at its real size</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="head">
+      <div class="eyebrow">The evidence</div>
+      <h2>Three places, every scale we can get</h2>
+      <p>Same centre point, same 256&nbsp;px output, widest window first. Click any tile to see it at full size.</p>
+    </div>
+
+    <div class="place" id="p-strato"></div>
+    <div class="place" id="p-dunes"></div>
+    <div class="place" id="p-delta"></div>
+  </section>
+
+  <section>
+    <div class="head">
+      <div class="eyebrow">Constraints</div>
+      <h2>What the sources will and won't give us</h2>
+    </div>
+    <div class="tablebox">
+      <table>
+        <thead><tr><th>Source</th><th>Native GSD</th><th>Deepest zoom</th><th>Narrowest 256 px window</th><th>Catch</th></tr></thead>
+        <tbody>
+          <tr><td>MODIS Terra / Aqua</td><td class="num">250 m</td><td class="num">z9</td><td class="num">73 km</td><td>Daily global, every day since 2000. Swath gaps cut black wedges through tiles.</td></tr>
+          <tr><td>VIIRS SNPP / NOAA-20</td><td class="num">375 m</td><td class="num">z9</td><td class="num">73 km</td><td>Same ceiling, coarser sensor. Useful as a second look at the same day.</td></tr>
+          <tr><td>Sentinel-2 cloudless</td><td class="num">10 m</td><td class="num">z14+</td><td class="num">2.3 km</td><td><b>No clouds, by construction</b> — it is an annual cloud-free composite. One fixed epoch, no daily weather.</td></tr>
+          <tr><td>Landsat annual composite</td><td class="num">30 m</td><td class="num">z12</td><td class="num">9 km</td><td>Cloud-free annual mosaic, same limitation, coarser than Sentinel-2.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">The two families do not overlap: anything that resolves terrain texture is a cloud-free composite, and anything that sees weather stops at 250&nbsp;m. There is no source that gives us dune rhythm <em>and</em> today's sky.</p>
+  </section>
+
+  <section>
+    <div class="head">
+      <div class="eyebrow">Levers</div>
+      <h2>Three ways to change the window</h2>
+    </div>
+    <div class="decisions">
+      <div class="dec">
+        <div class="eyebrow">Change zoom</div>
+        <h3>Move along the ladder</h3>
+        <p>One step coarser doubles the footprint and doubles the GSD. Cheapest lever, and the only one that costs no extra compute — but it trades detail for extent one-for-one.</p>
+      </div>
+      <div class="dec">
+        <div class="eyebrow">Stitch, then downscale</div>
+        <h3>Same as a coarser zoom</h3>
+        <p>Mosaicking 2&times;2 tiles and shrinking to 256 px gives exactly what one tile a zoom coarser gives. Worth doing only below the pyramid's own floor, or to dodge a swath gap.</p>
+      </div>
+      <div class="dec">
+        <div class="eyebrow">Change output size</div>
+        <h3>The only real gain</h3>
+        <p>512 px at the same zoom keeps the GSD and doubles the footprint — the one way to hold detail and extent together. It costs roughly 3–4&times; the training time per kimg.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="head">
+      <div class="eyebrow">Verdict</div>
+      <h2>What this says about the two sets we have</h2>
+    </div>
+    <div class="tablebox">
+      <table>
+        <thead><tr><th>Set</th><th>Window</th><th>Subject's real size</th><th>Reading</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><b>clouds256</b><br><span class="fc-src">MODIS/VIIRS z8</span></td>
+            <td class="num">145 km<br>567 m/px</td>
+            <td class="num">cells 10–50 km<br>streets 2–10 km</td>
+            <td><span class="verdict v-ok">well matched</span> Both sit inside the window with room to repeat. The run's problem is composition — 43% of tiles are &gt;85% cloud — not scale.</td>
+          </tr>
+          <tr>
+            <td><b>land256</b><br><span class="fc-src">MODIS z8</span></td>
+            <td class="num">134 km<br>524 m/px</td>
+            <td class="num">dunes 0.1–3 km<br>deltas 10–150 km</td>
+            <td><span class="verdict v-no">half matched</span> Dune and ridge texture falls under the 1.7 km floor and cannot appear at any kimg. Delta and drainage networks fit and do render — see the Okavango strip above.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">This refines an earlier, blunter claim of mine that the land set was simply unusable at z8. The Okavango tiles disprove that: continental-scale landforms read perfectly well at 148 km. What z8 cannot do is the <em>texture</em> scale — which is most of what the current region list asks for (dunes, mountains, farmland).</p>
+  </section>
+
+  <footer>
+    <div>Imagery: NASA GIBS (MODIS Terra/Aqua, VIIRS SNPP true colour) · Sentinel-2 cloudless 2020 by EOX IT Services GmbH, CC BY-NC-SA 4.0.</div>
+    <div>Tiles fetched 12 Sep 2026 for <a href="https://github.com/JDerekLomas/earthai">github.com/JDerekLomas/earthai</a> · scale bars are 3&nbsp;px resolving floor to full-frame ceiling.</div>
+  </footer>
+</div>
+
+<dialog id="lb"><form method="dialog" class="lb">
+  <img id="lb-img" alt="">
+  <div class="meta"><span id="lb-meta"></span><button value="close">Close</button></div>
+</form></dialog>
+
+<script>
+const PLACES = [
+  { id:"p-strato", dir:"ladder/stratocumulus_namibia", name:"Closed-cell stratocumulus, off Namibia",
+    coord:"10.0°E 22.0°S", verdict:["ok","cloud structure at every MODIS step"],
+    note:"The black wedges in the two widest tiles are MODIS swath gaps, which is what the dataset's max-black filter exists to drop. The three Sentinel-2 tiles are the same patch of ocean with no cloud in them at all — a cloudless composite cannot photograph weather.",
+    tiles:[["modis_z6_2268mpp_581km",581,2268],["modis_z7_1134mpp_290km",290,1134],["modis_z8_567mpp_145km",145,567],["viirs_z8_567mpp_145km",145,567],["modis_z9_283mpp_73km",73,283],["viirs_z9_283mpp_73km",73,283],["s2_z10_142mpp_36km",36,142],["s2_z11_71mpp_18km",18,71],["s2_z12_35mpp_9km",9,35]] },
+  { id:"p-dunes", dir:"ladder/dunes_erg_chebbi", name:"Linear dunes, eastern Grand Erg",
+    coord:"6.5°E 31.1°N", verdict:["no","nothing until Sentinel-2"],
+    note:"Four MODIS steps of flat ochre. The dune rhythm only appears at z11 and below, where the window has narrowed to 17 km — a scale MODIS cannot reach by any amount of training.",
+    tiles:[["modis_z6_2094mpp_536km",536,2094],["modis_z7_1047mpp_268km",268,1047],["modis_z8_524mpp_134km",134,524],["viirs_z8_524mpp_134km",134,524],["modis_z9_262mpp_67km",67,262],["viirs_z9_262mpp_67km",67,262],["s2_z10_131mpp_34km",34,131],["s2_z11_65mpp_17km",17,65],["s2_z12_33mpp_8km",8,33],["s2_z13_16mpp_4km",4,16],["s2_z14_8mpp_2km",2,8]] },
+  { id:"p-delta", dir:"ladder/delta_okavango", name:"Okavango inland delta, Botswana",
+    coord:"22.9°E 19.3°S", verdict:["ok","best read at the widest windows"],
+    note:"The counter-example to \"finer is better\": the branching network is legible at 295 km and 148 km, and gone by the time Sentinel-2 has narrowed to 9 km, where the same place is just green scrub texture.",
+    tiles:[["modis_z6_2309mpp_591km",591,2309],["modis_z7_1154mpp_295km",295,1154],["modis_z8_577mpp_148km",148,577],["viirs_z8_577mpp_148km",148,577],["modis_z9_289mpp_74km",74,289],["viirs_z9_289mpp_74km",74,289],["s2_z10_144mpp_37km",37,144],["s2_z11_72mpp_18km",18,72],["s2_z12_36mpp_9km",9,36],["s2_z13_18mpp_5km",5,18],["s2_z14_9mpp_2km",2,9]] },
+];
+
+const SRC = { modis:"MODIS", viirs:"VIIRS", s2:"Sentinel-2" };
+const lb = document.getElementById("lb"), lbImg = document.getElementById("lb-img"), lbMeta = document.getElementById("lb-meta");
+
+for (const p of PLACES) {
+  const host = document.getElementById(p.id);
+  const [vk, vtext] = p.verdict;
+  host.innerHTML = `<div class="placehead">
+      <h3>${p.name}</h3><span class="fc-src">${p.coord}</span>
+      <span class="verdict v-${vk}">${vtext}</span>
+    </div>
+    <div class="strip"></div>
+    <p class="note">${p.note}</p>`;
+  const strip = host.querySelector(".strip");
+  for (const [file, km, mpp] of p.tiles) {
+    const src = file.split("_")[0], z = file.split("_")[1];
+    const fig = document.createElement("figure");
+    fig.innerHTML = `<button type="button" aria-label="Enlarge ${SRC[src]} ${z}, ${km} km across">
+        <img src="${p.dir}/${file}.jpg" alt="${p.name}, ${km} km across at ${mpp} m per pixel" loading="lazy">
+      </button>
+      <figcaption><span class="fc-km">${km} km</span><span class="fc-src">${SRC[src]} ${z} · ${mpp} m/px</span></figcaption>`;
+    fig.querySelector("button").addEventListener("click", () => {
+      lbImg.src = `${p.dir}/${file}.jpg`;
+      lbImg.alt = `${p.name}, ${km} km across`;
+      lbMeta.innerHTML = `<span><b>${p.name}</b> — ${SRC[src]} ${z}</span><span class="mono">${km} km across · ${mpp} m/px</span>`;
+      lb.showModal();
+    });
+    strip.appendChild(fig);
+  }
+}
+
+// ---- chart: log scale of size in metres ----
+(function () {
+  const W = 900, H = 540, L = 138, R = 24, T = 34, B = 42;
+  const lo = Math.log10(20), hi = Math.log10(2.0e6);              // 20 m .. 2000 km
+  const x = m => L + (Math.log10(m) - lo) / (hi - lo) * (W - L - R);
+  const svg = document.getElementById("chart");
+  const el = (n, a, t) => { const e = document.createElementNS("http://www.w3.org/2000/svg", n);
+    for (const k in a) e.setAttribute(k, a[k]); if (t != null) e.textContent = t; return e; };
+
+  const TICKS = [[100,"100 m"],[1000,"1 km"],[10000,"10 km"],[100000,"100 km"],[1000000,"1000 km"]];
+  for (const [m, label] of TICKS) {
+    svg.appendChild(el("line", {x1:x(m), y1:T-6, x2:x(m), y2:H-B, stroke:"var(--hair)", "stroke-width":1}));
+    svg.appendChild(el("text", {x:x(m), y:H-B+18, fill:"var(--faint)", "font-size":12, "text-anchor":"middle",
+      "font-family":"IBM Plex Mono, monospace"}, label));
+  }
+  svg.appendChild(el("text", {x:L, y:H-B+36, fill:"var(--faint)", "font-size":11, "letter-spacing":"0.12em",
+    "font-family":"IBM Plex Mono, monospace"}, "SIZE OF THE THING ON THE GROUND"));
+
+  const SUBJECTS = [
+    ["tropical cyclone", 2e5, 1.5e6], ["mesoscale convective system", 1e5, 1e6],
+    ["delta / drainage network", 1e4, 1.5e5], ["closed cloud cells", 1e4, 5e4],
+    ["cloud street spacing", 2e3, 1e4], ["dune rhythm", 1e2, 3e3], ["river channel", 3e1, 1e3],
+  ];
+  let y = T;
+  for (const [name, a, b] of SUBJECTS) {
+    svg.appendChild(el("rect", {x:x(a), y:y, width:Math.max(x(b)-x(a),2), height:13, rx:1,
+      fill:"var(--faint)", opacity:.45}));
+    svg.appendChild(el("text", {x:L-10, y:y+11, fill:"var(--muted)", "font-size":12.5, "text-anchor":"end"}, name));
+    y += 21;
+  }
+
+  y += 16;
+  svg.appendChild(el("line", {x1:L-130, y1:y-8, x2:W-R, y2:y-8, stroke:"var(--line)", "stroke-width":1}));
+  const CONFIGS = [
+    ["MODIS z6", 2268, 581e3, "cool"], ["MODIS z7", 1134, 290e3, "cool"],
+    ["MODIS z8", 567, 145e3, "cool"], ["MODIS z9", 283, 73e3, "cool"],
+    ["Sentinel-2 z10", 142, 36e3, "ochre"], ["Sentinel-2 z11", 71, 18e3, "ochre"],
+    ["Sentinel-2 z12", 35, 9e3, "ochre"], ["Sentinel-2 z13", 18, 4.5e3, "ochre"],
+    ["Sentinel-2 z14", 9, 2.3e3, "ochre"],
+  ];
+  for (const [name, gsd, foot, tone] of CONFIGS) {
+    const floor = gsd * 3;
+    svg.appendChild(el("rect", {x:x(floor), y:y, width:Math.max(x(foot)-x(floor),2), height:15, rx:2,
+      fill:`var(--${tone})`, opacity:.88}));
+    svg.appendChild(el("text", {x:L-10, y:y+12, fill:"var(--ink)", "font-size":12.5, "text-anchor":"end",
+      "font-family":"IBM Plex Mono, monospace"}, name));
+    svg.appendChild(el("text", {x:x(foot)+7, y:y+12, fill:"var(--faint)", "font-size":11,
+      "font-family":"IBM Plex Mono, monospace"}, (foot/1000).toFixed(foot < 1e4 ? 1 : 0) + " km"));
+    y += 20;
+  }
+})();
+</script>
+
+</body>
+</html>

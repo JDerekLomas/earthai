@@ -34,6 +34,12 @@ python -c "import torch; print(torch.backends.mps.is_available())"   # expect Tr
 4. `scripts/latent.py`        sample, interpolate, find directions, render video
 5. `explore/app.py`           local UI to drive the latent space live
 
+## How much ground per tile
+
+https://earthai-scales.vercel.app — the same three places at every scale we can fetch, with the
+resolvable range of each source and zoom. Rebuild the tiles with `scripts/scale_ladder.py`,
+redeploy with `cd site && vercel --prod`.
+
 ## Exploring
 
 ```
