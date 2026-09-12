@@ -1,0 +1,17 @@
+torch>=2.5
+torchvision>=0.20
+numpy
+pillow
+requests
+tqdm
+imageio[ffmpeg]
+scipy
+click
+
+[explore]
+gradio>=5
+
+[stac]
+pystac-client
+planetary-computer
+rasterio

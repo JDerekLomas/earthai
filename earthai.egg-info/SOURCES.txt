@@ -1,0 +1,7 @@
+README.md
+pyproject.toml
+earthai.egg-info/PKG-INFO
+earthai.egg-info/SOURCES.txt
+earthai.egg-info/dependency_links.txt
+earthai.egg-info/requires.txt
+earthai.egg-info/top_level.txt

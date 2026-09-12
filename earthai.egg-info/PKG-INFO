@@ -1,0 +1,20 @@
+Metadata-Version: 2.4
+Name: earthai
+Version: 0.1.0
+Summary: Satellite cloud GAN with latent-space exploration and animation
+Requires-Python: <3.13,>=3.11
+Requires-Dist: torch>=2.5
+Requires-Dist: torchvision>=0.20
+Requires-Dist: numpy
+Requires-Dist: pillow
+Requires-Dist: requests
+Requires-Dist: tqdm
+Requires-Dist: imageio[ffmpeg]
+Requires-Dist: scipy
+Requires-Dist: click
+Provides-Extra: stac
+Requires-Dist: pystac-client; extra == "stac"
+Requires-Dist: planetary-computer; extra == "stac"
+Requires-Dist: rasterio; extra == "stac"
+Provides-Extra: explore
+Requires-Dist: gradio>=5; extra == "explore"

@@ -18,3 +18,7 @@ dependencies = [
 [project.optional-dependencies]
 stac = ["pystac-client", "planetary-computer", "rasterio"]
 explore = ["gradio>=5"]
+
+[tool.setuptools]
+# scripts/ are standalone CLIs, not an importable package
+packages = []
