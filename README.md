@@ -45,6 +45,10 @@ cloud buckets, with comments. Verdicts go through `site/api/verdicts.js` into a 
 JSON document, shared key in the `TRIAGE_KEY` env var; the page takes it once as `#k=...`). Rebuild
 the tiles on the box with `scripts/curate_build.py`, inject with `curate/triage.template.html`.
 
+https://earthai-scales.vercel.app/scenes/ — the same, one level up: 5x5 tile mosaics (~725 km at z8)
+from `scripts/fetch_scenes.py`, judged whole. `scripts/cut_scenes.py` then breaks kept scenes into
+training tiles at any window (256, 512->256, 1024->256), so one fetch serves every footprint.
+
 ## Exploring
 
 ```

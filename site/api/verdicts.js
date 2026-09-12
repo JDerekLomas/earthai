@@ -1,9 +1,9 @@
-// One JSON document in Vercel Blob holds every verdict, comment and note from the
-// triage page. GET returns it; PUT (or a sendBeacon POST) replaces it. Both need the
+// One JSON document per triage page (?doc=verdicts for tiles, ?doc=scenes for scenes)
+// in Vercel Blob holds every verdict, comment and note. GET returns it; PUT (or a sendBeacon POST) replaces it. Both need the
 // shared key, so a leaked URL can't overwrite a curation pass.
 import { put, get } from "@vercel/blob";
 
-const PATH = "triage/verdicts.json";
+const DOCS = { verdicts: "triage/verdicts.json", scenes: "triage/scenes.json" };
 const EMPTY = { v: {}, c: {}, n: "", t: 0 };
 
 export default async function handler(req, res) {
@@ -12,6 +12,7 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: "bad key" });
   }
   res.setHeader("Cache-Control", "no-store");
+  const PATH = DOCS[req.query.doc] || DOCS.verdicts;
 
   if (req.method === "GET") {
     const found = await get(PATH, { access: "private", useCache: false });

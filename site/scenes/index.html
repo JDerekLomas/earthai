@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scene Triage</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  html{color-scheme:light dark}
+  :root{
+    --ground:#e9edf1; --surface:#ffffff; --sunk:#dde3e9;
+    --ink:#13202e; --muted:#5b6b7d; --faint:#8493a4;
+    --line:#c7d1da; --hair:#dbe2e8;
+    --ochre:#b3652a; --cool:#37718f;
+    --ok:#2f7d5b; --no:#a33a2a;
+    --shadow:0 1px 2px rgba(15,34,51,.08), 0 8px 24px rgba(15,34,51,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+      --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+      --line:#27394b; --hair:#1c2c3c;
+      --ochre:#dd8b4b; --cool:#6aa9c9;
+      --ok:#5cb98d; --no:#e0765f;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+    --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+    --line:#27394b; --hair:#1c2c3c;
+    --ochre:#dd8b4b; --cool:#6aa9c9;
+    --ok:#5cb98d; --no:#e0765f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--ground); color:var(--ink); font:400 14px/1.45 "IBM Plex Sans",system-ui,sans-serif; -webkit-font-smoothing:antialiased; padding-left:16px; padding-right:16px; padding-block:0}
+  img{max-width:100%}
+  button{font:inherit; color:inherit}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+
+  .top{position:sticky; top:0; z-index:5; background:var(--ground); border-bottom:1px solid var(--line); padding:12px 0 10px; display:flex; flex-wrap:wrap; align-items:center; gap:10px 22px}
+  .top h1{font:600 20px/1 "IBM Plex Sans Condensed",sans-serif; margin:0; letter-spacing:-.01em}
+  .top a{color:var(--cool); font-size:13px; text-decoration:none}
+  .progress{display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted)}
+  .bar{width:160px; height:6px; background:var(--sunk); border-radius:3px; overflow:hidden; display:flex}
+  .bar i{display:block; height:100%} .bar .k{background:var(--ok)} .bar .r{background:var(--no)}
+  .save{font-size:12px; color:var(--faint); font-family:"IBM Plex Mono",monospace}
+  .save.on{color:var(--ok)} .save.err{color:var(--no)}
+  .size{display:flex; gap:2px; border:1px solid var(--line); border-radius:3px; overflow:hidden}
+  .size button{border:none; background:var(--surface); padding:3px 9px; font-size:12px; cursor:pointer; font-family:"IBM Plex Mono",monospace; color:var(--muted)}
+  .size button.on{background:var(--ink); color:var(--ground)}
+  .keys{margin-left:auto; font-size:12px; color:var(--faint); display:flex; gap:12px; flex-wrap:wrap}
+  .keys kbd{font-family:"IBM Plex Mono",monospace; border:1px solid var(--line); border-radius:3px; padding:0 5px; color:var(--muted); background:var(--surface)}
+  .filt{display:none; border:1px solid var(--line); background:var(--surface); border-radius:3px; padding:3px 10px; font-size:12px; cursor:pointer}
+
+  .layout{display:grid; grid-template-columns:210px 1fr; gap:22px; padding-block:16px 60px}
+  @media (max-width:760px){ .layout{grid-template-columns:1fr} .rail{position:static; display:none} .rail.open{display:flex} .filt{display:inline-block} .keys{display:none} }
+  .rail{position:sticky; top:62px; align-self:start; display:flex; flex-direction:column; gap:16px; max-height:calc(100vh - 80px); overflow:auto}
+  .facet{display:flex; flex-direction:column; gap:4px}
+  .facet h3, .notes h3{margin:0 0 3px; font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.14em; text-transform:uppercase; color:var(--faint)}
+  .chip{display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:4px 8px; border:1px solid transparent; border-radius:3px; background:none; cursor:pointer; font-size:13px}
+  .chip:hover{background:var(--surface)} .chip.on{background:var(--surface); border-color:var(--line)}
+  .chip .n{margin-left:auto; font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--faint)}
+  .chip .kr{font-family:"IBM Plex Mono",monospace; font-size:11px; white-space:nowrap}
+  .chip .kr b{color:var(--ok); font-weight:500} .chip .kr s{color:var(--no); text-decoration:none}
+  .notes{display:flex; flex-direction:column; gap:6px; border-top:1px solid var(--line); padding-top:14px}
+  textarea{width:100%; font:inherit; font-size:13px; color:var(--ink); background:var(--sunk); border:1px solid var(--line); border-radius:3px; padding:7px 8px; resize:vertical; min-height:44px; field-sizing:content}
+  textarea:focus{outline:2px solid var(--ochre); outline-offset:1px}
+  .hint{font-size:12px; color:var(--faint)}
+
+  .main{display:flex; flex-direction:column; gap:14px; min-width:0}
+  .shown{font-size:13px; color:var(--muted); display:flex; gap:14px; flex-wrap:wrap}
+  .shown b{color:var(--ink); font-weight:600}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(var(--scene,440px),1fr)); gap:14px}
+  .scene{background:var(--surface); border:1px solid var(--hair); border-radius:4px; overflow:hidden; display:flex; flex-direction:column; box-shadow:var(--shadow); border-left:4px solid transparent}
+  .scene.keep{border-left-color:var(--ok)} .scene.reject{border-left-color:var(--no)}
+  .scene.reject .pic img{filter:saturate(.3) brightness(.6)}
+  .scene.cur{outline:3px solid var(--ochre); outline-offset:1px}
+  .pic{position:relative; aspect-ratio:1; background:var(--sunk); cursor:zoom-in; border:none; padding:0; display:block; width:100%}
+  .pic img{display:block; width:100%; height:100%; object-fit:cover}
+  .pic .scale{position:absolute; left:10px; bottom:10px; display:flex; align-items:flex-end; gap:6px; color:#fff; font:500 11px/1 "IBM Plex Mono",monospace; text-shadow:0 1px 2px rgba(0,0,0,.8)}
+  .pic .scale i{display:block; height:0; border-bottom:2px solid #fff; box-shadow:0 1px 2px rgba(0,0,0,.8)}
+  .pic .v{position:absolute; top:8px; left:8px; padding:2px 8px; border-radius:2px; font:600 11px/1.4 "IBM Plex Mono",monospace; color:#fff; display:none}
+  .scene.keep .pic .v{display:block; background:var(--ok)} .scene.reject .pic .v{display:block; background:var(--no)}
+  .body{padding:10px 12px 12px; display:flex; flex-direction:column; gap:8px}
+  .head{display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:baseline}
+  .head b{font-family:"IBM Plex Sans Condensed",sans-serif; font-size:15px; font-weight:600}
+  .head .mono{font-size:12px; color:var(--muted)}
+  .stats{display:flex; gap:14px; flex-wrap:wrap; font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--faint)}
+  .stats b{color:var(--muted); font-weight:500}
+  .acts{display:flex; gap:6px; align-items:center}
+  .acts button{padding:5px 12px; border-radius:3px; border:1px solid var(--line); background:var(--surface); cursor:pointer; font-size:13px}
+  .acts .k{border-color:var(--ok); color:var(--ok)} .acts .r{border-color:var(--no); color:var(--no)}
+  .scene.keep .acts .k, .scene.reject .acts .r{color:#fff}
+  .scene.keep .acts .k{background:var(--ok)} .scene.reject .acts .r{background:var(--no)}
+  .empty{color:var(--muted); padding:40px 0; text-align:center}
+
+  dialog{border:none; padding:0; background:transparent; max-width:96vw; max-height:96vh}
+  dialog::backdrop{background:rgba(8,16,26,.9)}
+  .full{background:var(--surface); border-radius:4px; overflow:hidden; box-shadow:var(--shadow); display:flex; flex-direction:column; max-height:96vh}
+  .full .scroll{overflow:auto; max-height:calc(96vh - 52px); cursor:grab}
+  .full img{display:block; max-width:none}
+  .full .bar2{display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 14px; font-size:13px; color:var(--muted); flex-wrap:wrap}
+  .full .bar2 button{padding:4px 10px; border:1px solid var(--line); border-radius:3px; background:var(--surface); cursor:pointer; font-size:13px}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1>Scene triage</h1>
+  <a href="../triage/">tiles →</a>
+  <div class="progress"><span id="prog" class="mono">0 / 0</span><div class="bar"><i class="k" id="bar-k"></i><i class="r" id="bar-r"></i></div></div>
+  <span class="save" id="save">connecting…</span>
+  <button class="filt" id="filt">Filters</button>
+  <div class="size" role="group" aria-label="scene size"><button data-size="300">S</button><button data-size="440">M</button><button data-size="900">L</button></div>
+  <div class="keys"><span><kbd>←</kbd><kbd>→</kbd> move</span><span><kbd>K</kbd> keep</span><span><kbd>R</kbd> reject</span><span><kbd>U</kbd> clear</span><span><kbd>Z</kbd> native</span><span><kbd>C</kbd> comment</span></div>
+</div>
+
+<div class="layout">
+  <aside class="rail" id="rail"></aside>
+  <div class="main">
+    <div class="shown" id="shown"></div>
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+
+<dialog id="dlg"><div class="full">
+  <div class="bar2"><span id="ftitle"></span><span><button id="fk">Keep</button> <button id="fr">Reject</button> <button id="fc">Close</button></span></div>
+  <div class="scroll" id="fscroll"><img id="fimg" alt=""></div>
+</div></dialog>
+
+<script>
+const SCENES = [{"id":"modis_z8_california_2022-01-09_39_106","src":"modis","z":8,"reg":"california","rgm":"stratocumulus","sur":"ocean","date":"2022-01-09","km":701,"mpp":548,"px":1280,"cf":0.771,"bk":0.0,"sd":0.269,"lm":0.627,"bbox":[-125.156,23.241,-118.125,29.535]},{"id":"modis_z8_california_2021-08-12_40_109","src":"modis","z":8,"reg":"california","rgm":"stratocumulus","sur":"ocean","date":"2021-08-12","km":723,"mpp":565,"px":1280,"cf":0.713,"bk":0.0,"sd":0.313,"lm":0.591,"bbox":[-123.75,19.311,-116.719,25.8]},{"id":"modis_z8_california_2023-03-10_36_105","src":"modis","z":8,"reg":"california","rgm":"stratocumulus","sur":"ocean","date":"2023-03-10","km":693,"mpp":542,"px":1280,"cf":0.6,"bk":0.089,"sd":0.29,"lm":0.488,"bbox":[-129.375,24.527,-122.344,30.751]},{"id":"modis_z8_namibia_2021-09-23_124_148","src":"modis","z":8,"reg":"namibia","rgm":"stratocumulus","sur":"ocean","date":"2021-09-23","km":677,"mpp":529,"px":1280,"cf":0.15,"bk":0.0,"sd":0.201,"lm":0.204,"bbox":[-5.625,-33.138,1.406,-27.059]},{"id":"modis_z8_namibia_2023-11-07_123_144","src":"modis","z":8,"reg":"namibia","rgm":"stratocumulus","sur":"ocean","date":"2023-11-07","km":709,"mpp":554,"px":1280,"cf":0.402,"bk":0.14,"sd":0.298,"lm":0.347,"bbox":[-7.031,-28.304,0.0,-21.943]},{"id":"modis_z8_namibia_2019-10-16_132_140","src":"modis","z":8,"reg":"namibia","rgm":"stratocumulus","sur":"ocean","date":"2019-10-16","km":736,"mpp":575,"px":1280,"cf":0.39,"bk":0.0,"sd":0.294,"lm":0.372,"bbox":[5.625,-23.241,12.656,-16.636]},{"id":"modis_z8_peru_2021-12-28_66_145","src":"modis","z":8,"reg":"peru","rgm":"stratocumulus","sur":"ocean","date":"2021-12-28","km":701,"mpp":548,"px":1280,"cf":0.937,"bk":0.0,"sd":0.175,"lm":0.724,"bbox":[-87.188,-29.535,-80.156,-23.241]},{"id":"modis_z8_peru_2020-04-26_57_133","src":"modis","z":8,"reg":"peru","rgm":"stratocumulus","sur":"ocean","date":"2020-04-26","km":770,"mpp":601,"px":1280,"cf":0.227,"bk":0.0,"sd":0.225,"lm":0.277,"bbox":[-99.844,-13.923,-92.812,-7.014]},{"id":"modis_z8_peru_2022-02-03_67_135","src":"modis","z":8,"reg":"peru","rgm":"stratocumulus","sur":"ocean","date":"2022-02-03","km":762,"mpp":595,"px":1280,"cf":0.543,"bk":0.0,"sd":0.145,"lm":0.415,"bbox":[-85.781,-16.636,-78.75,-9.796]},{"id":"modis_z8_tradewind_atlantic_2022-02-10_102_111","src":"modis","z":8,"reg":"tradewind_atlantic","rgm":"tradewind_cumulus","sur":"ocean","date":"2022-02-10","km":736,"mpp":575,"px":1280,"cf":0.406,"bk":0.0,"sd":0.268,"lm":0.356,"bbox":[-36.562,16.636,-29.531,23.241]},{"id":"modis_z8_tradewind_atlantic_2023-06-27_95_114","src":"modis","z":8,"reg":"tradewind_atlantic","rgm":"tradewind_cumulus","sur":"ocean","date":"2023-06-27","km":753,"mpp":588,"px":1280,"cf":0.287,"bk":0.062,"sd":0.195,"lm":0.347,"bbox":[-46.406,12.555,-39.375,19.311]},{"id":"modis_z8_tradewind_atlantic_2023-09-19_101_119","src":"modis","z":8,"reg":"tradewind_atlantic","rgm":"tradewind_cumulus","sur":"ocean","date":"2023-09-19","km":773,"mpp":604,"px":1280,"cf":0.719,"bk":0.084,"sd":0.321,"lm":0.605,"bbox":[-37.969,5.616,-30.938,12.555]},{"id":"modis_z8_itcz_pacific_2022-06-19_19_128","src":"modis","z":8,"reg":"itcz_pacific","rgm":"convection","sur":"ocean","date":"2022-06-19","km":781,"mpp":610,"px":1280,"cf":0.146,"bk":0.0,"sd":0.196,"lm":0.222,"bbox":[-153.281,-7.014,-146.25,0.0]},{"id":"modis_z8_itcz_pacific_2020-01-20_18_127","src":"modis","z":8,"reg":"itcz_pacific","rgm":"convection","sur":"ocean","date":"2020-01-20","km":782,"mpp":611,"px":1280,"cf":0.27,"bk":0.123,"sd":0.239,"lm":0.323,"bbox":[-154.688,-5.616,-147.656,1.406]},{"id":"modis_z8_itcz_pacific_2019-02-23_34_120","src":"modis","z":8,"reg":"itcz_pacific","rgm":"convection","sur":"ocean","date":"2019-02-23","km":776,"mpp":606,"px":1280,"cf":0.227,"bk":0.144,"sd":0.224,"lm":0.277,"bbox":[-132.188,4.215,-125.156,11.178]},{"id":"modis_z8_north_atlantic_2020-11-19_102_80","src":"modis","z":8,"reg":"north_atlantic","rgm":"cyclone","sur":"ocean","date":"2020-11-19","km":463,"mpp":362,"px":1280,"cf":0.978,"bk":0.002,"sd":0.139,"lm":0.875,"bbox":[-36.562,51.618,-29.531,55.777]},{"id":"modis_z8_north_atlantic_2021-08-16_114_88","src":"modis","z":8,"reg":"north_atlantic","rgm":"cyclone","sur":"ocean","date":"2021-08-16","km":539,"mpp":421,"px":1280,"cf":0.474,"bk":0.0,"sd":0.316,"lm":0.425,"bbox":[-19.688,44.088,-12.656,48.922]},{"id":"modis_z8_north_atlantic_2021-02-11_110_77","src":"modis","z":8,"reg":"north_atlantic","rgm":"cyclone","sur":"ocean","date":"2021-02-11","km":436,"mpp":341,"px":1280,"cf":0.985,"bk":0.0,"sd":0.118,"lm":0.856,"bbox":[-25.312,54.162,-18.281,58.078]},{"id":"modis_z8_norwegian_sea_2021-04-08_131_62","src":"modis","z":8,"reg":"norwegian_sea","rgm":"cold_air_outbreak","sur":"ocean","date":"2021-04-08","km":316,"mpp":247,"px":1280,"cf":0.356,"bk":0.001,"sd":0.304,"lm":0.345,"bbox":[4.219,64.774,11.25,67.609]},{"id":"modis_z8_norwegian_sea_2020-06-26_122_66","src":"modis","z":8,"reg":"norwegian_sea","rgm":"cold_air_outbreak","sur":"ocean","date":"2020-06-26","km":345,"mpp":270,"px":1280,"cf":0.807,"bk":0.0,"sd":0.262,"lm":0.708,"bbox":[-8.438,62.268,-1.406,65.367]},{"id":"modis_z8_norwegian_sea_2019-02-26_124_63","src":"modis","z":8,"reg":"norwegian_sea","rgm":"cold_air_outbreak","sur":"ocean","date":"2019-02-26","km":323,"mpp":252,"px":1280,"cf":0.156,"bk":0.004,"sd":0.154,"lm":0.292,"bbox":[-5.625,64.168,1.406,67.067]},{"id":"modis_z8_sahara_2022-01-09_141_108","src":"modis","z":8,"reg":"sahara","rgm":"desert","sur":"land","date":"2022-01-09","km":716,"mpp":559,"px":1280,"cf":0.78,"bk":0.0,"sd":0.102,"lm":0.672,"bbox":[18.281,20.633,25.312,27.059]},{"id":"modis_z8_sahara_2021-08-12_144_110","src":"modis","z":8,"reg":"sahara","rgm":"desert","sur":"land","date":"2021-08-12","km":729,"mpp":570,"px":1280,"cf":0.442,"bk":0.082,"sd":0.19,"lm":0.618,"bbox":[22.5,17.979,29.531,24.527]},{"id":"modis_z8_sahara_2023-03-10_135_107","src":"modis","z":8,"reg":"sahara","rgm":"desert","sur":"land","date":"2023-03-10","km":709,"mpp":554,"px":1280,"cf":0.137,"bk":0.0,"sd":0.062,"lm":0.609,"bbox":[9.844,21.943,16.875,28.304]},{"id":"modis_z8_himalaya_2021-09-23_183_106","src":"modis","z":8,"reg":"himalaya","rgm":"mountains","sur":"land","date":"2021-09-23","km":701,"mpp":548,"px":1280,"cf":0.821,"bk":0.0,"sd":0.192,"lm":0.621,"bbox":[77.344,23.241,84.375,29.535]},{"id":"modis_z8_himalaya_2021-02-24_192_101","src":"modis","z":8,"reg":"himalaya","rgm":"mountains","sur":"land","date":"2021-02-24","km":660,"mpp":516,"px":1280,"cf":0.939,"bk":0.002,"sd":0.17,"lm":0.72,"bbox":[90.0,29.535,97.031,35.461]},{"id":"modis_z8_himalaya_2021-08-18_183_101","src":"modis","z":8,"reg":"himalaya","rgm":"mountains","sur":"land","date":"2021-08-18","km":660,"mpp":516,"px":1280,"cf":0.586,"bk":0.003,"sd":0.149,"lm":0.494,"bbox":[77.344,29.535,84.375,35.461]},{"id":"modis_z8_us_midwest_2023-11-07_57_95","src":"modis","z":8,"reg":"us_midwest","rgm":"farmland","sur":"land","date":"2023-11-07","km":606,"mpp":473,"px":1280,"cf":0.483,"bk":0.0,"sd":0.25,"lm":0.529,"bbox":[-99.844,36.598,-92.812,42.033]},{"id":"modis_z8_us_midwest_2023-05-02_66_95","src":"modis","z":8,"reg":"us_midwest","rgm":"farmland","sur":"land","date":"2023-05-02","km":606,"mpp":473,"px":1280,"cf":0.81,"bk":0.0,"sd":0.256,"lm":0.725,"bbox":[-87.188,36.598,-80.156,42.033]},{"id":"modis_z8_us_midwest_2019-02-24_64_94","src":"modis","z":8,"reg":"us_midwest","rgm":"farmland","sur":"land","date":"2019-02-24","km":596,"mpp":466,"px":1280,"cf":0.804,"bk":0.0,"sd":0.256,"lm":0.769,"bbox":[-90.0,37.719,-82.969,43.069]},{"id":"modis_z8_amazon_2019-10-16_87_129","src":"modis","z":8,"reg":"amazon","rgm":"rainforest_rivers","sur":"land","date":"2019-10-16","km":780,"mpp":609,"px":1280,"cf":0.851,"bk":0.003,"sd":0.189,"lm":0.637,"bbox":[-57.656,-8.407,-50.625,-1.406]},{"id":"modis_z8_amazon_2021-12-28_87_131","src":"modis","z":8,"reg":"amazon","rgm":"rainforest_rivers","sur":"land","date":"2021-12-28","km":776,"mpp":606,"px":1280,"cf":0.97,"bk":0.0,"sd":0.142,"lm":0.789,"bbox":[-57.656,-11.178,-50.625,-4.215]},{"id":"modis_z8_amazon_2020-04-26_78_128","src":"modis","z":8,"reg":"amazon","rgm":"rainforest_rivers","sur":"land","date":"2020-04-26","km":781,"mpp":610,"px":1280,"cf":0.711,"bk":0.0,"sd":0.227,"lm":0.551,"bbox":[-70.312,-7.014,-63.281,0.0]},{"id":"modis_z8_ganges_delta_2022-02-03_193_109","src":"modis","z":8,"reg":"ganges_delta","rgm":"rainforest_rivers","sur":"land","date":"2022-02-03","km":723,"mpp":565,"px":1280,"cf":0.198,"bk":0.0,"sd":0.216,"lm":0.347,"bbox":[91.406,19.311,98.438,25.8]},{"id":"modis_z8_ganges_delta_2022-02-10_193_109","src":"modis","z":8,"reg":"ganges_delta","rgm":"rainforest_rivers","sur":"land","date":"2022-02-10","km":723,"mpp":565,"px":1280,"cf":0.124,"bk":0.0,"sd":0.207,"lm":0.285,"bbox":[91.406,19.311,98.438,25.8]},{"id":"modis_z8_ganges_delta_2023-06-27_191_109","src":"modis","z":8,"reg":"ganges_delta","rgm":"rainforest_rivers","sur":"land","date":"2023-06-27","km":723,"mpp":565,"px":1280,"cf":0.949,"bk":0.0,"sd":0.167,"lm":0.821,"bbox":[88.594,19.311,95.625,25.8]},{"id":"s2_z11_sahara_composite_1132_867","src":"s2","z":11,"reg":"sahara","rgm":"desert","sur":"land","date":"composite","km":88,"mpp":69,"px":1280,"cf":0.469,"bk":0.0,"sd":0.027,"lm":0.942,"bbox":[18.984,25.8,19.863,26.589]},{"id":"s2_z11_sahara_composite_1055_898","src":"s2","z":11,"reg":"sahara","rgm":"desert","sur":"land","date":"composite","km":91,"mpp":71,"px":1280,"cf":0.028,"bk":0.0,"sd":0.039,"lm":0.886,"bbox":[5.449,20.797,6.328,21.617]},{"id":"s2_z11_sahara_composite_1071_889","src":"s2","z":11,"reg":"sahara","rgm":"desert","sur":"land","date":"composite","km":90,"mpp":71,"px":1280,"cf":0.057,"bk":0.0,"sd":0.071,"lm":0.862,"bbox":[8.262,22.269,9.141,23.08]},{"id":"s2_z11_himalaya_composite_1541_842","src":"s2","z":11,"reg":"himalaya","rgm":"mountains","sur":"land","date":"composite","km":85,"mpp":66,"px":1280,"cf":0.028,"bk":0.0,"sd":0.083,"lm":0.282,"bbox":[90.879,29.688,91.758,30.449]},{"id":"s2_z11_himalaya_composite_1507_827","src":"s2","z":11,"reg":"himalaya","rgm":"mountains","sur":"land","date":"composite","km":83,"mpp":65,"px":1280,"cf":0.013,"bk":0.0,"sd":0.118,"lm":0.545,"bbox":[84.902,31.952,85.781,32.695]},{"id":"s2_z11_himalaya_composite_1554_831","src":"s2","z":11,"reg":"himalaya","rgm":"mountains","sur":"land","date":"composite","km":83,"mpp":65,"px":1280,"cf":0.022,"bk":0.0,"sd":0.095,"lm":0.256,"bbox":[93.164,31.354,94.043,32.101]},{"id":"s2_z11_ganges_delta_composite_1522_878","src":"s2","z":11,"reg":"ganges_delta","rgm":"rainforest_rivers","sur":"land","date":"composite","km":89,"mpp":70,"px":1280,"cf":0.034,"bk":0.0,"sd":0.074,"lm":0.303,"bbox":[87.539,24.046,88.418,24.847]},{"id":"s2_z11_ganges_delta_composite_1534_894","src":"s2","z":11,"reg":"ganges_delta","rgm":"rainforest_rivers","sur":"land","date":"composite","km":91,"mpp":71,"px":1280,"cf":0.055,"bk":0.0,"sd":0.082,"lm":0.299,"bbox":[89.648,21.453,90.527,22.269]},{"id":"s2_z11_ganges_delta_composite_1544_871","src":"s2","z":11,"reg":"ganges_delta","rgm":"rainforest_rivers","sur":"land","date":"composite","km":88,"mpp":69,"px":1280,"cf":0.002,"bk":0.0,"sd":0.053,"lm":0.209,"bbox":[91.406,25.165,92.285,25.958]}];
+const SRC = {modis:"MODIS", viirs:"VIIRS", s2:"Sentinel-2"};
+const API = "/api/verdicts?doc=scenes";
+const LS = "earthai-scenes-verdicts";
+
+const verdicts = new Map(), comments = new Map(); let notes = "";
+const active = {verdict:new Set(), win:new Set(), sur:new Set(), rgm:new Set(), commented:new Set()};
+let shown = [], cur = -1;
+const saveEl = document.getElementById("save");
+
+// ---- key + persistence (same contract as the tile page) ----
+let key = "";
+try { const m = location.hash.match(/k=([A-Za-z0-9]+)/); key = (m && m[1]) || localStorage.getItem("earthai-triage-key") || ""; if (m) { localStorage.setItem("earthai-triage-key", key); history.replaceState(null, "", location.pathname); } } catch(e) {}
+function loadLocal(){ try{ const o = JSON.parse(localStorage.getItem(LS) || "{}"); for (const k in o.v || {}) verdicts.set(k, o.v[k]); for (const k in o.c || {}) comments.set(k, o.c[k]); notes = o.n || ""; }catch(e){} }
+function saveLocal(){ try{ localStorage.setItem(LS, JSON.stringify({v:Object.fromEntries(verdicts), c:Object.fromEntries(comments), n:notes})); }catch(e){} }
+function payload(){ return JSON.stringify({v:Object.fromEntries(verdicts), c:Object.fromEntries(comments), n:notes, t:Date.now()}); }
+let dirty = false, flushing = false, ft;
+async function flush(){
+  if (!key || flushing || !dirty) return;
+  flushing = true; dirty = false;
+  try {
+    const r = await fetch(API, {method:"PUT", headers:{"content-type":"application/json","x-triage-key":key}, body: payload()});
+    if (!r.ok) throw new Error(r.status);
+    saveEl.textContent = `saved, ${verdicts.size} verdicts, ${comments.size} comments`; saveEl.className = "save on";
+  } catch (e) { dirty = true; saveEl.textContent = `save failed (${e.message}) — kept in this browser, will retry`; saveEl.className = "save err"; setTimeout(flush, 5000); }
+  flushing = false;
+  if (dirty) { clearTimeout(ft); ft = setTimeout(flush, 1500); }
+}
+function persist(){ saveLocal(); dirty = true; if (key) { saveEl.textContent = "saving…"; saveEl.className = "save"; clearTimeout(ft); ft = setTimeout(flush, 1500); } }
+addEventListener("pagehide", () => { if (dirty && key && navigator.sendBeacon) navigator.sendBeacon(`${API}&key=${key}`, new Blob([payload()], {type:"application/json"})); });
+
+function setVerdict(id, v){ if (v) verdicts.set(id, v); else verdicts.delete(id); persist(); paint(id); renderRail(); renderProgress(); }
+function setComment(id, t){ t = (t || "").trim(); if (t) comments.set(id, t); else comments.delete(id); persist(); renderRail(); }
+
+// ---- facets ----
+const win = s => `${SRC[s.src]} z${s.z} · ${s.km} km`;
+function val(s, f){ return f === "verdict" ? (verdicts.get(s.id) || "unreviewed") : f === "win" ? win(s) : f === "commented" ? (comments.has(s.id) ? "has comment" : "none") : s[f]; }
+function passes(s, except){ for (const f in active) { if (f === except || !active[f].size) continue; if (!active[f].has(String(val(s, f)))) return false; } return true; }
+const LABEL = {verdict:"verdict", win:"window", sur:"surface", rgm:"regime", commented:"comment"};
+function renderRail(){
+  const parts = [];
+  for (const f of ["verdict","win","sur","rgm","commented"]) {
+    const counts = new Map();
+    for (const s of SCENES) { if (!passes(s, f)) continue; const v = String(val(s, f)); const c = counts.get(v) || {n:0,k:0,r:0}; c.n++; const vd = verdicts.get(s.id); if (vd === "keep") c.k++; else if (vd === "reject") c.r++; counts.set(v, c); }
+    if (f === "verdict") for (const v of ["unreviewed","keep","reject"]) if (!counts.has(v)) counts.set(v, {n:0,k:0,r:0});
+    const vals = [...counts.keys()].sort(f === "verdict" ? (a,b) => ["unreviewed","keep","reject"].indexOf(a) - ["unreviewed","keep","reject"].indexOf(b) : undefined);
+    parts.push(`<div class="facet"><h3>${LABEL[f]}</h3>` + vals.map(v => { const c = counts.get(v); return `<button class="chip${active[f].has(v) ? " on" : ""}" data-f="${f}" data-v="${v}">${v.replace(/_/g," ")}${f === "verdict" ? "" : `<span class="kr"><b>${c.k}</b>/<s>${c.r}</s></span>`}<span class="n">${c.n}</span></button>`; }).join("") + `</div>`);
+  }
+  parts.push(`<div class="notes"><h3>notes</h3><textarea id="notes" rows="4" placeholder="what the scenes tell you — which regions, which windows, what to fetch more of">${notes.replace(/</g,"&lt;")}</textarea><span class="hint">saved as you type</span></div>`);
+  const rail = document.getElementById("rail"); rail.innerHTML = parts.join("");
+  rail.querySelectorAll(".chip").forEach(b => b.addEventListener("click", () => { const f = b.dataset.f, v = b.dataset.v; if (active[f].has(v)) active[f].delete(v); else active[f].add(v); renderAll(); }));
+  const nb = document.getElementById("notes"); let nt; nb.addEventListener("input", () => { notes = nb.value; clearTimeout(nt); nt = setTimeout(persist, 600); });
+}
+
+// ---- grid ----
+const io = new IntersectionObserver(es => { for (const e of es) if (e.isIntersecting) { const im = e.target; im.src = im.dataset.full; io.unobserve(im); } }, {rootMargin:"800px"});
+function card(s){
+  const v = verdicts.get(s.id) || "";
+  const barKm = s.km >= 300 ? 100 : s.km >= 60 ? 20 : 5;                 // scale bar in round km
+  const barPct = barKm / s.km * 100;
+  return `<article class="scene ${v}" data-id="${s.id}">
+    <button class="pic" aria-label="open ${s.reg} at native resolution">
+      <img src="low/${s.id}.jpg" data-full="${s.id}.jpg" alt="${s.reg}, ${s.km} km across" loading="lazy">
+      <span class="v">${v}</span>
+      <span class="scale"><i style="width:${barPct.toFixed(1)}%"></i>${barKm} km</span>
+    </button>
+    <div class="body">
+      <div class="head"><b>${s.reg.replace(/_/g," ")} <span style="color:var(--faint);font-weight:400">· ${s.rgm.replace(/_/g," ")}</span></b><span class="mono">${win(s)} · ${s.date}</span></div>
+      <div class="stats"><span>cloud <b>${(s.cf*100).toFixed(0)}%</b></span><span>black <b>${(s.bk*100).toFixed(1)}%</b></span><span>contrast <b>${s.sd.toFixed(2)}</b></span><span>${s.mpp} m/px · ${s.px} px</span></div>
+      <div class="acts"><button class="k">Keep</button><button class="r">Reject</button><button class="u">Clear</button></div>
+      <textarea class="cmt" rows="1" placeholder="comment — what's good or wrong here, what to do about scenes like it">${(comments.get(s.id) || "").replace(/</g,"&lt;")}</textarea>
+    </div>
+  </article>`;
+}
+function renderGrid(){
+  shown = SCENES.filter(s => passes(s, null));
+  const g = document.getElementById("grid");
+  g.innerHTML = shown.length ? shown.map(card).join("") : `<div class="empty">Nothing matches these filters.</div>`;
+  g.querySelectorAll("img[data-full]").forEach(im => io.observe(im));
+  g.querySelectorAll(".scene").forEach((el, i) => {
+    const id = el.dataset.id;
+    el.querySelector(".pic").addEventListener("click", () => { cur = i; markCur(); openFull(); });
+    el.querySelector(".k").addEventListener("click", () => { cur = i; setVerdict(id, "keep"); });
+    el.querySelector(".r").addEventListener("click", () => { cur = i; setVerdict(id, "reject"); });
+    el.querySelector(".u").addEventListener("click", () => { cur = i; setVerdict(id, null); });
+    const ta = el.querySelector(".cmt"); let t;
+    ta.addEventListener("focus", () => { cur = i; markCur(); });
+    ta.addEventListener("input", () => { clearTimeout(t); t = setTimeout(() => setComment(id, ta.value), 500); });
+    ta.addEventListener("blur", () => { clearTimeout(t); setComment(id, ta.value); });
+  });
+  if (cur >= shown.length) cur = shown.length - 1;
+  markCur();
+  const n = shown.length, k = shown.filter(s => verdicts.get(s.id) === "keep").length, r = shown.filter(s => verdicts.get(s.id) === "reject").length;
+  document.getElementById("shown").innerHTML = `<span><b>${n}</b> shown</span><span style="color:var(--ok)">${k} keep</span><span style="color:var(--no)">${r} reject</span><span>${n-k-r} unreviewed</span><span style="color:var(--faint)">click a scene for native pixels</span>`;
+}
+function paint(id){ const el = document.querySelector(`.scene[data-id="${id}"]`); if (!el) return; const v = verdicts.get(id) || ""; el.className = `scene ${v}` + (shown[cur] && shown[cur].id === id ? " cur" : ""); el.querySelector(".v").textContent = v; }
+function markCur(){ document.querySelectorAll(".scene.cur").forEach(e => e.classList.remove("cur")); if (cur < 0 || !shown[cur]) return; const el = document.querySelector(`.scene[data-id="${shown[cur].id}"]`); if (el) { el.classList.add("cur"); el.scrollIntoView({block:"nearest"}); } }
+function renderProgress(){ const n = SCENES.length, k = [...verdicts.values()].filter(v => v === "keep").length, r = verdicts.size - k; document.getElementById("prog").textContent = `${verdicts.size} / ${n} reviewed`; document.getElementById("bar-k").style.width = (k/n*100) + "%"; document.getElementById("bar-r").style.width = (r/n*100) + "%"; }
+function renderAll(){ renderRail(); renderGrid(); renderProgress(); }
+
+// ---- native-resolution viewer ----
+const dlg = document.getElementById("dlg");
+function openFull(){
+  const s = shown[cur]; if (!s) return;
+  document.getElementById("fimg").src = `${s.id}.jpg`;
+  document.getElementById("ftitle").innerHTML = `<b>${s.reg.replace(/_/g," ")}</b> — ${win(s)} — ${s.px} px at ${s.mpp} m/px — ${s.date}`;
+  if (!dlg.open) dlg.showModal();
+}
+document.getElementById("fk").onclick = () => { setVerdict(shown[cur].id, "keep"); };
+document.getElementById("fr").onclick = () => { setVerdict(shown[cur].id, "reject"); };
+document.getElementById("fc").onclick = () => dlg.close();
+// drag to pan
+const sc = document.getElementById("fscroll"); let drag = null;
+sc.addEventListener("mousedown", e => { drag = {x:e.clientX, y:e.clientY, l:sc.scrollLeft, t:sc.scrollTop}; sc.style.cursor = "grabbing"; });
+addEventListener("mousemove", e => { if (drag) { sc.scrollLeft = drag.l - (e.clientX - drag.x); sc.scrollTop = drag.t - (e.clientY - drag.y); } });
+addEventListener("mouseup", () => { drag = null; sc.style.cursor = "grab"; });
+
+// ---- keys ----
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") { if (e.key === "Escape") e.target.blur(); return; }
+  const k = e.key.toLowerCase(); let h = true;
+  if (k === "arrowright" || k === "arrowdown") cur = Math.min(shown.length-1, cur+1);
+  else if (k === "arrowleft" || k === "arrowup") cur = Math.max(0, cur-1);
+  else if (k === "k" && shown[cur]) { setVerdict(shown[cur].id, "keep"); if (!dlg.open) cur = Math.min(shown.length-1, cur+1); }
+  else if (k === "r" && shown[cur]) { setVerdict(shown[cur].id, "reject"); if (!dlg.open) cur = Math.min(shown.length-1, cur+1); }
+  else if (k === "u" && shown[cur]) setVerdict(shown[cur].id, null);
+  else if (k === "z" || k === " ") { if (cur < 0) cur = 0; if (dlg.open) dlg.close(); else openFull(); }
+  else if (k === "c" && shown[cur]) { if (dlg.open) dlg.close(); const ta = document.querySelector(`.scene[data-id="${shown[cur].id}"] .cmt`); if (ta) ta.focus(); }
+  else h = false;
+  if (h) { e.preventDefault(); markCur(); if (dlg.open && k !== "z" && k !== " ") openFull(); }
+});
+
+// ---- size + filters + boot ----
+const SZ = "earthai-scenes-size";
+function setSize(px){ document.documentElement.style.setProperty("--scene", px + "px"); document.querySelectorAll(".size button").forEach(b => b.classList.toggle("on", b.dataset.size === String(px))); try{ localStorage.setItem(SZ, px); }catch(e){} }
+document.querySelectorAll(".size button").forEach(b => b.addEventListener("click", () => setSize(b.dataset.size)));
+document.getElementById("filt").addEventListener("click", () => document.getElementById("rail").classList.toggle("open"));
+loadLocal();
+setSize((() => { try { return localStorage.getItem(SZ) || 440; } catch(e) { return 440; } })());
+renderAll();
+(async () => {
+  if (!key) {
+    saveEl.innerHTML = `no key — verdicts stay in this browser. <input id="keyin" placeholder="paste key" style="font:inherit;width:11em;padding:1px 4px;border:1px solid var(--line);border-radius:3px;background:var(--surface);color:var(--ink)">`;
+    saveEl.className = "save err";
+    document.getElementById("keyin").addEventListener("change", e => { const k = e.target.value.trim(); if (k) { try{ localStorage.setItem("earthai-triage-key", k); }catch(_){} location.hash = "k=" + k; location.reload(); } });
+    return;
+  }
+  try {
+    const r = await fetch(API, {headers:{"x-triage-key":key}});
+    if (r.status === 401) { saveEl.textContent = "key rejected — verdicts stay in this browser"; saveEl.className = "save err"; try{ localStorage.removeItem("earthai-triage-key"); }catch(_){} return; }
+    if (!r.ok) throw new Error(r.status);
+    const o = await r.json(); let localOnly = 0;
+    for (const k in o.v || {}) verdicts.set(k, o.v[k]);
+    for (const k in o.c || {}) comments.set(k, o.c[k]);
+    if (typeof o.n === "string" && o.n) notes = o.n;
+    const lv = JSON.parse(localStorage.getItem(LS) || "{}");
+    for (const k in lv.v || {}) if (!(o.v || {})[k]) { verdicts.set(k, lv.v[k]); localOnly++; }
+    for (const k in lv.c || {}) if (!(o.c || {})[k]) { comments.set(k, lv.c[k]); localOnly++; }
+    saveLocal(); renderAll();
+    saveEl.textContent = `saved, ${verdicts.size} verdicts, ${comments.size} comments`; saveEl.className = "save on";
+    if (localOnly) persist();
+  } catch (e) { saveEl.textContent = `server unreachable (${e.message}) — verdicts stay in this browser`; saveEl.className = "save err"; }
+})();
+</script>
+</body>
+</html>
