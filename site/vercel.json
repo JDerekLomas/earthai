@@ -1,0 +1,1 @@
+{ "functions": { "api/verdicts.js": { "maxDuration": 10 } } }

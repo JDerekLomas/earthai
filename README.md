@@ -40,6 +40,11 @@ https://earthai-scales.vercel.app — the same three places at every scale we ca
 resolvable range of each source and zoom. Rebuild the tiles with `scripts/scale_ladder.py`,
 redeploy with `cd site && vercel --prod`.
 
+https://earthai-scales.vercel.app/triage/ — keep/reject 1,200 tiles across sources, zooms and
+cloud buckets, with comments. Verdicts go through `site/api/verdicts.js` into a Vercel Blob (one
+JSON document, shared key in the `TRIAGE_KEY` env var; the page takes it once as `#k=...`). Rebuild
+the tiles on the box with `scripts/curate_build.py`, inject with `curate/triage.template.html`.
+
 ## Exploring
 
 ```

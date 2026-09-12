@@ -174,34 +174,40 @@ let db = null, saveEl = document.getElementById("save");
 const LS = "earthai-triage-verdicts";
 function loadLocal(){ try{ const o = JSON.parse(localStorage.getItem(LS) || "{}"); for (const k in o.v || {}) verdicts.set(k, o.v[k]); for (const k in o.c || {}) comments.set(k, o.c[k]); notes = o.n || ""; }catch(e){} }
 function saveLocal(){ try{ localStorage.setItem(LS, JSON.stringify({v:Object.fromEntries(verdicts), c:Object.fromEntries(comments), n:notes})); }catch(e){} }
-function docFor(id){ const v = verdicts.get(id), c = comments.get(id); return (v || c) ? {v: v || null, c: c || null, t: Date.now()} : null; }
-let pending = new Map(), flushing = false;
+const API = "/api/verdicts";
+let key = "";
+try { const m = location.hash.match(/k=([A-Za-z0-9]+)/); key = (m && m[1]) || localStorage.getItem("earthai-triage-key") || ""; if (m) { localStorage.setItem("earthai-triage-key", key); history.replaceState(null, "", location.pathname); } } catch(e) {}
+let dirty = false, flushing = false, ft, lastSaved = 0;
+function payload(){ return JSON.stringify({v:Object.fromEntries(verdicts), c:Object.fromEntries(comments), n:notes, t:Date.now()}); }
 async function flush(){
-  if (!db || flushing || pending.size === 0) return;
-  flushing = true;
-  const batch = [...pending]; pending.clear();
+  if (!key || flushing || !dirty) return;
+  flushing = true; dirty = false;
   try {
-    await Promise.all(batch.map(([id, d]) => id === "__notes" ? db.doc("notes/general").set({text: d, t: Date.now()}) : d ? db.doc(`verdicts/${id}`).set(d) : db.doc(`verdicts/${id}`).delete()));
-    saveEl.textContent = `saved, ${verdicts.size} verdicts`; saveEl.className = "save on";
+    const r = await fetch(API, {method:"PUT", headers:{"content-type":"application/json","x-triage-key":key}, body: payload()});
+    if (!r.ok) throw new Error(r.status);
+    lastSaved = Date.now();
+    saveEl.textContent = `saved, ${verdicts.size} verdicts, ${comments.size} comments`; saveEl.className = "save on";
   } catch (e) {
-    for (const [id, v] of batch) if (!pending.has(id)) pending.set(id, v);
-    saveEl.textContent = `save failed (${e.code || "error"}) — kept locally`; saveEl.className = "save err";
+    dirty = true;
+    saveEl.textContent = `save failed (${e.message}) — kept in this browser, will retry`; saveEl.className = "save err";
+    setTimeout(flush, 5000);
   }
   flushing = false;
-  if (pending.size) setTimeout(flush, 800);
+  if (dirty) { clearTimeout(ft); ft = setTimeout(flush, 1500); }
 }
-function persist(id){
-  saveLocal(); pending.set(id, id === "__notes" ? notes : docFor(id));
-  if (db) { saveEl.textContent = "saving…"; saveEl.className = "save"; setTimeout(flush, 250); }
+function persist(){
+  saveLocal(); dirty = true;
+  if (key) { saveEl.textContent = "saving…"; saveEl.className = "save"; clearTimeout(ft); ft = setTimeout(flush, 1500); }
 }
+addEventListener("pagehide", () => { if (dirty && key && navigator.sendBeacon) navigator.sendBeacon(`${API}?key=${key}`, new Blob([payload()], {type:"application/json"})); });
 function setVerdict(id, v){
   if (v) verdicts.set(id, v); else verdicts.delete(id);
-  persist(id); paintCell(id); renderRail(); renderProgress();
+  persist(); paintCell(id); renderRail(); renderProgress();
 }
 function setComment(id, text){
   text = (text || "").trim();
   if (text) comments.set(id, text); else comments.delete(id);
-  persist(id); paintCell(id); renderRail();
+  persist(); paintCell(id); renderRail();
 }
 
 // ---- filtering ----
@@ -251,7 +257,7 @@ function renderRail(){
   }));
   armBulk("bk", "keep"); armBulk("br", "reject");
   const nb = document.getElementById("notes"); let nt;
-  nb.addEventListener("input", () => { notes = nb.value; clearTimeout(nt); nt = setTimeout(() => persist("__notes"), 600); });
+  nb.addEventListener("input", () => { notes = nb.value; clearTimeout(nt); nt = setTimeout(persist, 600); });
   document.getElementById("bc").addEventListener("click", async () => {
     const out = {notes, tiles:{}}; for (const t of TILES) if (verdicts.has(t.id) || comments.has(t.id)) out.tiles[t.id] = {v: verdicts.get(t.id) || null, comment: comments.get(t.id) || null, set:t.set, src:t.src, z:t.z, km:t.km, b:t.b, rgm:t.rgm, cf:t.cf, sd:t.sd};
     try { await navigator.clipboard.writeText(JSON.stringify(out)); saveEl.textContent = `copied ${Object.keys(out.tiles).length} tiles + notes`; } catch(e){ saveEl.textContent = "clipboard blocked"; }
@@ -261,8 +267,8 @@ function armBulk(id, v){
   const b = document.getElementById(id); let armed = false;
   b.addEventListener("click", () => {
     if (!armed) { armed = true; b.classList.add("arm"); b.textContent = `Really ${v} ${shown.length} shown?`; setTimeout(() => { armed = false; b.classList.remove("arm"); b.textContent = `${v[0].toUpperCase()+v.slice(1)} all shown`; }, 3000); return; }
-    for (const t of shown) { verdicts.set(t.id, v); pending.set(t.id, docFor(t.id)); }
-    saveLocal(); if (db) setTimeout(flush, 100); renderAll();
+    for (const t of shown) verdicts.set(t.id, v);
+    persist(); renderAll();
   });
 }
 
@@ -360,21 +366,30 @@ loadLocal();
 setSize((() => { try { return localStorage.getItem(SZ) || 118; } catch(e) { return 118; } })());
 renderAll();
 (async () => {
-  db = window.claude && window.claude.use ? await window.claude.use("db") : null;
-  if (!db) { saveEl.textContent = "no server store here — verdicts stay in this browser"; saveEl.className = "save"; return; }
+  if (!key) {
+    saveEl.innerHTML = `no key — verdicts stay in this browser. <input id="keyin" placeholder="paste key" style="font:inherit;width:11em;padding:1px 4px;border:1px solid var(--line);border-radius:3px;background:var(--surface);color:var(--ink)">`;
+    saveEl.className = "save err";
+    document.getElementById("keyin").addEventListener("change", e => { const k = e.target.value.trim(); if (k) { try{ localStorage.setItem("earthai-triage-key", k); }catch(_){} location.hash = "k=" + k; location.reload(); } });
+    return;
+  }
   try {
-    const snap = await db.collection("verdicts").get();
-    let merged = 0;
-    snap.docs.forEach(d => { const x = d.data() || {}; if (x.v === "keep" || x.v === "reject") verdicts.set(d.id, x.v); if (typeof x.c === "string" && x.c) comments.set(d.id, x.c); merged++; });
-    try { const n = await db.doc("notes/general").get(); if (n.exists && typeof n.data().text === "string") notes = n.data().text; } catch(e) {}
-    saveLocal();
-    saveEl.textContent = `saved, ${verdicts.size} verdicts`; saveEl.className = "save on";
-    renderAll();
-    // anything only in this browser goes up
-    const have = new Set(snap.docs.map(d => d.id)); for (const id of new Set([...verdicts.keys(), ...comments.keys()])) if (!have.has(id)) pending.set(id, docFor(id));
-    if (pending.size) flush();
+    const r = await fetch(API, {headers:{"x-triage-key":key}});
+    if (r.status === 401) { saveEl.textContent = "key rejected — verdicts stay in this browser"; saveEl.className = "save err"; try{ localStorage.removeItem("earthai-triage-key"); }catch(_){} return; }
+    if (!r.ok) throw new Error(r.status);
+    const o = await r.json();
+    // server wins on conflict; anything only in this browser is kept and pushed up
+    let localOnly = 0;
+    for (const k in o.v || {}) verdicts.set(k, o.v[k]);
+    for (const k in o.c || {}) comments.set(k, o.c[k]);
+    if (typeof o.n === "string" && o.n) notes = o.n;
+    const lv = JSON.parse(localStorage.getItem(LS) || "{}");
+    for (const k in lv.v || {}) if (!(o.v || {})[k]) { verdicts.set(k, lv.v[k]); localOnly++; }
+    for (const k in lv.c || {}) if (!(o.c || {})[k]) { comments.set(k, lv.c[k]); localOnly++; }
+    saveLocal(); renderAll();
+    saveEl.textContent = `saved, ${verdicts.size} verdicts, ${comments.size} comments`; saveEl.className = "save on";
+    if (localOnly) persist();
   } catch (e) {
-    saveEl.textContent = `store unavailable (${e.code || "error"}) — verdicts stay in this browser`; saveEl.className = "save err";
+    saveEl.textContent = `server unreachable (${e.message}) — verdicts stay in this browser`; saveEl.className = "save err";
   }
 })();
 </script>
