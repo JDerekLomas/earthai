@@ -116,7 +116,7 @@
   <div class="progress"><span id="prog" class="mono">0 / 0</span><div class="bar"><i class="k" id="bar-k"></i><i class="r" id="bar-r"></i></div></div>
   <span class="save" id="save">connecting…</span>
   <button class="filt" id="filt">Filters</button>
-  <div class="size" role="group" aria-label="scene size"><button data-size="300">S</button><button data-size="440">M</button><button data-size="900">L</button></div>
+  <div class="size" role="group" aria-label="scene size"><button data-size="440">S</button><button data-size="880">M</button><button data-size="1280">L</button></div>
   <div class="keys"><span><kbd>←</kbd><kbd>→</kbd> move</span><span><kbd>K</kbd> keep</span><span><kbd>R</kbd> reject</span><span><kbd>U</kbd> clear</span><span><kbd>Z</kbd> native</span><span><kbd>C</kbd> comment</span></div>
 </div>
 
@@ -267,12 +267,12 @@ document.addEventListener("keydown", e => {
 });
 
 // ---- size + filters + boot ----
-const SZ = "earthai-scenes-size";
+const SZ = "earthai-scenes-size-2x";
 function setSize(px){ document.documentElement.style.setProperty("--scene", px + "px"); document.querySelectorAll(".size button").forEach(b => b.classList.toggle("on", b.dataset.size === String(px))); try{ localStorage.setItem(SZ, px); }catch(e){} }
 document.querySelectorAll(".size button").forEach(b => b.addEventListener("click", () => setSize(b.dataset.size)));
 document.getElementById("filt").addEventListener("click", () => document.getElementById("rail").classList.toggle("open"));
 loadLocal();
-setSize((() => { try { return localStorage.getItem(SZ) || 440; } catch(e) { return 440; } })());
+setSize((() => { try { return localStorage.getItem(SZ) || 880; } catch(e) { return 880; } })());
 renderAll();
 (async () => {
   if (!key) {

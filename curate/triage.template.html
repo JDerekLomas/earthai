@@ -102,6 +102,7 @@
   dialog::backdrop{background:rgba(8,16,26,.86)}
   .zoom{background:var(--surface); border-radius:4px; overflow:hidden; box-shadow:var(--shadow)}
   .zoom .big{width:min(92vw,512px); aspect-ratio:1; background-repeat:no-repeat; margin:0 auto; image-rendering:pixelated}
+  .zoom .big.smooth{image-rendering:auto}
   .zoom .meta{padding:12px 16px; display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:6px 16px; font-size:12px; color:var(--muted)}
   .zoom .meta b{display:block; color:var(--ink); font-family:"IBM Plex Mono",monospace; font-weight:500}
   .zoom .acts{display:flex; gap:8px; padding:0 16px 14px; flex-wrap:wrap}
@@ -115,7 +116,7 @@
   <div class="progress"><span id="prog" class="mono">0 / 0</span><div class="bar"><i class="k" id="bar-k"></i><i class="r" id="bar-r"></i></div><span id="prog-kr" class="mono"></span></div>
   <span class="save" id="save">connecting…</span>
   <button class="filt" id="filt">Filters</button>
-  <div class="size" role="group" aria-label="tile size"><button data-size="88">S</button><button data-size="118">M</button><button data-size="168">L</button></div>
+  <div class="size" role="group" aria-label="tile size"><button data-size="118">S</button><button data-size="236">M</button><button data-size="340">L</button></div>
   <div class="keys"><span><kbd>←</kbd><kbd>→</kbd> move</span><span><kbd>K</kbd> keep</span><span><kbd>R</kbd> reject</span><span><kbd>U</kbd> clear</span><span><kbd>Z</kbd> zoom</span><span><kbd>C</kbd> comment</span></div>
 </div>
 
@@ -145,14 +146,14 @@ const TILES = /*TILES*/[];
 const SHEET = i => `sheets/sheet_${String(i).padStart(2,"0")}.jpg`;
 const LOW = i => `sheets/low_${String(i).padStart(2,"0")}.jpg`;
 const SRC = {modis:"MODIS", viirs:"VIIRS", s2:"Sentinel-2"};
-const SET = {clouds256:"clouds256 (training now)", land256:"land256 (training now)", alternative:"alternatives (fresh)"};
+const SET = {clouds256:"clouds256 (training now)", land256:"land256 (training now)", alternative:"alternatives (fresh)", landshapes:"landshapes (Sentinel-2 z13, graded)"};
 
 // ---- facets: which fields, in which order, with display labels ----
 const FACETS = [
   ["set","set", v => SET[v] || v],
   ["src","source", v => SRC[v] || v],
   ["z","window", v => `z${v} &middot; ~${KM_BY_Z[v] || "?"} km`],
-  ["b","cloud fraction", v => v === "fresh" ? "— (fresh)" : v === "land" ? "— (land)" : v],
+  ["b","band", v => v === "fresh" ? "— (fresh)" : v === "land" ? "— (land)" : v],
   ["rgm","regime", v => v.replace(/_/g," ")],
   ["commented","comment", v => v],
 ];
@@ -321,9 +322,11 @@ const dlg = document.getElementById("dlg");
 function openZoom(){
   const t = shown[cur]; if (!t) return;
   const big = document.getElementById("big");
-  big.style.backgroundImage = `url(${SHEET(t.s)})`; big.style.backgroundSize = "1000% 1000%"; big.style.backgroundPosition = `${t.ix*100/9}% ${t.iy*100/9}%`;
-  document.getElementById("zmeta").innerHTML = [["source",`${SRC[t.src]} z${t.z}`],["footprint",`${t.km} km`],["set",t.set],["region",`${t.reg} &middot; ${t.rgm}`],["date",t.date||"composite"],["cloud frac",t.cf.toFixed(3)],["lum std",t.sd.toFixed(3)],["lum mean",t.lm.toFixed(3)],["black",t.bk.toFixed(3)],["verdict",verdicts.get(t.id)||"—"]]
+  if (t.f) { big.style.backgroundImage = `url(${t.f})`; big.style.backgroundSize = "100% 100%"; big.style.backgroundPosition = "0 0"; }
+  else { big.style.backgroundImage = `url(${SHEET(t.s)})`; big.style.backgroundSize = "1000% 1000%"; big.style.backgroundPosition = `${t.ix*100/9}% ${t.iy*100/9}%`; }
+  document.getElementById("zmeta").innerHTML = [["source",`${SRC[t.src]} z${t.z}`],["footprint",`${t.km} km`],["set",t.set],["region",`${t.reg} &middot; ${t.rgm}`],["date",t.date||"composite"],["cloud frac",t.cf.toFixed(3)],["lum std",t.sd.toFixed(3)],["lum mean",t.lm.toFixed(3)],["black / nodata",t.bk.toFixed(3)],...Object.entries(t.x || {}),["verdict",verdicts.get(t.id)||"—"]]
     .map(([k,v]) => `<div>${k}<b>${v}</b></div>`).join("");
+  big.classList.toggle("smooth", !!t.f);
   const ta = document.getElementById("zcmt"); ta.value = comments.get(t.id) || ""; ta.dataset.id = t.id;
   if (!dlg.open) dlg.showModal();
 }
@@ -356,14 +359,14 @@ document.addEventListener("keydown", e => {
 });
 
 // ---- size + filters ----
-const SZ = "earthai-triage-size";
-function setSize(px){ document.documentElement.style.setProperty("--cell", px + "px"); document.getElementById("grid").classList.toggle("s", +px < 100); document.querySelectorAll(".size button").forEach(b => b.classList.toggle("on", b.dataset.size === String(px))); try{ localStorage.setItem(SZ, px); }catch(e){} }
+const SZ = "earthai-triage-size-2x";
+function setSize(px){ document.documentElement.style.setProperty("--cell", px + "px"); document.getElementById("grid").classList.toggle("s", +px < 130); document.querySelectorAll(".size button").forEach(b => b.classList.toggle("on", b.dataset.size === String(px))); try{ localStorage.setItem(SZ, px); }catch(e){} }
 document.querySelectorAll(".size button").forEach(b => b.addEventListener("click", () => setSize(b.dataset.size)));
 document.getElementById("filt").addEventListener("click", () => document.getElementById("rail").classList.toggle("open"));
 
 // ---- boot ----
 loadLocal();
-setSize((() => { try { return localStorage.getItem(SZ) || 118; } catch(e) { return 118; } })());
+setSize((() => { try { return localStorage.getItem(SZ) || 236; } catch(e) { return 236; } })());
 renderAll();
 (async () => {
   if (!key) {
