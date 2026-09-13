@@ -51,17 +51,6 @@ PLACES = {
 }
 
 
-def nodata_frac(a: np.ndarray) -> float:
-    """Share of pixels that are a GIBS HOLE rather than merely dark.
-
-    build_dataset.stats() calls anything under 0.04 luminance "black", which is the right
-    test for a 256 px tile but the wrong one here: a 3x3 block reaches far enough into deep
-    ocean that 2-5% of it is legitimately darker than that, and filtering on it threw away
-    68% of perfectly good daylight frames. A missing tile renders exactly (0,0,0), so test
-    for that instead of for darkness."""
-    return float((a.max(-1) <= 2).mean())
-
-
 def tile(layer, t, z, x, y):
     try:
         r = requests.get(URL.format(layer=layer, t=t, z=z, y=y, x=x), headers=UA, timeout=40)
@@ -142,9 +131,9 @@ def main(place, all_places, days, hours, stride, out, workers, max_black, min_me
             im = fetch(SATS[sat], ts, z, x, y, span)
             if im is None:
                 return None
-            a = np.asarray(im)
-            s = stats(a)
-            s["nodata"] = nodata_frac(a)
+            s = stats(np.asarray(im))
+            # s["nodata"] counts pixels that are EXACTLY black -- an actual hole. s["black"]
+            # counts merely dark ones, which over deep ocean is 2-5% of a good daylight frame.
             if s["nodata"] > max_black or s["mean"] < min_mean:   # gaps, and night
                 return None
             im.save(f, quality=90)

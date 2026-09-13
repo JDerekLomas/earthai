@@ -22,17 +22,26 @@ from tqdm import tqdm
 
 def stats(img: np.ndarray) -> dict:
     """img: HxWx3 uint8. Clouds over ocean are bright and unsaturated; ocean is
-    dark and blue; nodata is near-black."""
+    dark and blue; nodata is EXACTLY black.
+
+    `black` (luminance < 0.04) is kept because other code reads it, but it must not be used
+    as a hole test: deep tropical ocean is legitimately darker than that, so gating on it
+    discards the darkest-background, highest-contrast cloud fields -- measured over 4,000
+    z9 tiles, 66% of everything the old --max-black gate dropped had ZERO pure-black pixels
+    (median darkness 0.032, median true hole share 0.00000), and they were trade cumulus and
+    open-cell convection over dark water. Use `nodata`."""
     f = img.astype(np.float32) / 255
     lum = 0.299 * f[..., 0] + 0.587 * f[..., 1] + 0.114 * f[..., 2]
     mx, mn = f.max(-1), f.min(-1)
     sat = np.where(mx > 0, (mx - mn) / np.maximum(mx, 1e-6), 0)
-    black = float((lum < 0.04).mean())
+    black = float((lum < 0.04).mean())          # darkness, NOT missingness -- see the docstring
+    nodata = float((img.max(-1) <= 2).mean())   # a GIBS/swath hole renders exactly (0,0,0)
     cloud = float(((lum > 0.42) & (sat < 0.35)).mean())
     # land: warm-hued (red >= blue), saturated, mid-brightness pixels. Ocean is
     # blue-dominant, cloud is unsaturated, so this isolates desert/vegetation.
     land = float(((f[..., 0] >= f[..., 2]) & (sat > 0.25) & (lum > 0.12) & (lum < 0.75)).mean())
-    return {"black": black, "cloud": cloud, "land": land, "std": float(lum.std()), "mean": float(lum.mean())}
+    return {"black": black, "nodata": nodata, "cloud": cloud, "land": land,
+            "std": float(lum.std()), "mean": float(lum.mean())}
 
 
 def dhash(img: Image.Image, size: int = 8) -> int:
@@ -50,8 +59,14 @@ def dhash(img: Image.Image, size: int = 8) -> int:
 @click.option("--mode", default="clouds", type=click.Choice(["clouds", "land"]), help="land: keep cloud-free land instead (inverts the cloud and land filters)")
 @click.option("--min-cloud", default=0.12, type=float, help="drop tiles with less cloud than this")
 @click.option("--max-cloud", default=None, type=float, help="drop tiles with more cloud than this (default: 1.0 in clouds mode, 0.15 in land mode)")
-@click.option("--max-black", default=0.01, type=float, help="drop tiles with more nodata than this")
-@click.option("--min-std", default=0.04, type=float, help="drop near-uniform tiles")
+@click.option("--max-black", default=0.01, type=float,
+              help="drop tiles with more MISSING data than this (pure-black pixels, not merely dark)")
+@click.option("--min-std", default=0.04, type=float,
+              help="drop near-uniform tiles. Deliberately ABSOLUTE: measured on 4,000 z9 tiles the "
+                   "tiles this drops are BRIGHTER than the set (median luminance 0.888 vs 0.512) -- "
+                   "they are flat overcast, which is what it is for. Do not relativise it; a ratio "
+                   "divides by brightness and lets near-black empty ocean back in (40 such tiles in "
+                   "the same sample scored rel_hp 0.35 off a mean of 0.012). See scripts/gate_audit.py.")
 @click.option("--max-land", default=0.03, type=float, help="drop tiles with more land-coloured pixels than this")
 @click.option("--hash-bits", default=4, type=int, help="max differing dhash bits to call a duplicate")
 @click.option("--cap-overcast", default=None, type=float,
@@ -81,7 +96,7 @@ def main(tiles, raw_manifest, out, manifest_out, size, mode, min_cloud, max_clou
         if im.size != (size, size):
             im = im.resize((size, size), Image.LANCZOS)
         s = stats(np.asarray(im))
-        if s["black"] > max_black:
+        if s["nodata"] > max_black:
             dropped["black"] += 1; continue
         if s["land"] > max_land or s["land"] < min_land:
             dropped["land"] += 1; continue
