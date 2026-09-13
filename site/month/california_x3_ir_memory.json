@@ -1,0 +1,138 @@
+{
+ "source": "california_x3_ir",
+ "frames": 5603,
+ "days": 39.8,
+ "memory": [
+  {
+   "lag": 10,
+   "n": 250,
+   "corr": 0.857
+  },
+  {
+   "lag": 30,
+   "n": 250,
+   "corr": 0.672
+  },
+  {
+   "lag": 60,
+   "n": 250,
+   "corr": 0.568
+  },
+  {
+   "lag": 180,
+   "n": 250,
+   "corr": 0.377
+  },
+  {
+   "lag": 360,
+   "n": 250,
+   "corr": 0.282
+  },
+  {
+   "lag": 720,
+   "n": 250,
+   "corr": 0.168
+  },
+  {
+   "lag": 1080,
+   "n": 250,
+   "corr": 0.177
+  },
+  {
+   "lag": 1440,
+   "n": 250,
+   "corr": 0.158
+  },
+  {
+   "lag": 2160,
+   "n": 250,
+   "corr": 0.054
+  },
+  {
+   "lag": 2880,
+   "n": 250,
+   "corr": 0.055
+  },
+  {
+   "lag": 4320,
+   "n": 250,
+   "corr": 0.036
+  }
+ ],
+ "efold_min": 360,
+ "motion_control": {
+  "persistence": 0.38679489493370056,
+  "advection": 1.0,
+  "recovered": [
+   3.0,
+   5.0
+  ],
+  "wanted": [
+   3,
+   5
+  ],
+  "pass": true
+ },
+ "motion": [
+  {
+   "lag": 10,
+   "n": 140,
+   "persistence": 0.868,
+   "advection": 0.919,
+   "km_per_step": 0.688,
+   "kmh": 4.127
+  },
+  {
+   "lag": 30,
+   "n": 140,
+   "persistence": 0.716,
+   "advection": 0.786,
+   "km_per_step": 7.26,
+   "kmh": 14.519
+  },
+  {
+   "lag": 60,
+   "n": 140,
+   "persistence": 0.593,
+   "advection": 0.645,
+   "km_per_step": 13.691,
+   "kmh": 13.691
+  },
+  {
+   "lag": 120,
+   "n": 140,
+   "persistence": 0.451,
+   "advection": 0.481,
+   "km_per_step": 12.706,
+   "kmh": 6.353
+  },
+  {
+   "lag": 180,
+   "n": 140,
+   "persistence": 0.425,
+   "advection": 0.442,
+   "km_per_step": 10.207,
+   "kmh": 3.402
+  },
+  {
+   "lag": 360,
+   "n": 140,
+   "persistence": 0.298,
+   "advection": 0.306,
+   "km_per_step": 11.476,
+   "kmh": 1.913
+  }
+ ],
+ "budget": {
+  "ocean": {
+   "fixed_map": 0.053,
+   "daily_cycle": 0.019,
+   "weather": 0.928
+  },
+  "land": {
+   "fixed_map": 0.065,
+   "daily_cycle": 0.273,
+   "weather": 0.662
+  }
+ }
+}

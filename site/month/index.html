@@ -173,7 +173,7 @@
       <span style="color:var(--faint)">dashed: the 1/e line for infrared</span>
     </div>
   </div>
-  <p><b>Weather memory here lasts about half a day.</b> Ten minutes apart, frames are 90–96% the same picture. Infrared falls to 1/e of that at <span class="mono" id="efold">12 h</span>, and is essentially gone by two to three days. So a month holds roughly <b>one genuinely independent sky per day — about thirty</b> — not the 5,760 frames the file count suggests. The frames are not wasted: every consecutive pair still shows how the clouds <em>moved</em>. But they show thirty different situations moving, not five thousand.</p>
+  <p><b>Weather memory here lasts about a quarter of a day.</b> Ten minutes apart, frames are 86–96% the same picture. Infrared falls to 1/e of that at <span class="mono" id="efold">6 h</span>, and is essentially gone by two to three days. So a month holds roughly <b>two genuinely independent skies a day — sixty to eighty</b> — not the 5,760 frames the file count suggests. The frames are not wasted: every consecutive pair still shows how the clouds <em>moved</em>. But they show seventy-odd situations moving, not five thousand. (The full clean month; the first estimate, from a partial fetch, read 12 h and about thirty.)</p>
 </section>
 
 <section>
@@ -199,7 +199,7 @@
     <h2>What else could go in</h2>
   </div>
   <div class="cols">
-    <div class="note have"><span class="status">have it</span><h3>Infrared temperature</h3><p>Band 13, cloud-top temperature, same grid and cadence as GeoColor, day and night. The obvious second channel, and the only one that removes the night gap.</p></div>
+    <div class="note have"><span class="status">have it</span><h3>Infrared temperature</h3><p>Band 13, cloud-top temperature, same grid and cadence as GeoColor, day and night. The obvious second channel, and the only one that removes the night gap — but it sees only about 71% of the deck: the low cloud sits within a few degrees of the sea, and 28.7% of visibly cloudy pixels are indistinguishable from clear ocean in infrared.</p></div>
     <div class="note have"><span class="status">have it</span><h3>Terrain and seafloor</h3><p>Fetched for California. Worth a quarter of the cloud-cover signal at one place, and more across places. Static, so it costs one download per place.</p></div>
     <div class="note maybe"><span class="status">candidate</span><h3>Sea surface temperature</h3><p>The deck exists because the water is cold. Daily SST is on GIBS. It changes slowly, so it would condition the season rather than the hour. Not fetched.</p></div>
     <div class="note gate"><span class="status">dropped</span><h3>Air Mass</h3><p>Fetched for the comparison clips and dropped: a static no-data mask covers the southern third of every scene here.</p></div>
@@ -235,7 +235,7 @@
 // ---- measured lag correlations (GeoColor: daylight anomaly; IR: diurnal-cycle removed)
 const LAG = {
   geo: [[10,.955],[20,.905],[30,.865],[60,.776],[90,.708],[120,.656],[180,.571],[240,.518],[360,.430]],
-  ir:  [[10,.899],[30,.737],[60,.623],[180,.459],[360,.340],[720,.242],[1080,.206],[1440,.190],[2160,.104],[2880,.065],[4320,.036]],
+  ir:  [[10,.857],[30,.672],[60,.568],[180,.377],[360,.282],[720,.168],[1080,.177],[1440,.158],[2160,.054],[2880,.055],[4320,.036]],
 };
 // ---- cloud frequency by distance from the coast (midday frames; + offshore, - inland)
 const COAST = [["300-100 km inland",.247],["100-20 km inland",.157],["within 20 km inland",.238],
