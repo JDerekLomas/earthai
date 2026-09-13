@@ -82,7 +82,7 @@ def region_centres(k):
     return [(((i % cols) + 0.5) / cols, ((i // cols) + 0.5) / rows) for i in range(k)]
 
 
-def patch_spatial_blend(G, centres, sharpness):
+def patch_spatial_blend(G, centres, blend):
     """After every synthesis block, collapse the batch of k skies into one canvas using smooth
     masks. Each sample is computed normally (so demodulation stays correct); only the activations
     are combined, which lets the following blocks paint the transition instead of covering it."""
@@ -92,7 +92,7 @@ def patch_spatial_blend(G, centres, sharpness):
     def masks_for(h, w, device, dtype):
         yy, xx = torch.meshgrid(torch.linspace(0, 1, h, device=device), torch.linspace(0, 1, w, device=device), indexing="ij")
         d = torch.stack([((xx - cx) ** 2 + ((yy - cy) * (h / max(w, 1))) ** 2) for cx, cy in centres])
-        return torch.softmax(-d / max(sharpness * 0.02, 1e-6), dim=0)[:, None].to(dtype)
+        return torch.softmax(-d / max(blend * 0.05, 1e-6), dim=0)[:, None].to(dtype)
 
     orig = SynthesisNetwork.forward
 
@@ -126,11 +126,11 @@ def patch_spatial_blend(G, centres, sharpness):
 @click.option("--seed", default=0, type=int)
 @click.option("--seeds", default=None, help="comma-separated; with --regions each one owns part of the canvas")
 @click.option("--regions", is_flag=True, help="give each seed a region of the canvas instead of averaging them")
-@click.option("--sharpness", default=2.2, type=float, help="how hard the regions divide; low is a slow gradient")
+@click.option("--blend", default=0.6, type=float, help="how wide the transition between regions is; low is an abrupt edge, high is a slow gradient")
 @click.option("--truncation", default=0.7, type=float)
 @click.option("--noise", default="random", type=click.Choice(["random", "none"]))
 @click.option("--out", default=None, type=click.Path(path_type=Path))
-def main(network, tiles, seed, seeds, regions, sharpness, truncation, noise, out):
+def main(network, tiles, seed, seeds, regions, blend, truncation, noise, out):
     import torch
     from PIL import Image
     from latent import load_G
@@ -146,7 +146,7 @@ def main(network, tiles, seed, seeds, regions, sharpness, truncation, noise, out
     ws = torch.cat([G.mapping(torch.from_numpy(np.random.RandomState(s).randn(1, G.z_dim)).to(dev), None, truncation_psi=truncation) for s in ids])
     if regions and len(ids) > 1:
         centres = region_centres(len(ids))
-        patch_spatial_blend(G, centres, sharpness)
+        patch_spatial_blend(G, centres, blend)
         w = ws
     else:
         w = ws.mean(0, keepdim=True)
