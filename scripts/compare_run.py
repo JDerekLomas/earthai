@@ -29,7 +29,8 @@ def crop_corner(path: Path, cols: int, rows: int, cell: int) -> Image.Image:
 @click.option("--cell", default=256, type=int, help="tile size in the source grids")
 @click.option("--width", default=640, type=int, help="output width")
 @click.option("--quality", default=70, type=int)
-def main(run, out, cols, rows, cell, width, quality):
+@click.option("--start/--no-start", default=False, help="include the source net's own output (dogs, for an lsundog transfer) as the before row")
+def main(run, out, cols, rows, cell, width, quality, start):
     fakes = sorted(p for p in run.glob("fakes*.png") if p.name != "fakes_init.png")
     if not fakes:
         raise SystemExit(f"no fakes*.png in {run} yet (only fakes_init.png is written at startup)")
@@ -38,9 +39,11 @@ def main(run, out, cols, rows, cell, width, quality):
 
     opts = json.loads((run / "training_options.json").read_text())
     resume = opts.get("resume_pkl")
-    start = f"start: {Path(resume).stem.split('-')[0]} net 0 kimg" if resume else "start: random init 0 kimg"
+    start_label = f"start: {Path(resume).stem.split('-')[0]} net 0 kimg" if resume else "start: random init 0 kimg"
 
-    panels = [(run / "reals.png", "real tiles"), (run / "fakes_init.png", start), (latest, f"after {kimg} kimg")]
+    panels = [(run / "reals.png", "real tiles"), (latest, f"after {kimg} kimg")]
+    if start:  # the pretrained source net before any of our training -- dogs, by design
+        panels.insert(1, (run / "fakes_init.png", start_label))
     panels = [(crop_corner(p, cols, rows, cell), label) for p, label in panels if p.exists()]
 
     scale = width / panels[0][0].width
