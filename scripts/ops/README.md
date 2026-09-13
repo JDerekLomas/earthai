@@ -17,8 +17,23 @@ A box counts as WORKING if the GPU is busy **or** a known job process is alive. 
 deliberately: a training run between ticks reads 0% for a moment, and a hung process can
 hold the card at 100% while producing nothing.
 
-**`ops.json`** — `autostop` is an explicit allow-list and starts empty. Nothing is ever
-stopped unless its name is in it. Another project's box is reported, never touched.
+**`ops.json`** — `autostop` is an explicit allow-list. Nothing is ever stopped unless its
+name is in it; another project's box is reported, never touched. `earthai-gpu` is listed
+by Derek's instruction (2026-09-13).
+
+**Running on its own** — a launchd agent checks every 30 minutes and stops anything
+allow-listed that has been idle 45 minutes:
+
+```
+launchctl list | grep earthai            # is it loaded
+tail -20 scratch/idlewatch.log           # what it has seen
+launchctl unload ~/Library/LaunchAgents/com.earthai.idlewatch.plist   # turn it off
+```
+
+45 minutes rather than 30 because a box legitimately sits at GPU 0% between a data upload
+finishing and a run starting. For the same reason `rsync`, `scp`, `sftp-server`, `wget`
+and `curl` count as work: without them an autostop would kill a box mid-upload, which is
+the obvious way for a cost-saving tool to destroy more value than it saves.
 
 ## What this was built from
 

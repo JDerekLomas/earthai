@@ -38,7 +38,10 @@ PRICE = {"L40S-1-48G": 1.47, "L4-1-24G": 0.75, "H100-1-80G": 2.73, "L40S-2-96G":
 # monitor must not have.
 JOB_PATTERNS = ["train.py", "vllm", "VLLM", "dataset_tool.py", "fetch_tiles.py",
                 "fetch_goes.py", "fetch_scenes.py", "build_dataset.py", "curate_",
-                "celery", "gunicorn", "uvicorn", "ocr_", "-m vllm"]
+                "celery", "gunicorn", "uvicorn", "ocr_", "-m vllm",
+                # a box being loaded with data is working, even though its GPU reads 0.
+                # Without these, an autostop would kill a box mid-upload.
+                "rsync", "sftp-server", "scp -", "/usr/lib/openssh/sftp-server", "wget", "curl -"]
 
 
 def sh(cmd, timeout=60):

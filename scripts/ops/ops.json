@@ -2,9 +2,11 @@
   "zone": "fr-par-2",
   "busy_util": 5,
   "busy_mem_mib": 500,
-  "idle_minutes": 30,
+  "idle_minutes": 45,
   "samples": 3,
   "sample_gap_s": 20,
-  "autostop": [],
-  "note": "A box is only stopped if its NAME is listed in autostop AND it has been idle for idle_minutes. Empty list = report only, which is the safe default: another project's box gets reported, never touched. Add 'earthai-gpu' once you are happy for this project's own box to stop itself between runs."
+  "autostop": [
+    "earthai-gpu"
+  ],
+  "note": "A box is only stopped if its NAME is in autostop AND it has been idle for idle_minutes. earthai-gpu is listed by Derek's instruction (2026-09-13). Another project's box is reported, never touched. idle_minutes is 45 rather than 30 because a box can sit at GPU 0% between a data upload finishing and a run starting."
 }
