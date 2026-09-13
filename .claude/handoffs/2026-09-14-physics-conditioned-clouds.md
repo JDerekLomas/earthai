@@ -15,10 +15,9 @@ in the existing GAN. He asked for this explicitly: "do it. may as well do the ac
 4. Everything committed, pushed, deployed from `main`, and checked with curl.
 
 ## State at handoff (14 Sep 2026)
-- **Month fetch was mid-run in the previous session** (GeoColor 4,301 / IR 5,262 of ~5,760). If that
-  session closed it may have died. The fetch resumes and skips existing frames, so re-run both:
-  `python3 scripts/fetch_goes.py --places california --days 40 --span 3 --stride 10 --layer geocolor --allday --workers 4 --out data/goes`
-  and the same with `--layer ir`. GIBS keeps only ~40 days and the oldest days drop off daily, so do this first.
+- **Month fetch is COMPLETE** (finished in the previous session, both exited 0): `data/goes/california_x3`
+  GeoColor 5,246 of 5,736 slots, `data/goes/california_x3_ir` 5,617. The missing slots are archive gaps
+  (GeoColor answered nothing at 34-36 days back when probed). No need to re-run the fetch.
 - **Then build the page:** `python3 scripts/goes_qc.py --selftest`, then `--dir data/goes/california_x3 --apply`
   (and `_ir`); `python3 scripts/month_sheet.py --dir data/goes/california_x3 --lon -122` and
   `--dir data/goes/california_x3_ir --lon -122 --daylight-clips no`; `python3 scripts/sky_memory.py
