@@ -6,7 +6,8 @@
   "samples": 3,
   "sample_gap_s": 20,
   "autostop": [
-    "earthai-gpu"
+    "earthai-gpu",
+    "earthai-h100"
   ],
   "note": "A box is only stopped if its NAME is in autostop AND it has been idle for idle_minutes. earthai-gpu is listed by Derek's instruction (2026-09-13). Another project's box is reported, never touched. idle_minutes is 45 rather than 30 because a box can sit at GPU 0% between a data upload finishing and a run starting."
 }
