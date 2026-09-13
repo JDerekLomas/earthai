@@ -174,7 +174,15 @@ def main(place, all_places, days, hours, stride, out, workers, max_black, min_me
             # where it works and where a black region really is a swath gap.
             if (not allday and (s["nodata"] > max_black or s["mean"] < min_mean)) or \
                (allday and s["nodata"] > 0.98):        # an entirely black FRAME is still junk
-
+                return None
+            # A broken render can also come back WHITE: a straight-edged wedge of exactly
+            # (255,255,255) across part of a frame, with HTTP 200. Real GeoColor cloud never
+            # saturates to pure white (the 8 brightest overcast frames of a California month
+            # read 0.0000), so any tile more than 5% pure white is the server, not the sky.
+            # See scripts/goes_qc.py, which applies the same test to frames already on disk.
+            a_ = np.asarray(im); pure = a_.min(-1) >= 253; side = a_.shape[0] // span
+            if max(float(pure[yy * side:(yy + 1) * side, xx * side:(xx + 1) * side].mean())
+                   for yy in range(span) for xx in range(span)) > 0.05:
                 return None
             im.save(f, quality=90)
             return dict(id=fid, place=name, sat=sat, layer=layer, t=ts, z=z, x=x, y=y, span=span,
