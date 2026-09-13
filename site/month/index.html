@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The California Deck</title>
+<meta name="description" content="Forty days of the California stratocumulus deck from GOES-West every ten minutes, and what a month like this can and cannot teach a temporal model.">
+<style>html{color-scheme:light dark} body{margin:0} img,video{max-width:100%}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#e9edf1; --surface:#ffffff; --sunk:#dfe5ea;
+    --ink:#13202e; --muted:#5b6b7d; --faint:#8493a4;
+    --line:#c7d1da; --hair:#dbe2e8;
+    --ochre:#b3652a; --cool:#37718f; --deep:#0f2233;
+    --ok:#2f7d5b; --no:#a33a2a;
+    --shadow:0 1px 2px rgba(15,34,51,.08), 0 8px 24px rgba(15,34,51,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+      --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+      --line:#27394b; --hair:#1c2c3c;
+      --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+      --ok:#5cb98d; --no:#e0765f;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+    --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+    --line:#27394b; --hair:#1c2c3c;
+    --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+    --ok:#5cb98d; --no:#e0765f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+  *{box-sizing:border-box}
+  body{background:var(--ground); color:var(--ink);
+    font:400 16px/1.55 "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    padding-block:44px 72px; padding-left:20px; padding-right:20px; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1120px; margin:0 auto; display:flex; flex-direction:column; gap:52px}
+  h1,h2,h3{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif; text-wrap:balance; margin:0}
+  h1{font-size:clamp(30px,4.6vw,46px); font-weight:600; letter-spacing:-.015em; line-height:1.08}
+  h2{font-size:clamp(20px,2.6vw,26px); font-weight:600; letter-spacing:-.01em}
+  h3{font-size:16px; font-weight:600}
+  p{margin:0; max-width:66ch}
+  a{color:var(--cool)}
+  .lede{font-size:clamp(17px,2vw,19px); color:var(--muted); max-width:62ch}
+  .eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--faint)}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+  section{display:flex; flex-direction:column; gap:18px}
+  .head{display:flex; flex-direction:column; gap:8px}
+  header{display:flex; flex-direction:column; gap:16px}
+  .claim{font-family:"IBM Plex Sans Condensed",sans-serif; font-size:clamp(19px,2.4vw,23px); line-height:1.35;
+    max-width:34ch; border-left:3px solid var(--cool); padding-left:18px}
+  .claim b{color:var(--cool); font-weight:600}
+  .xl{font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.06em; text-decoration:none; color:var(--muted); border-bottom:1px solid var(--line); padding-bottom:2px}
+  .xl:hover{color:var(--cool); border-color:var(--cool)}
+  .links{display:flex; flex-wrap:wrap; gap:20px}
+  .card{background:var(--surface); border:1px solid var(--hair); border-radius:4px; box-shadow:var(--shadow)}
+  button{font:500 13px/1 "IBM Plex Sans",sans-serif; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:3px; padding:8px 12px; cursor:pointer}
+  button:hover{border-color:var(--cool); color:var(--cool)}
+  button[aria-pressed="true"]{background:var(--cool); border-color:var(--cool); color:#fff}
+  button:focus-visible{outline:2px solid var(--ochre); outline-offset:2px}
+  .seg{display:inline-flex; border:1px solid var(--line); border-radius:3px; overflow:hidden}
+  .seg button{border:0; border-radius:0; border-left:1px solid var(--line)}
+  .seg button:first-child{border-left:0}
+  .bar{display:flex; flex-wrap:wrap; gap:12px; align-items:center}
+
+  .player{display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:22px; align-items:start}
+  @media (max-width:860px){ .player{grid-template-columns:minmax(0,1fr)} }
+  .stage{background:#06111c; border:1px solid var(--hair); border-radius:4px; overflow:hidden; box-shadow:var(--shadow); aspect-ratio:1/1; position:relative}
+  .stage video{display:block; width:100%; height:100%; object-fit:contain}
+  .stage .empty{position:absolute; inset:0; display:grid; place-items:center; color:#7d93a8; font:13px "IBM Plex Mono",monospace; padding:20px; text-align:center}
+  .scrub{width:100%; accent-color:var(--cool); margin:10px 0 0}
+  .days{display:grid; grid-template-columns:repeat(auto-fill,minmax(64px,1fr)); gap:5px; padding:10px; max-height:520px; overflow:auto}
+  .days button{padding:7px 4px; font-size:12px; display:flex; flex-direction:column; gap:3px; align-items:center}
+  .days button small{font:10px "IBM Plex Mono",monospace; color:var(--faint)}
+  .days button[aria-pressed="true"] small{color:#dbe9f3}
+  .info{padding:12px 14px; font-size:13px; color:var(--muted); border-top:1px solid var(--hair)}
+  .info b{font-family:"IBM Plex Mono",monospace; font-weight:500; color:var(--ink)}
+
+  .calwrap{background:var(--surface); border:1px solid var(--hair); border-radius:4px; box-shadow:var(--shadow); max-height:760px; overflow:auto; padding:8px}
+  .calwrap img{display:block; max-width:none; width:100%; min-width:760px}
+
+  .chartbox{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:18px 16px 12px; box-shadow:var(--shadow)}
+  .chartbox svg{display:block; width:100%; height:auto; overflow:visible}
+  .key{display:flex; flex-wrap:wrap; gap:18px; margin-top:10px; font-size:13px; color:var(--muted)}
+  .key i{display:inline-block; width:20px; height:3px; border-radius:2px; margin-right:7px; vertical-align:middle}
+  .tw{overflow-x:auto; background:var(--surface); border:1px solid var(--hair); border-radius:4px; box-shadow:var(--shadow)}
+  table{border-collapse:collapse; width:100%; font-size:13.5px; min-width:480px}
+  th,td{text-align:right; padding:9px 14px; border-top:1px solid var(--hair); white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  thead th{border-top:0; font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); padding-top:13px; padding-bottom:11px}
+  td.n{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums}
+  .barcell{display:inline-block; height:8px; background:var(--cool); border-radius:1px; vertical-align:middle; margin-left:8px}
+  .two{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:18px}
+  figure{margin:0; display:flex; flex-direction:column; gap:8px}
+  .plate{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:8px; box-shadow:var(--shadow); line-height:0}
+  .plate img{display:block; width:100%; border-radius:2px}
+  figcaption{font-size:13.5px; color:var(--muted); max-width:70ch; line-height:1.5}
+  .cols{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:18px}
+  .note{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:16px 18px; display:flex; flex-direction:column; gap:8px; box-shadow:var(--shadow)}
+  .note p{font-size:14px; color:var(--muted)}
+  .note.have{border-left:3px solid var(--ok)}
+  .note.maybe{border-left:3px solid var(--ochre)}
+  .note.gate{border-left:3px solid var(--no)}
+  .status{font:500 11px "IBM Plex Mono",monospace; letter-spacing:.08em; text-transform:uppercase}
+  .have .status{color:var(--ok)} .maybe .status{color:var(--ochre)} .gate .status{color:var(--no)}
+  footer{border-top:1px solid var(--line); padding-top:22px; font-size:13px; color:var(--faint)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">earthai · one place, one month · GOES-West every ten minutes</div>
+  <h1>The California deck</h1>
+  <p class="claim">About forty days of the marine stratocumulus off California, <b>every ten minutes, day and night</b>, the whole record NASA still holds.</p>
+  <p class="lede">The deck is the most persistent large cloud feature in the northern hemisphere summer: it forms over cold upwelling water, burns back from the coast each afternoon and rolls in again at night. This page is for looking at it, and for working out what a month of it is worth to a model that learns how skies change.</p>
+  <div class="links">
+    <a class="xl" href="../goes/">all timelapses &rarr;</a>
+    <a class="xl" href="../review/">the network &rarr;</a>
+    <a class="xl" href="../sharp/">resolution &rarr;</a>
+  </div>
+</header>
+
+<section>
+  <div class="head">
+    <h2>Watch a day</h2>
+    <p>Pick a day. GeoColor clips run through local daylight; infrared clips run the full 24 hours, because infrared looks the same at night. The noon flipbook shows one frame per day at local solar noon — the day-to-day change with the daily cycle held still.</p>
+  </div>
+  <div class="bar">
+    <div class="seg" role="group" aria-label="layer">
+      <button data-layer="california_x3" aria-pressed="true">GeoColor</button>
+      <button data-layer="california_x3_ir" aria-pressed="false">Infrared</button>
+    </div>
+    <button id="noonbtn">Noon flipbook</button>
+    <span class="mono" id="summary" style="font-size:12px;color:var(--muted)"></span>
+  </div>
+  <div class="player">
+    <div>
+      <div class="stage"><video id="v" playsinline muted loop preload="metadata"></video><div class="empty" id="empty">loading the month…</div></div>
+      <input class="scrub" id="scrub" type="range" min="0" max="1000" value="0" aria-label="scrub through the day">
+    </div>
+    <div class="card">
+      <div class="days" id="days"></div>
+      <div class="info" id="info">choose a day</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>The month at a glance</h2>
+    <p>Rows are days, columns are local solar hours; the last column is 01:00, night. Read down a column to see the day-to-day weather; read across a row to see a single day burn off and return. Empty cells are frames the archive does not have. Scroll inside the frame.</p>
+  </div>
+  <div class="calwrap"><img id="calendar" alt="A grid of satellite frames, one row per day and one column per hour, over forty days" loading="lazy"></div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>How long a sky remembers itself</h2>
+    <p>Correlation between frames separated by a lag, after removing everything fixed in place — the coastline, and, for infrared, the daily heating of the land. What remains is weather. The control is the same clock time on different days.</p>
+  </div>
+  <div class="chartbox">
+    <svg id="lagchart" viewBox="0 0 900 320" role="img" aria-label="Correlation against time lag for GeoColor and infrared"></svg>
+    <div class="key">
+      <span><i style="background:#b3652a"></i>GeoColor, daylight only</span>
+      <span><i style="background:#37718f"></i>infrared, day and night</span>
+      <span style="color:var(--faint)">dashed: the 1/e line for infrared</span>
+    </div>
+  </div>
+  <p><b>Weather memory here lasts about half a day.</b> Ten minutes apart, frames are 90–96% the same picture. Infrared falls to 1/e of that at <span class="mono" id="efold">12 h</span>, and is essentially gone by two to three days. So a month holds roughly <b>one genuinely independent sky per day — about thirty</b> — not the 5,760 frames the file count suggests. The frames are not wasted: every consecutive pair still shows how the clouds <em>moved</em>. But they show thirty different situations moving, not five thousand.</p>
+</section>
+
+<section>
+  <div class="head">
+    <h2>Where the clouds sit</h2>
+    <p>Elevation and seafloor depth on exactly the same pixel grid as the frames, next to how often each pixel was cloudy at midday.</p>
+  </div>
+  <div class="two">
+    <figure><div class="plate"><img src="img/hillshade.jpg" alt="Shaded relief of California and the Pacific seafloor" loading="lazy"></div><figcaption>Terrain and bathymetry, AWS Open Data, supersampled onto the frame grid. The fracture zone running west from Cape Mendocino is on the seafloor, 4 km down.</figcaption></figure>
+    <figure><div class="plate"><img src="img/cloudfreq.jpg" alt="Map of how often each pixel is cloudy at midday" loading="lazy"></div><figcaption>Share of midday frames in which each pixel is cloud. White is always, dark is never. The coastline is traced from the terrain.</figcaption></figure>
+  </div>
+  <div class="tw">
+    <table>
+      <thead><tr><th>distance from the coast</th><th>cloudy at midday</th></tr></thead>
+      <tbody id="coasttable"></tbody>
+    </table>
+  </div>
+  <p>A fixed map of where cloud usually is explains <b>23.9%</b> of all the variation in cloud cover. The deck thickens with distance offshore and burns off over land, which is the physics you would expect. The consequence for adding terrain as an input is narrower than it looks: a model trained on this one place learns that quarter from <em>position</em> alone, without being told the terrain. Elevation earns its place as a channel when one model is trained across many places and has to know which is sea.</p>
+</section>
+
+<section>
+  <div class="head">
+    <h2>What else could go in</h2>
+  </div>
+  <div class="cols">
+    <div class="note have"><span class="status">have it</span><h3>Infrared temperature</h3><p>Band 13, cloud-top temperature, same grid and cadence as GeoColor, day and night. The obvious second channel, and the only one that removes the night gap.</p></div>
+    <div class="note have"><span class="status">have it</span><h3>Terrain and seafloor</h3><p>Fetched for California. Worth a quarter of the cloud-cover signal at one place, and more across places. Static, so it costs one download per place.</p></div>
+    <div class="note maybe"><span class="status">candidate</span><h3>Sea surface temperature</h3><p>The deck exists because the water is cold. Daily SST is on GIBS. It changes slowly, so it would condition the season rather than the hour. Not fetched.</p></div>
+    <div class="note gate"><span class="status">dropped</span><h3>Air Mass</h3><p>Fetched for the comparison clips and dropped: a static no-data mask covers the southern third of every scene here.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>How much data a temporal model needs</h2>
+    <p>Reasoned from the memory measurement above, not measured on a trained model. It depends on the kind of model.</p>
+  </div>
+  <div class="tw">
+    <table>
+      <thead><tr><th>approach</th><th>learns from</th><th>rough need</th><th>where it comes from</th></tr></thead>
+      <tbody>
+        <tr><td>a time direction inside the existing network</td><td>consecutive pairs</td><td class="n">thousands of pairs,<br>a few hundred situations</td><td>this month &times; ~10 places, free, now</td></tr>
+        <tr><td>a next-frame model conditioned on the last few</td><td>short sequences</td><td class="n">~1,000 independent days</td><td>about 3 years at one place</td></tr>
+        <tr><td>a full video generator</td><td>whole sequences</td><td class="n">several thousand sequences</td><td>the 2017-to-now NOAA archive</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>The first row is cheap and available tonight, and it inherits the 7.72 network's image quality. It has one untested dependency that decides whether it works at all: <b>inversion</b> — whether a real satellite frame can be mapped back into the network's latent space faithfully enough that the difference between two frames ten minutes apart is weather rather than reconstruction error. That is worth measuring on a few dozen frames, for about a euro of GPU, before fetching anything more. GIBS keeps only about forty days, so the other nine places should be pulled soon if that test passes; the longer rows need the NOAA archive, which is radiance data rather than pictures and a real engineering step.</p>
+</section>
+
+<footer>
+  GOES-West ABI GeoColor and Band 13 via NASA GIBS · terrain from AWS Open Data elevation tiles ·
+  frames checked for broken renders with <span class="mono">scripts/goes_qc.py</span> ·
+  calendar and clips by <span class="mono">scripts/month_sheet.py</span> · <span id="qcnote"></span>
+</footer>
+</div>
+
+<script>
+// ---- measured lag correlations (GeoColor: daylight anomaly; IR: diurnal-cycle removed)
+const LAG = {
+  geo: [[10,.955],[20,.905],[30,.865],[60,.776],[90,.708],[120,.656],[180,.571],[240,.518],[360,.430]],
+  ir:  [[10,.899],[30,.737],[60,.623],[180,.459],[360,.340],[720,.242],[1080,.206],[1440,.190],[2160,.104],[2880,.065],[4320,.036]],
+};
+// ---- cloud frequency by distance from the coast (midday frames; + offshore, - inland)
+const COAST = [["300-100 km inland",.247],["100-20 km inland",.157],["within 20 km inland",.238],
+  ["0-50 km offshore",.455],["50-150 km offshore",.562],["150-400 km offshore",.665],["400-900 km offshore",.752]];
+
+(function chart(){
+  const W=900,H=320,L=50,R=14,T=12,B=40;
+  const lx = m => L + Math.log10(m/10)/Math.log10(4320/10)*(W-L-R);
+  const ly = c => T + (1-c)*(H-T-B);
+  let s="";
+  for (const c of [0,.25,.5,.75,1]){
+    s+=`<line x1="${L}" y1="${ly(c)}" x2="${W-R}" y2="${ly(c)}" stroke="var(--hair)"/>`;
+    s+=`<text x="${L-8}" y="${ly(c)+4}" text-anchor="end" font-size="11" font-family="IBM Plex Mono,monospace" fill="var(--faint)">${c.toFixed(2)}</text>`;
+  }
+  for (const [m,lab] of [[10,"10 min"],[60,"1 h"],[360,"6 h"],[1440,"1 day"],[4320,"3 days"]]){
+    s+=`<line x1="${lx(m)}" y1="${T}" x2="${lx(m)}" y2="${H-B}" stroke="var(--hair)" stroke-dasharray="2 4"/>`;
+    s+=`<text x="${lx(m)}" y="${H-B+17}" text-anchor="middle" font-size="11" font-family="IBM Plex Mono,monospace" fill="var(--faint)">${lab}</text>`;
+  }
+  s+=`<text x="${L}" y="${H-4}" font-size="11" font-family="IBM Plex Mono,monospace" fill="var(--faint)">time between frames (log scale)</text>`;
+  const e = LAG.ir[0][1]/Math.E;
+  s+=`<line x1="${L}" y1="${ly(e)}" x2="${W-R}" y2="${ly(e)}" stroke="#37718f" stroke-dasharray="6 5" opacity=".6"/>`;
+  for (const [key,color] of [["geo","#b3652a"],["ir","#37718f"]]){
+    s+=`<polyline fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" points="${LAG[key].map(p=>`${lx(p[0])},${ly(p[1])}`).join(" ")}"/>`;
+    for (const p of LAG[key]) s+=`<circle cx="${lx(p[0])}" cy="${ly(p[1])}" r="3" fill="${color}"/>`;
+  }
+  document.getElementById("lagchart").innerHTML=s;
+  const max = Math.max(...COAST.map(r=>r[1]));
+  document.getElementById("coasttable").innerHTML = COAST.map(([k,v]) =>
+    `<tr><td>${k}</td><td class="n">${(v*100).toFixed(0)}%<span class="barcell" style="width:${Math.round(v/max*160)}px"></span></td></tr>`).join("");
+})();
+
+// ---- the month player, fed by each layer's month.json
+const V=document.getElementById("v"), EMPTY=document.getElementById("empty"), DAYS=document.getElementById("days");
+const INFO=document.getElementById("info"), SUM=document.getElementById("summary"), CAL=document.getElementById("calendar");
+const SCRUB=document.getElementById("scrub");
+const cache={}; let layer="california_x3", current=null;
+
+function load(l){
+  layer=l;
+  for (const b of document.querySelectorAll("[data-layer]")) b.setAttribute("aria-pressed", String(b.dataset.layer===l));
+  const got = cache[l] ? Promise.resolve(cache[l]) : fetch(`${l}/month.json`).then(r=>r.ok?r.json():Promise.reject(r.status)).then(j=>cache[l]=j);
+  got.then(m=>{
+    CAL.src=`${l}/${m.calendar}`;
+    SUM.textContent=`${m.frames.toLocaleString()} frames · ${m.days} days · ${m.first.slice(0,10)} to ${m.last.slice(0,10)}`;
+    DAYS.innerHTML="";
+    for (const c of m.clips.slice().reverse()){
+      const b=document.createElement("button"); b.type="button"; b.setAttribute("aria-pressed","false");
+      const d=new Date(c.date+"T12:00:00Z");
+      b.innerHTML=`<span>${d.toLocaleDateString(undefined,{month:"short",day:"numeric",timeZone:"UTC"})}</span><small>${c.frames} fr</small>`;
+      b.onclick=()=>play(c); b.dataset.file=c.file; DAYS.appendChild(b);
+    }
+    if (m.clips.length) play(m.clips[m.clips.length-1]); else { EMPTY.hidden=false; EMPTY.textContent="no clips in this layer yet"; }
+  }).catch(e=>{ EMPTY.hidden=false; EMPTY.textContent=`this layer is not built yet (${e})`; SUM.textContent=""; });
+}
+function play(c){
+  current=c; EMPTY.hidden=true; V.src=`${layer}/${c.file}`; V.play().catch(()=>{});
+  for (const b of DAYS.children) b.setAttribute("aria-pressed", String(b.dataset.file===c.file));
+  INFO.innerHTML=`<b>${c.date || "noon flipbook"}</b> · ${c.frames} frames · ${c.seconds}s` + (c.span_min ? ` · covers ${Math.round(c.span_min/60)} h` : "");
+}
+document.getElementById("noonbtn").onclick=()=>{
+  const m=cache[layer]; if (!m || !m.noon) return;
+  play({file:m.noon, frames:m.noon_days.length, seconds:(m.noon_days.length/2).toFixed(1), date:`noon, ${m.noon_days.length} days`});
+};
+for (const b of document.querySelectorAll("[data-layer]")) b.onclick=()=>load(b.dataset.layer);
+V.addEventListener("timeupdate",()=>{ if (V.duration && document.activeElement!==SCRUB) SCRUB.value=Math.round(1000*V.currentTime/V.duration); });
+SCRUB.addEventListener("input",()=>{ if (V.duration){ V.pause(); V.currentTime=V.duration*SCRUB.value/1000; } });
+V.addEventListener("error",()=>{ EMPTY.hidden=false; EMPTY.textContent="could not play this clip"; });
+load(layer);
+</script>
+</body>
+</html>

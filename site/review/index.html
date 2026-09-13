@@ -232,6 +232,30 @@
 
 <section>
   <div class="head">
+    <h2>Does the best score make the best picture?</h2>
+    <p>FID measures how closely the generated distribution matches the training data, which is not the same as beautiful. The early stop killed this run at 600 kimg, but every snapshot up to then is still on disk, so the choice of which network to keep can be made by eye. Same seeds, same settings, three snapshots:</p>
+  </div>
+  <figure>
+    <div class="plate"><img src="img/kimg/grid_000200.jpg" alt="Twelve generated skies at 200 kimg" loading="lazy"></div>
+    <figcaption class="mono" style="color:var(--faint)">200 kimg · FID 7.72 · the best score</figcaption>
+  </figure>
+  <figure>
+    <div class="plate"><img src="img/kimg/grid_000400.jpg" alt="The same twelve skies at 400 kimg" loading="lazy"></div>
+    <figcaption class="mono" style="color:var(--faint)">400 kimg · FID 8.89</figcaption>
+  </figure>
+  <figure>
+    <div class="plate"><img src="img/kimg/grid_000600.jpg" alt="The same twelve skies at 600 kimg" loading="lazy"></div>
+    <figcaption class="mono" style="color:var(--faint)">600 kimg · FID 10.25 · where the early stop killed it</figcaption>
+  </figure>
+  <div class="two">
+    <figure><div class="plate"><img src="img/kimg/wide_000200.jpg" alt="Panorama at 200 kimg" loading="lazy"></div><figcaption class="mono" style="color:var(--faint)">panorama · 200 kimg</figcaption></figure>
+    <figure><div class="plate"><img src="img/kimg/wide_000600.jpg" alt="The same panorama at 600 kimg" loading="lazy"></div><figcaption class="mono" style="color:var(--faint)">same panorama · 600 kimg</figcaption></figure>
+  </div>
+  <p><b>My read, offered as one opinion:</b> the later snapshots come out softer rather than more varied. At 200 the small cumulus and the edges of cloud streets are crisp; at 400 and 600 the same seeds are smoother, with one exception — the open-cell field bottom-left only turns sharp at 600. Another session training on terrain saw the opposite, more variety later, and both can be true: variety of <em>kinds</em> of scene is a different thing from sharpness of texture. If you prefer a later snapshot, that is a reason to raise the early stop's patience on beauty-led runs.</p>
+</section>
+
+<section>
+  <div class="head">
     <h2>What I'd like from you</h2>
     <p>Three questions where my opinion is worth less than yours.</p>
   </div>
