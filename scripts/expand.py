@@ -77,25 +77,52 @@ def patch_shape_checks():
     SynthesisLayer.forward = forward
 
 
-def region_centres(k):
-    """k points spread over the unit canvas, in a row for small k and a loose grid beyond."""
+def region_centres(k, jitter=0.18, seed=0):
+    """k points spread over the unit canvas, in a row for small k and a loose grid beyond.
+
+    The grid is jittered because centres on an exact lattice put every boundary on an axis:
+    the bisector of two horizontally-adjacent centres is a vertical line, and a canvas of
+    those reads as a window pane. Jitter alone does not remove straightness -- see `warp` --
+    but it stops the seams all pointing the same way."""
     if k <= 3:
-        return [((i + 0.5) / k, 0.5) for i in range(k)]
-    cols = int(np.ceil(np.sqrt(k)))
-    rows = int(np.ceil(k / cols))
-    return [(((i % cols) + 0.5) / cols, ((i // cols) + 0.5) / rows) for i in range(k)]
+        pts = [((i + 0.5) / k, 0.5) for i in range(k)]
+    else:
+        cols = int(np.ceil(np.sqrt(k)))
+        rows = int(np.ceil(k / cols))
+        pts = [(((i % cols) + 0.5) / cols, ((i // cols) + 0.5) / rows) for i in range(k)]
+    if not jitter:
+        return pts
+    rng = np.random.RandomState(seed)
+    return [(float(np.clip(x + rng.uniform(-jitter, jitter), 0.05, 0.95)),
+             float(np.clip(y + rng.uniform(-jitter, jitter), 0.05, 0.95))) for x, y in pts]
 
 
-def patch_spatial_blend(G, centres, blend):
+def patch_spatial_blend(G, centres, blend, warp=0.0, seed=0):
     """After every synthesis block, collapse the batch of k skies into one canvas using smooth
     masks. Each sample is computed normally (so demodulation stays correct); only the activations
-    are combined, which lets the following blocks paint the transition instead of covering it."""
+    are combined, which lets the following blocks paint the transition instead of covering it.
+
+    A softmax over distance-to-centre is a Voronoi partition, and the bisector between two
+    centres is a STRAIGHT LINE. Widening `blend` softens that edge but leaves it straight, and
+    a straight edge across a cloud field is the one thing that reads instantly as fake -- at
+    6 regions on a regular grid it produced visible vertical and horizontal seams. `warp` adds
+    the same low-frequency noise field to every region's distance, which bends the boundaries
+    into meandering fronts without moving the regions themselves. The field is generated once
+    at low resolution and resampled per block, so every block agrees on where the front is."""
     import torch
     from training.networks_stylegan2 import SynthesisNetwork
+
+    k = len(centres)
+    gen = torch.Generator().manual_seed(seed)
+    # one coarse field per region; 8x8 is about two undulations across the canvas
+    noise = torch.randn(k, 1, 8, 8, generator=gen) if warp > 0 else None
 
     def masks_for(h, w, device, dtype):
         yy, xx = torch.meshgrid(torch.linspace(0, 1, h, device=device), torch.linspace(0, 1, w, device=device), indexing="ij")
         d = torch.stack([((xx - cx) ** 2 + ((yy - cy) * (h / max(w, 1))) ** 2) for cx, cy in centres])
+        if noise is not None:
+            f = torch.nn.functional.interpolate(noise.to(device), size=(h, w), mode="bicubic", align_corners=False)[:, 0]
+            d = d + warp * f
         return torch.softmax(-d / max(blend * 0.05, 1e-6), dim=0)[:, None].to(dtype)
 
     orig = SynthesisNetwork.forward
@@ -131,11 +158,12 @@ def patch_spatial_blend(G, centres, blend):
 @click.option("--seeds", default=None, help="comma-separated; with --regions each one owns part of the canvas")
 @click.option("--regions", is_flag=True, help="give each seed a region of the canvas instead of averaging them")
 @click.option("--blend", default=0.6, type=float, help="how wide the transition between regions is; low is an abrupt edge, high is a slow gradient")
+@click.option("--warp", default=0.06, type=float, help="bend the boundaries between regions into meandering fronts instead of straight bisectors; 0 restores the straight-edged behaviour")
 @click.option("--truncation", default=0.7, type=float)
 @click.option("--noise", default="random", type=click.Choice(["random", "none"]))
 @click.option("--smooth", default="5,1.6", help="gaussian over the tiled constant as size,sigma -- or 'none' to see the seam it removes")
 @click.option("--out", default=None, type=click.Path(path_type=Path))
-def main(network, tiles, seed, seeds, regions, blend, truncation, noise, smooth, out):
+def main(network, tiles, seed, seeds, regions, blend, warp, truncation, noise, smooth, out):
     import torch
     from PIL import Image
     from latent import load_G
@@ -151,8 +179,8 @@ def main(network, tiles, seed, seeds, regions, blend, truncation, noise, smooth,
     ids = [int(v) for v in (seeds.split(",") if seeds else [str(seed)])]
     ws = torch.cat([G.mapping(torch.from_numpy(np.random.RandomState(s).randn(1, G.z_dim)).to(dev), None, truncation_psi=truncation) for s in ids])
     if regions and len(ids) > 1:
-        centres = region_centres(len(ids))
-        patch_spatial_blend(G, centres, blend)
+        centres = region_centres(len(ids), seed=seed)
+        patch_spatial_blend(G, centres, blend, warp, seed)
         w = ws
     else:
         w = ws.mean(0, keepdim=True)
