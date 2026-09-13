@@ -1,0 +1,10 @@
+{
+  "zone": "fr-par-2",
+  "busy_util": 5,
+  "busy_mem_mib": 500,
+  "idle_minutes": 30,
+  "samples": 3,
+  "sample_gap_s": 20,
+  "autostop": [],
+  "note": "A box is only stopped if its NAME is listed in autostop AND it has been idle for idle_minutes. Empty list = report only, which is the safe default: another project's box gets reported, never touched. Add 'earthai-gpu' once you are happy for this project's own box to stop itself between runs."
+}
