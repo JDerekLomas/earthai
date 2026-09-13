@@ -15,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 import csv
+import io
 import math
 import random
 import sys
@@ -24,7 +25,9 @@ from datetime import date
 from pathlib import Path
 
 import click
+import numpy as np
 import requests
+from PIL import Image
 from tqdm import tqdm
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -40,7 +43,7 @@ LAYERS = {
 }
 
 HEADERS = {"User-Agent": "earthai-cloud-gan/0.1 (research; github.com/JDerekLomas/earthai)"}
-MANIFEST_FIELDS = ["path", "region", "regime", "sensor", "date", "z", "x", "y", "lon", "lat"]
+MANIFEST_FIELDS = ["path", "region", "regime", "sensor", "date", "z", "x", "y", "lon", "lat", "ss"]
 
 
 def lonlat_to_tile(lon: float, lat: float, z: int) -> tuple[int, int]:
@@ -59,26 +62,67 @@ def tile_to_lonlat(x: int, y: int, z: int) -> tuple[float, float]:
     return lon, lat
 
 
-def fetch_one(session: requests.Session, job: dict, out_dir: Path, retries: int = 3) -> dict | None:
-    layer, _ = LAYERS[job["sensor"]]
-    url = GIBS.format(layer=layer, day=job["date"], z=job["z"], y=job["y"], x=job["x"])
-    dest = out_dir / job["regime"] / f'{job["sensor"]}_{job["date"]}_{job["z"]}_{job["x"]}_{job["y"]}.jpg'
-    if dest.exists():
-        return None
+def get_tile(session, layer, day, z, x, y, retries=3):
+    """Raw bytes for one tile, or None. Distinguishes "no imagery" from "try again"."""
+    url = GIBS.format(layer=layer, day=day, z=z, y=y, x=x)
     for attempt in range(retries):
         try:
             r = session.get(url, headers=HEADERS, timeout=30)
             if r.status_code == 200 and r.headers.get("content-type", "").startswith("image"):
-                dest.parent.mkdir(parents=True, exist_ok=True)
-                dest.write_bytes(r.content)
-                lon, lat = tile_to_lonlat(job["x"], job["y"], job["z"])
-                return {**job, "path": str(dest.relative_to(out_dir.parent)), "lon": f"{lon:.2f}", "lat": f"{lat:.2f}"}
+                return r.content
             if r.status_code in (400, 404):
-                return None  # no imagery for that day/layer
+                return None                      # no imagery for that day/layer
             time.sleep(2**attempt)
         except requests.RequestException:
             time.sleep(2**attempt)
     return None
+
+
+def supersampled(session, layer, day, z, x, y, ss: int, retries=3):
+    """The same ground as tile (z, x, y), fetched as an ss x ss block at zoom z+log2(ss)
+    and area-averaged back down to 256 px.
+
+    This is not about getting a bigger picture -- the output is the same 256 px. It is
+    about WHICH 256 px. Measured against the deeply-sampled truth, the tile server's own
+    coarse render carries 3-48% MORE energy above half Nyquist than it should: it is
+    aliasing and edge-sharpening, not resolution. Averaging the children down converges on
+    the truth (PSNR 30.5 -> 35.2 -> 41.1 over the Namib at z11), compresses ~10% smaller,
+    and stops a GAN learning the tile server's artifacts as though they were cloud texture.
+    """
+    k = int(math.log2(ss))
+    zz, x0, y0 = z + k, x * ss, y * ss
+    canvas = Image.new("RGB", (256 * ss, 256 * ss))
+    for dy in range(ss):
+        for dx in range(ss):
+            b = get_tile(session, layer, day, zz, x0 + dx, y0 + dy, retries)
+            if b is None:
+                return None                      # a partial mosaic is not the same ground
+            canvas.paste(Image.open(io.BytesIO(b)).convert("RGB"), (256 * dx, 256 * dy))
+    return canvas.resize((256, 256), Image.BOX)  # BOX is the area average; LANCZOS re-rings
+
+
+def fetch_one(session: requests.Session, job: dict, out_dir: Path, retries: int = 3,
+              ss: int = 1, quality: int = 92) -> dict | None:
+    layer, _ = LAYERS[job["sensor"]]
+    tag = "" if ss == 1 else f"_ss{ss}"
+    dest = out_dir / job["regime"] / f'{job["sensor"]}_{job["date"]}_{job["z"]}_{job["x"]}_{job["y"]}{tag}.jpg'
+    if dest.exists():
+        return None
+    if ss == 1:
+        b = get_tile(session, layer, job["date"], job["z"], job["x"], job["y"], retries)
+        if b is None:
+            return None
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(b)
+    else:
+        im = supersampled(session, layer, job["date"], job["z"], job["x"], job["y"], ss, retries)
+        if im is None:
+            return None
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        im.save(dest, quality=quality)
+    lon, lat = tile_to_lonlat(job["x"], job["y"], job["z"])
+    return {**job, "path": str(dest.relative_to(out_dir.parent)),
+            "lon": f"{lon:.2f}", "lat": f"{lat:.2f}", "ss": ss}
 
 
 @click.command()
@@ -95,7 +139,11 @@ def fetch_one(session: requests.Session, job: dict, out_dir: Path, retries: int 
 @click.option("--manifest", default=None, type=click.Path(path_type=Path), help="default: <out parent>/manifest_raw.csv")
 @click.option("--seed", default=0, type=int)
 @click.option("--limit", default=0, type=int, help="stop after N downloads (for testing)")
-def main(zoom, per_region, every, start, end, sensors, surface, region_names, workers, out, manifest, seed, limit):
+@click.option("--supersample", "ss", default=1, type=click.Choice(["1", "2", "4"]),
+              help="fetch NxN children a zoom deeper and area-average to 256 px; costs N^2 requests "
+                   "and removes the server's aliasing (see scripts/supersample_check.py)")
+def main(zoom, per_region, every, start, end, sensors, surface, region_names, workers, out, manifest, seed, limit, ss):
+    ss = int(ss)
     rng = random.Random(seed)
     regions = [r for r in regions_for(surface) if not region_names or r.name in region_names]
     sensor_list = [s.strip() for s in sensors.split(",")]
@@ -117,7 +165,8 @@ def main(zoom, per_region, every, start, end, sensors, surface, region_names, wo
     rng.shuffle(jobs)
     if limit:
         jobs = jobs[:limit]
-    click.echo(f"{len(jobs)} tile jobs over {len(days)} days, {len(regions)} regions, {len(sensor_list)} sensors -> {out}")
+    note = "" if ss == 1 else f"  (supersample x{ss}: {ss*ss} requests per tile, {len(jobs)*ss*ss} total)"
+    click.echo(f"{len(jobs)} tile jobs over {len(days)} days, {len(regions)} regions, {len(sensor_list)} sensors -> {out}{note}")
 
     out.mkdir(parents=True, exist_ok=True)
     manifest = manifest or out.parent / "manifest_raw.csv"
@@ -128,7 +177,7 @@ def main(zoom, per_region, every, start, end, sensors, surface, region_names, wo
         if new_file:
             w.writeheader()
         with ThreadPoolExecutor(max_workers=workers) as ex:
-            futures = [ex.submit(fetch_one, session, j, out) for j in jobs]
+            futures = [ex.submit(fetch_one, session, j, out, 3, ss) for j in jobs]
             for f in tqdm(as_completed(futures), total=len(futures), unit="tile", smoothing=0.05):
                 row = f.result()
                 if row:
