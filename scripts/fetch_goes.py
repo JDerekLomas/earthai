@@ -132,8 +132,10 @@ def main(place, all_places, days, hours, stride, out, workers, max_black, min_me
             log.write(json.dumps(r) + "\n")
             kept += 1
         log.flush()
-        click.echo(f"{name:14} {kept:5} frames of {len(times)} slots  ({sat})")
-    click.echo(f"-> {out}")
+        on_disk = len(list((out / name).glob("*.jpg")))
+        click.echo(f"{name:14} +{kept:5} new, {on_disk:6} on disk, of {len(times)} slots  ({sat})")
+    total = sum(1 for _ in open(out / "goes.jsonl")) if (out / "goes.jsonl").exists() else 0
+    click.echo(f"-> {out}   {total} frames total")
 
 
 if __name__ == "__main__":
