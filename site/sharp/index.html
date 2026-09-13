@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What's Actually In A Pixel</title>
+<meta name="description" content="The tile server's coarse render is not blurry — it is falsely sharp. Measured against deeply-sampled truth, with the controls that make the measurement mean anything.">
+<style>html{color-scheme:light dark} body{margin:0} img{max-width:100%}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#e9edf1; --surface:#ffffff; --sunk:#dfe5ea;
+    --ink:#13202e; --muted:#5b6b7d; --faint:#8493a4;
+    --line:#c7d1da; --hair:#dbe2e8;
+    --ochre:#b3652a; --cool:#37718f; --deep:#0f2233;
+    --ok:#2f7d5b; --no:#a33a2a;
+    --shadow:0 1px 2px rgba(15,34,51,.08), 0 8px 24px rgba(15,34,51,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+      --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+      --line:#27394b; --hair:#1c2c3c;
+      --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+      --ok:#5cb98d; --no:#e0765f;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+    --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+    --line:#27394b; --hair:#1c2c3c;
+    --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+    --ok:#5cb98d; --no:#e0765f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--ground); color:var(--ink);
+    font:400 16px/1.55 "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    padding-block:44px 72px; padding-left:20px; padding-right:20px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1080px; margin:0 auto; display:flex; flex-direction:column; gap:52px}
+  h1,h2,h3{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif; text-wrap:balance; margin:0}
+  h1{font-size:clamp(30px,4.6vw,46px); font-weight:600; letter-spacing:-.015em; line-height:1.08}
+  h2{font-size:clamp(20px,2.6vw,26px); font-weight:600; letter-spacing:-.01em}
+  h3{font-size:16px; font-weight:600}
+  p{margin:0; max-width:66ch}
+  a{color:var(--cool)}
+  .lede{font-size:clamp(17px,2vw,19px); color:var(--muted); max-width:62ch}
+  .eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--faint)}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+  section{display:flex; flex-direction:column; gap:18px}
+  .head{display:flex; flex-direction:column; gap:8px}
+  header{display:flex; flex-direction:column; gap:16px; border-bottom:1px solid var(--line); padding-bottom:32px}
+  .claim{font-family:"IBM Plex Sans Condensed",sans-serif; font-size:clamp(19px,2.4vw,23px); line-height:1.35;
+    max-width:34ch; border-left:3px solid var(--ochre); padding-left:18px}
+  .claim b{color:var(--ochre); font-weight:600}
+  .xl{font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.06em; text-decoration:none;
+    color:var(--muted); border-bottom:1px solid var(--line); padding-bottom:2px}
+  .xl:hover{color:var(--cool); border-color:var(--cool)}
+  .links{display:flex; flex-wrap:wrap; gap:20px}
+
+  figure{margin:0; display:flex; flex-direction:column; gap:10px}
+  .plate{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:14px;
+    box-shadow:var(--shadow); overflow-x:auto}
+  .plate img{display:block; image-rendering:pixelated; min-width:520px}
+  .plate.smooth img{image-rendering:auto; min-width:0}
+  figcaption{font-size:13.5px; color:var(--muted); max-width:70ch}
+  figcaption b{color:var(--ink); font-weight:600}
+
+  .tw{overflow-x:auto; background:var(--surface); border:1px solid var(--hair); border-radius:4px; box-shadow:var(--shadow)}
+  table{border-collapse:collapse; width:100%; font-size:13.5px; min-width:560px}
+  th,td{text-align:right; padding:9px 14px; border-top:1px solid var(--hair); white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  thead th{border-top:0; font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--faint); padding-top:13px; padding-bottom:11px}
+  td.n{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums}
+  tr.ref td{background:var(--sunk)}
+  td .bad{color:var(--no); font-weight:600}
+  td .good{color:var(--ok); font-weight:600}
+
+  .cols{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:20px}
+  .note{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:16px 18px;
+    display:flex; flex-direction:column; gap:8px; box-shadow:var(--shadow)}
+  .note p{font-size:14px; color:var(--muted)}
+  .note.warn{border-left:3px solid var(--no)}
+  .note.yes{border-left:3px solid var(--ok)}
+  .formula{font-family:"IBM Plex Mono",monospace; font-size:13.5px; color:var(--muted);
+    background:var(--sunk); border:1px solid var(--hair); border-radius:3px;
+    padding:12px 14px; width:fit-content; max-width:100%; overflow-x:auto}
+  footer{border-top:1px solid var(--line); padding-top:22px; font-size:13px; color:var(--faint)}
+  ul{margin:0; padding-left:1.1em; color:var(--muted); font-size:14.5px; max-width:66ch}
+  li{margin:5px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">earthai · resolution</div>
+  <h1>What's actually in a pixel</h1>
+  <p class="claim">The tile the server hands you at a coarse zoom is not blurry. It is <b>falsely sharp</b> — carrying up to half again as much fine detail as the ground actually has, because the render aliased and the codec rang.</p>
+  <p class="lede">The suspicion was that stitching a big block together and shrinking it would squeeze the blur out. The measurement says something more useful than that. There was never much blur to remove; what averaging removes is <em>invented</em> detail. And a GAN trained on invented detail learns to invent it back.</p>
+  <div class="links">
+    <a class="xl" href="../">scale ladder &rarr;</a>
+    <a class="xl" href="../goes/">timelapse &rarr;</a>
+    <a class="xl" href="../triage/">tile triage &rarr;</a>
+    <a class="xl" href="https://github.com/JDerekLomas/earthai/blob/main/scripts/supersample_check.py">the measurement &rarr;</a>
+  </div>
+</header>
+
+<section>
+  <div class="head">
+    <h2>The same ground, four ways</h2>
+    <p>Namib dunes. Every panel below is the same 256&nbsp;px output covering the same patch of desert. The only difference is how deep the fetch went before averaging back down: one tile, four tiles, sixteen, sixty-four. Crops are magnified 4× with no smoothing, so you are looking at real pixels.</p>
+  </div>
+  <figure>
+    <div class="plate"><img src="img/ladder-namib.png" alt="Four magnified crops of the same dune field, fetched at increasing zoom and averaged down to the same size"></div>
+    <figcaption>Left to right the speckle in the flat sand drains away while the dune crests and their shadow lines stay exactly where they were — and read <b>more</b> clearly, because they are no longer competing with noise. The leftmost panel's extra texture is not extra dune.</figcaption>
+  </figure>
+  <figure>
+    <div class="plate smooth"><img src="img/pair-namib.png" alt="The native tile beside the eight-times-averaged version, both at 256 pixels, unmagnified"></div>
+    <figcaption>The same two at 1:1, which is how a training tile is actually seen. The difference is small and it is systematic — which is exactly the kind of difference a network will happily learn.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="head">
+    <h2>Measured against the truth, not against a feeling</h2>
+    <p>Two blind "sharpness" numbers cannot settle this, so the deepest fetch — 64 tiles area-averaged down — is treated as the reference, and every shallower variant is scored against it. <span class="mono">MTF</span> is the share of the true signal a variant retains in that frequency band. Above 1.0 means the variant has <em>more</em> energy there than the ground does.</p>
+  </div>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Sentinel-2, Namib z11 → 256 px</th><th>tiles</th><th>fetched</th><th>MTF mid</th><th>MTF top</th><th>PSNR vs truth</th><th>JPEG q85</th><th>ring</th></tr></thead>
+      <tbody>
+        <tr><td>native z11</td><td class="n">1</td><td class="n">256 px</td><td class="n">1.255</td><td class="n"><span class="bad">1.480</span></td><td class="n">30.51 dB</td><td class="n">17.7 KB</td><td class="n"><span class="bad">1.161</span></td></tr>
+        <tr><td>×2 from z12</td><td class="n">4</td><td class="n">512 px</td><td class="n">1.072</td><td class="n">1.248</td><td class="n">35.21 dB</td><td class="n">17.8 KB</td><td class="n">1.048</td></tr>
+        <tr><td>×4 from z13</td><td class="n">16</td><td class="n">1024 px</td><td class="n">1.013</td><td class="n">1.055</td><td class="n">41.08 dB</td><td class="n">16.4 KB</td><td class="n">1.050</td></tr>
+        <tr class="ref"><td>×8 from z14 — the reference</td><td class="n">64</td><td class="n">2048 px</td><td class="n">1.000</td><td class="n">1.000</td><td class="n">—</td><td class="n"><span class="good">16.0 KB</span></td><td class="n"><span class="good">1.031</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p><b>Read it in two directions.</b> Down the MTF columns: the native tile carries 48% more top-octave energy than the dunes actually contain, and each round of averaging walks that back toward 1.000. Down the PSNR column: 30.5 → 35.2 → 41.1&nbsp;dB, converging on the truth rather than drifting from it. Those are the same fact stated twice.</p>
+  <p>The last two columns answer the other half of the question — whether it survives compression better. At matched JPEG quality the averaged tile is <b>10% smaller</b>, and the <span class="mono">ring</span> column is how much top-octave energy the codec <em>added</em>: 1.161 for the native tile against 1.031 for the averaged one. JPEG spends its bits fighting noise, and then leaves its own ringing behind. Less noise in, less ringing out, smaller file.</p>
+</section>
+
+<section>
+  <div class="head">
+    <h2>Why the obvious metric is a liar</h2>
+    <p>The instinctive test is to measure high-frequency energy and call the higher number sharper. Every run prints these four controls precisely because that test fails here.</p>
+  </div>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Control</th><th>top-octave energy</th><th>what it proves</th></tr></thead>
+      <tbody>
+        <tr><td>gaussian blur, r = 1.2</td><td class="n">0.00006</td><td style="text-align:left;color:var(--muted)">the metric does fall on real blur</td></tr>
+        <tr><td>halved, then enlarged back</td><td class="n">0.00086</td><td style="text-align:left;color:var(--muted)">and collapses on a fake upsample</td></tr>
+        <tr class="ref"><td>the ×8 reference itself</td><td class="n">0.00721</td><td style="text-align:left;color:var(--muted)">this is what the ground measures</td></tr>
+        <tr><td>the native tile</td><td class="n">0.01606</td><td style="text-align:left;color:var(--muted)">2.2× the truth</td></tr>
+        <tr><td><b>unsharp mask over the native tile</b></td><td class="n"><span class="bad">0.07637</span></td><td style="text-align:left;color:var(--muted)"><b>10× the truth, with zero new information</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>That last row is the whole reason this page exists. A filter that adds nothing at all scores ten times higher than the real thing. Any comparison run on the blind metric alone would have concluded that the native tile — and, even more confidently, a sharpened native tile — was the best data available. Measuring <em>against a reference</em> is what turns an opinion about sharpness into an answerable question.</p>
+</section>
+
+<section>
+  <div class="head">
+    <h2>Where it is worth paying for</h2>
+    <p>Supersampling by N costs N² requests per tile. The gain is not uniform across sources, because it depends entirely on how honestly each server renders its own coarse zooms.</p>
+  </div>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Source</th><th>baseline</th><th>native MTF top</th><th>excess</th><th>verdict</th></tr></thead>
+      <tbody>
+        <tr><td>Sentinel-2 cloudless (EOX)</td><td class="n">z11</td><td class="n">1.480</td><td class="n"><span class="bad">+48%</span></td><td style="text-align:left"><b>Yes</b> — use ×4</td></tr>
+        <tr><td>GOES-East GeoColor</td><td class="n">z6</td><td class="n">1.097</td><td class="n">+10%</td><td style="text-align:left;color:var(--muted)">marginal — only when re-fetching</td></tr>
+        <tr><td>MODIS Terra true colour</td><td class="n">z6</td><td class="n">1.066</td><td class="n">+7%</td><td style="text-align:left;color:var(--muted)">marginal — only when re-fetching</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="cols">
+    <div class="note yes">
+      <h3>It is one flag now</h3>
+      <p><span class="mono">fetch_tiles.py --supersample 2|4</span> fetches the children a zoom deeper and area-averages to 256&nbsp;px. Box filter, not Lanczos — Lanczos would put ringing back into the exact frequencies being measured.</p>
+    </div>
+    <div class="note warn">
+      <h3>What is still unproven</h3>
+      <p>This measures the <em>input</em>. Whether cleaner input yields a better network is a separate question with a separate instrument: retrain on a supersampled set and compare FID. Nothing here licenses the claim that it will.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>The night question</h2>
+    <p>Clouds are perfectly visible at night. The timelapses stop at dusk for a different reason.</p>
+  </div>
+  <figure>
+    <div class="plate smooth"><img src="img/night.png" alt="The same Florida scene in GeoColor by day and by night, and in the Band 13 infrared channel by day and by night"></div>
+    <figcaption>Same satellite, same place, 12 hours apart. <b>GeoColor at night</b> is not darkness — it is an infrared-derived rendering with city lights underneath, and the cloud field reads clearly. It is simply a completely different picture from the daylight one.</figcaption>
+  </figure>
+  <p>So the day-only filter is not a limitation of the sensor, it is a decision about the training distribution: splicing the two together would teach a generator two unrelated worlds and a hard cut between them. There are two honest ways round it.</p>
+  <div class="cols">
+    <div class="note">
+      <h3>Accept the cut</h3>
+      <p>Train on daylight only, as now. Prettiest imagery, ten-minute cadence, but every sequence ends at dusk and the model never sees a full diurnal cycle through to the other side.</p>
+    </div>
+    <div class="note">
+      <h3>Switch to infrared</h3>
+      <p><span class="mono">Band13_Clean_Infrared</span> — the two right-hand panels — looks the same at noon and at 2&nbsp;am, because it measures cloud-top temperature rather than reflected sunlight. One distribution, unbroken round the clock. The price is 2&nbsp;km resolution instead of 1&nbsp;km (GIBS serves it one zoom level shallower) and false colour instead of true.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>How far back the record goes</h2>
+    <p>Measured by asking, not by reading the documentation: the same Gulf tile at 15:00Z, at increasing ages.</p>
+  </div>
+  <div class="formula">−1 d ✓ · −7 d ✓ · −14 d ✓ · −30 d ✓ · −45 d ✗ · −60 d ✗ · −90 d ✗ · −180 d ✗ · −365 d ✗</div>
+  <p>GIBS keeps a rolling window of roughly a month of GOES imagery and then drops it. Everything on the <a href="../goes/">timelapse page</a> was pulled inside that window, and the oldest of it will stop existing at source in a few weeks.</p>
+  <p>For longer runs the imagery tiles are the wrong door. NOAA publishes the underlying ABI radiances on AWS Open Data, free and unauthenticated: <span class="mono">s3://noaa-goes16/ABI-L2-MCMIPF/</span> holds full-disk multiband scenes from <b>2017</b> to now, and <span class="mono">noaa-goes18</span> from 2022. That is a nine-year archive at the same ten-minute cadence — but it is netCDF radiance granules, not pictures, so it needs the projection and the colour recipe applied on our side. A day of GOES-16 full disk is a few hundred gigabytes, so any use of it starts by choosing a small window and a few bands.</p>
+</section>
+
+<footer>
+  Imagery: NASA GIBS (GOES-East ABI GeoColor and Band 13, MODIS Terra true colour) · Sentinel-2 cloudless 2020 by EOX IT Services GmbH, CC BY-NC-SA 4.0 · long archive: NOAA GOES on AWS Open Data.<br>
+  Measured 13 Sep 2026 with <span class="mono">scripts/supersample_check.py</span> — every number on this page is reproducible from that script and prints its own controls.
+</footer>
+
+</div>
+</body>
+</html>
