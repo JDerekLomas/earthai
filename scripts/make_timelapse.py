@@ -43,13 +43,18 @@ def runs(frames: list[Path], gap_tol=GAP_TOL) -> list[list[Path]]:
     return out
 
 
-def encode(frames: list[Path], dest: Path, fps: int, scale: int | None, crf: int) -> dict | None:
+def encode(frames: list[Path], dest: Path, fps: int, scale: int | None, crf: int, width: int | None = None) -> dict | None:
     """ffmpeg over an explicit concat list, so the frames keep their exact order and no
     globbing surprise reorders them. Returns None if ffmpeg fails rather than leaving a
     truncated file that the page would try to play."""
     lst = dest.with_suffix(".txt")
     lst.write_text("".join(f"file '{f.resolve()}'\n" for f in frames))
-    vf = ["-vf", f"scale=iw*{scale}:ih*{scale}:flags=lanczos"] if scale and scale > 1 else []
+    if width:                                   # an explicit output width wins over the upscale
+        vf = ["-vf", f"scale={width}:-2:flags=lanczos"]
+    elif scale and scale > 1:
+        vf = ["-vf", f"scale=iw*{scale}:ih*{scale}:flags=lanczos"]
+    else:
+        vf = []
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-r", str(fps), "-f", "concat", "-safe", "0",
            "-i", str(lst), *vf, "-c:v", "libx264", "-preset", "slow", "-crf", str(crf),
            "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(dest)]
@@ -72,10 +77,12 @@ def encode(frames: list[Path], dest: Path, fps: int, scale: int | None, crf: int
 @click.option("--out", default="site/goes/clips", type=click.Path(path_type=Path))
 @click.option("--fps", default=10, type=int, help="10 fps = one hour of weather per second")
 @click.option("--min-frames", default=24, type=int, help="skip arcs shorter than this (4 hours)")
-@click.option("--crf", default=20, type=int, help="x264 quality; lower is better and bigger")
+@click.option("--crf", default=26, type=int, help="x264 quality for a day arc; lower is better and bigger")
+@click.option("--month-crf", default=28, type=int, help="the all-arcs overview can take more compression")
+@click.option("--month-width", default=512, type=int, help="and less resolution: it is a survey, not the picture")
 @click.option("--max-days", default=6, type=int, help="how many day-arcs to keep per place, newest first")
 @click.option("--month/--no-month", default=True, help="also encode every arc of a place end to end")
-def main(place, all_places, src, out, fps, min_frames, crf, max_days, month):
+def main(place, all_places, src, out, fps, min_frames, crf, month_crf, month_width, max_days, month):
     if not shutil.which("ffmpeg"):
         raise SystemExit("ffmpeg not on PATH (brew install ffmpeg)")
     if not all_places and not place:
@@ -84,7 +91,11 @@ def main(place, all_places, src, out, fps, min_frames, crf, max_days, month):
     if not dirs:
         raise SystemExit(f"nothing to encode under {src}")
     out.mkdir(parents=True, exist_ok=True)
-    manifest = {}
+    # merge into whatever is already described there: encoding one place at a time is the
+    # normal way to work (a fetch finishes per place), and an overwrite would silently drop
+    # every other place from the page while leaving its MP4s on disk.
+    mf = out / "clips.json"
+    manifest = json.loads(mf.read_text()) if mf.exists() else {}
 
     for d in dirs:
         frames = sorted(d.glob("*.jpg"), key=stamp)
@@ -110,14 +121,14 @@ def main(place, all_places, src, out, fps, min_frames, crf, max_days, month):
         if month and len(arcs) > 1:
             flat = [f for a in arcs for f in a]
             dest = out / f"{d.name}_all.mp4"
-            row_all = encode(flat, dest, fps * 2, scale, crf + 2)
+            row_all = encode(flat, dest, fps * 2, scale, month_crf, month_width)
             if row_all:
                 click.echo(f"   {row_all['file']:34} {row_all['frames']:4} fr  {row_all['seconds']:5.1f}s  {row_all['kb']:5} KB  (all arcs)")
 
         manifest[d.name] = dict(frames=len(frames), px=w * scale, arcs=len(arcs),
                                 days=days, all=row_all)
 
-    (out / "clips.json").write_text(json.dumps(manifest, indent=1))
+    mf.write_text(json.dumps(manifest, indent=1))
     total = sum(r["kb"] for p in manifest.values() for r in p["days"] + ([p["all"]] if p["all"] else []))
     click.echo(f"\n-> {out}  {len(manifest)} places, {total // 1024} MB")
 
