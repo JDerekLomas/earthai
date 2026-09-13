@@ -51,7 +51,18 @@ PLACES = {
 }
 
 
-def fetch(layer, t, z, x, y):
+def nodata_frac(a: np.ndarray) -> float:
+    """Share of pixels that are a GIBS HOLE rather than merely dark.
+
+    build_dataset.stats() calls anything under 0.04 luminance "black", which is the right
+    test for a 256 px tile but the wrong one here: a 3x3 block reaches far enough into deep
+    ocean that 2-5% of it is legitimately darker than that, and filtering on it threw away
+    68% of perfectly good daylight frames. A missing tile renders exactly (0,0,0), so test
+    for that instead of for darkness."""
+    return float((a.max(-1) <= 2).mean())
+
+
+def tile(layer, t, z, x, y):
     try:
         r = requests.get(URL.format(layer=layer, t=t, z=z, y=y, x=x), headers=UA, timeout=40)
     except requests.RequestException:
@@ -59,6 +70,26 @@ def fetch(layer, t, z, x, y):
     if r.status_code != 200 or len(r.content) < 900:
         return None
     return Image.open(io.BytesIO(r.content)).convert("RGB")
+
+
+def fetch(layer, t, z, x, y, span=1):
+    """One frame. span>1 stitches a span x span block of neighbouring tiles around (x, y),
+    because a single 256 px tile is too small to look at -- the sky is the subject, and at
+    z6 one tile is a postage stamp of it. The named tile stays near the centre of the block."""
+    if span == 1:
+        return tile(layer, t, z, x, y)
+    x0, y0 = x - span // 2, y - span // 2
+    grid = [(dx, dy) for dy in range(span) for dx in range(span)]
+    # the tiles of one frame are independent, and a tile is ~1 s; fetching them in sequence
+    # made a 3x3 frame a 9 s operation and the whole archive an overnight job.
+    with ThreadPoolExecutor(min(len(grid), 9)) as ex:
+        ims = list(ex.map(lambda g: tile(layer, t, z, x0 + g[0], y0 + g[1]), grid))
+    if any(im is None for im in ims):
+        return None                  # a partial frame is a hole in the sky, not a frame
+    canvas = Image.new("RGB", (256 * span, 256 * span))
+    for (dx, dy), im in zip(grid, ims):
+        canvas.paste(im, (256 * dx, 256 * dy))
+    return canvas
 
 
 @click.command()
@@ -69,9 +100,10 @@ def fetch(layer, t, z, x, y):
 @click.option("--stride", default=10, type=int, help="minutes between frames (10 is the native cadence)")
 @click.option("--out", default="data/goes", type=click.Path(path_type=Path))
 @click.option("--workers", default=6, type=int)
-@click.option("--max-black", default=0.02, type=float, help="drop frames with more missing data than this")
+@click.option("--span", default=1, type=int, help="stitch an NxN block of tiles per frame (3 = 768 px); costs N^2 requests")
+@click.option("--max-black", default=0.01, type=float, help="drop frames with more pure-black (missing) pixels than this")
 @click.option("--min-mean", default=0.18, type=float, help="drop night frames (GeoColor goes infrared after dark)")
-def main(place, all_places, days, hours, stride, out, workers, max_black, min_mean):
+def main(place, all_places, days, hours, stride, out, workers, max_black, min_mean, span):
     names = list(PLACES) if all_places else [place]
     if not names or names == [None]:
         raise SystemExit("give --place or --all")
@@ -82,7 +114,7 @@ def main(place, all_places, days, hours, stride, out, workers, max_black, min_me
 
     for name in names:
         sat, z, x, y, (h0, h1) = PLACES[name]
-        (out / name).mkdir(exist_ok=True)
+        (out / (name if span == 1 else f"{name}_x{span}")).mkdir(exist_ok=True)
         times = []
         if hours:
             # still daylight-only: GeoColor switches to infrared at night, which is a different
@@ -102,18 +134,21 @@ def main(place, all_places, days, hours, stride, out, workers, max_black, min_me
 
         def one(t):
             ts = t.strftime("%Y-%m-%dT%H:%M:00Z")
-            fid = f"{name}_{ts.replace(':', '')}"
-            f = out / name / f"{ts.replace(':', '')}.jpg"
+            tag = "" if span == 1 else f"_x{span}"
+            fid = f"{name}{tag}_{ts.replace(':', '')}"
+            f = out / f"{name}{tag}" / f"{ts.replace(':', '')}.jpg"
             if fid in seen or f.exists():
                 return None
-            im = fetch(SATS[sat], ts, z, x, y)
+            im = fetch(SATS[sat], ts, z, x, y, span)
             if im is None:
                 return None
-            s = stats(np.asarray(im))
-            if s["black"] > max_black or s["mean"] < min_mean:   # gaps, and night
+            a = np.asarray(im)
+            s = stats(a)
+            s["nodata"] = nodata_frac(a)
+            if s["nodata"] > max_black or s["mean"] < min_mean:   # gaps, and night
                 return None
             im.save(f, quality=90)
-            return dict(id=fid, place=name, sat=sat, t=ts, z=z, x=x, y=y,
+            return dict(id=fid, place=name, sat=sat, t=ts, z=z, x=x, y=y, span=span,
                         **{k: round(v, 3) for k, v in s.items()})
 
         with ThreadPoolExecutor(workers) as ex:
@@ -132,7 +167,7 @@ def main(place, all_places, days, hours, stride, out, workers, max_black, min_me
             log.write(json.dumps(r) + "\n")
             kept += 1
         log.flush()
-        on_disk = len(list((out / name).glob("*.jpg")))
+        on_disk = len(list((out / (name if span == 1 else f"{name}_x{span}")).glob("*.jpg")))
         click.echo(f"{name:14} +{kept:5} new, {on_disk:6} on disk, of {len(times)} slots  ({sat})")
     total = sum(1 for _ in open(out / "goes.jsonl")) if (out / "goes.jsonl").exists() else 0
     click.echo(f"-> {out}   {total} frames total")

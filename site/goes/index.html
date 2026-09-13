@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ten Minutes Apart</title>
+<meta name="description" content="Geostationary satellite timelapses of seven skies at ten-minute cadence — the only free source that shows a cloud field becoming another cloud field.">
+<style>html{color-scheme:light dark} body{margin:0} img,video{max-width:100%}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#e9edf1; --surface:#ffffff; --sunk:#dfe5ea;
+    --ink:#13202e; --muted:#5b6b7d; --faint:#8493a4;
+    --line:#c7d1da; --hair:#dbe2e8;
+    --ochre:#b3652a; --cool:#37718f; --deep:#0f2233;
+    --ok:#2f7d5b; --no:#a33a2a;
+    --shadow:0 1px 2px rgba(15,34,51,.08), 0 8px 24px rgba(15,34,51,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+      --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+      --line:#27394b; --hair:#1c2c3c;
+      --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+      --ok:#5cb98d; --no:#e0765f;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+    --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+    --line:#27394b; --hair:#1c2c3c;
+    --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+    --ok:#5cb98d; --no:#e0765f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--ground); color:var(--ink);
+    font:400 16px/1.55 "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    padding-block:44px 72px; padding-left:20px; padding-right:20px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1120px; margin:0 auto; display:flex; flex-direction:column; gap:44px}
+  h1,h2,h3{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif; text-wrap:balance; margin:0}
+  h1{font-size:clamp(30px,4.6vw,46px); font-weight:600; letter-spacing:-.015em; line-height:1.08}
+  h2{font-size:clamp(19px,2.4vw,24px); font-weight:600; letter-spacing:-.01em}
+  h3{font-size:16px; font-weight:600}
+  p{margin:0; max-width:66ch}
+  a{color:var(--cool)}
+  .lede{font-size:clamp(17px,2vw,19px); color:var(--muted); max-width:62ch}
+  .eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--faint)}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+  section{display:flex; flex-direction:column; gap:18px}
+  header{display:flex; flex-direction:column; gap:16px; border-bottom:1px solid var(--line); padding-bottom:30px}
+  .claim{font-family:"IBM Plex Sans Condensed",sans-serif; font-size:clamp(19px,2.4vw,23px); line-height:1.35;
+    max-width:32ch; border-left:3px solid var(--cool); padding-left:18px}
+  .claim b{color:var(--cool); font-weight:600}
+  .xl{font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.06em; text-decoration:none;
+    color:var(--muted); border-bottom:1px solid var(--line); padding-bottom:2px}
+  .xl:hover{color:var(--cool); border-color:var(--cool)}
+  .links{display:flex; flex-wrap:wrap; gap:20px}
+
+  /* ---- player ---- */
+  .player{display:grid; grid-template-columns:minmax(0,1fr) 258px; gap:22px; align-items:start}
+  @media (max-width:820px){ .player{grid-template-columns:minmax(0,1fr)} }
+  .stage{background:var(--deep); border:1px solid var(--hair); border-radius:4px; overflow:hidden;
+    box-shadow:var(--shadow); position:relative; aspect-ratio:1/1}
+  .stage video{display:block; width:100%; height:100%; object-fit:cover; background:#06111c}
+  .stage .empty{position:absolute; inset:0; display:grid; place-items:center; color:#7d93a8;
+    font-family:"IBM Plex Mono",monospace; font-size:13px; text-align:center; padding:24px}
+  .clock{position:absolute; left:0; bottom:0; display:flex; gap:1px; font-family:"IBM Plex Mono",monospace;
+    font-variant-numeric:tabular-nums; font-size:12px; pointer-events:none}
+  .clock span{background:rgba(6,17,28,.78); color:#dce8f2; padding:5px 9px; backdrop-filter:blur(3px)}
+  .clock span.n{color:#8fb4cd}
+
+  .transport{display:flex; flex-direction:column; gap:10px; margin-top:12px}
+  .scrub{width:100%; accent-color:var(--cool); margin:0}
+  .row{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+  button{font:500 13px/1 "IBM Plex Sans", sans-serif; color:var(--ink); background:var(--surface);
+    border:1px solid var(--line); border-radius:3px; padding:8px 12px; cursor:pointer}
+  button:hover{border-color:var(--cool); color:var(--cool)}
+  button[aria-pressed="true"], button.on{background:var(--cool); border-color:var(--cool); color:#fff}
+  button:focus-visible{outline:2px solid var(--ochre); outline-offset:2px}
+  .seg{display:flex; border:1px solid var(--line); border-radius:3px; overflow:hidden}
+  .seg button{border:0; border-radius:0; border-left:1px solid var(--line)}
+  .seg button:first-child{border-left:0}
+
+  /* ---- side rail ---- */
+  .rail{display:flex; flex-direction:column; gap:16px}
+  .card{background:var(--surface); border:1px solid var(--hair); border-radius:4px; box-shadow:var(--shadow)}
+  .card > .hd{padding:12px 14px 0}
+  .places{display:flex; flex-direction:column; padding:8px}
+  .places button{display:flex; justify-content:space-between; align-items:baseline; gap:10px;
+    text-align:left; border:0; border-radius:3px; background:transparent; padding:8px 10px; width:100%}
+  .places button small{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--faint)}
+  .places button[aria-pressed="true"] small{color:#dbe9f3}
+  .places button:hover{background:var(--sunk); color:var(--ink)}
+  .places button[aria-pressed="true"]:hover{background:var(--cool); color:#fff}
+  .meta{display:flex; flex-direction:column; gap:0; padding:4px 14px 14px}
+  .meta div{display:flex; justify-content:space-between; gap:12px; padding:7px 0; border-top:1px solid var(--hair);
+    font-size:13px; color:var(--muted)}
+  .meta div:first-child{border-top:0}
+  .meta b{font-family:"IBM Plex Mono",monospace; font-weight:500; color:var(--ink); font-variant-numeric:tabular-nums}
+
+  /* ---- arcs ---- */
+  .arcs{display:flex; flex-wrap:wrap; gap:8px}
+  .arcs button{display:flex; flex-direction:column; gap:3px; align-items:flex-start; padding:8px 11px}
+  .arcs button i{font-style:normal; font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--faint)}
+  .arcs button[aria-pressed="true"] i{color:#dbe9f3}
+
+  /* ---- prose blocks ---- */
+  .cols{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:22px}
+  .note{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:16px 18px;
+    display:flex; flex-direction:column; gap:8px; box-shadow:var(--shadow)}
+  .note p{font-size:14px; color:var(--muted)}
+  .cost{border-left:3px solid var(--ochre)}
+  table{border-collapse:collapse; width:100%; font-size:13.5px}
+  .tw{overflow-x:auto; background:var(--surface); border:1px solid var(--hair); border-radius:4px; box-shadow:var(--shadow)}
+  th,td{text-align:right; padding:9px 14px; border-top:1px solid var(--hair); white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  thead th{border-top:0; font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--faint); padding-top:13px; padding-bottom:11px}
+  td.n{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums}
+  footer{border-top:1px solid var(--line); padding-top:22px; font-size:13px; color:var(--faint)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">earthai · temporal data</div>
+  <h1>Ten minutes apart</h1>
+  <p class="claim">A polar orbiter gives you a place <b>twice a day</b>. A geostationary satellite gives you the same place <b>every ten minutes</b> — so the clouds in one frame are the clouds in the last frame, moved.</p>
+  <p class="lede">GOES-East and GOES-West hang over the equator and photograph the same disk continuously. That makes them the only free archive where a cloud field can be watched <em>becoming</em> another cloud field, rather than sampled as unrelated skies. Everything below was pulled from NASA GIBS at no cost.</p>
+  <div class="links">
+    <a class="xl" href="../">scale ladder &rarr;</a>
+    <a class="xl" href="../triage/">tile triage &rarr;</a>
+    <a class="xl" href="../scenes/">scenes &rarr;</a>
+    <a class="xl" href="https://github.com/JDerekLomas/earthai">source &rarr;</a>
+  </div>
+</header>
+
+<section>
+  <div class="player">
+    <div>
+      <div class="stage">
+        <video id="v" playsinline muted loop preload="metadata"></video>
+        <div class="empty" id="empty">loading clips…</div>
+        <div class="clock" id="clock" hidden>
+          <span id="c-date"></span><span id="c-time"></span><span class="n" id="c-frame"></span>
+        </div>
+      </div>
+      <div class="transport">
+        <input class="scrub" id="scrub" type="range" min="0" max="1000" value="0" step="1" aria-label="scrub through the sequence">
+        <div class="row">
+          <button id="play" aria-pressed="false">Pause</button>
+          <div class="seg" role="group" aria-label="playback speed">
+            <button data-rate="0.25">¼×</button><button data-rate="0.5">½×</button>
+            <button data-rate="1" class="on">1×</button><button data-rate="2">2×</button><button data-rate="4">4×</button>
+          </div>
+          <button id="step-b" title="one frame back (10 minutes)">&larr; 10 min</button>
+          <button id="step-f" title="one frame forward (10 minutes)">10 min &rarr;</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="rail">
+      <div class="card">
+        <div class="hd"><div class="eyebrow">Place</div></div>
+        <div class="places" id="places"></div>
+      </div>
+      <div class="card">
+        <div class="hd"><div class="eyebrow">This clip</div></div>
+        <div class="meta" id="meta"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Sequences held for this place</div>
+  <div class="arcs" id="arcs"></div>
+  <p style="font-size:14px;color:var(--muted)">Each button is one continuous daylight arc. GeoColor switches to infrared after dark and those frames are dropped, so a place's archive is a string of day-long runs separated by night, not one unbroken month. <b>All arcs</b> plays them end to end at double speed — the cuts you see are sunsets.</p>
+</section>
+
+<section>
+  <h2>What a model can learn from this that it cannot learn from tiles</h2>
+  <div class="cols">
+    <div class="note">
+      <h3>A direction in latent space</h3>
+      <p>Train on pairs ten minutes apart and the difference between their latent codes is, on average, one direction: the way weather moves. Walking that direction generates the <em>next</em> sky rather than <em>a</em> sky.</p>
+    </div>
+    <div class="note">
+      <h3>Motion, not just texture</h3>
+      <p>A still tile teaches what a cumulus field looks like. A sequence teaches that it advects downwind while it grows — the shape and its tendency are different facts, and only one of them is in a single frame.</p>
+    </div>
+    <div class="note">
+      <h3>The diurnal cycle</h3>
+      <p>Andes and Gulf were chosen for it: cloudless morning, convection by afternoon, collapse at dusk, every day. That is the strongest periodic signal in the archive and the easiest to check a model against.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>What it holds, and what it cost</h2>
+  <div class="tw">
+    <table id="tbl">
+      <thead><tr><th>Place</th><th>Satellite</th><th>Frames</th><th>Arcs</th><th>Px</th><th>Cadence</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <div class="cols">
+    <div class="note cost">
+      <h3>The archive: €0</h3>
+      <p>NASA GIBS serves these tiles free and unauthenticated. The whole pull ran on a laptop over an afternoon; the only cost is bandwidth. GIBS keeps roughly the last month at ten-minute cadence, so the window rolls — frames older than that are gone unless we hold them.</p>
+    </div>
+    <div class="note cost">
+      <h3>The temporal model: about €6</h3>
+      <p>Fine-tuning the existing 256&nbsp;px cloud network on frame pairs, then fitting one direction in <span class="mono">W</span> from the pairs, is a few hundred kimg on an L40S at €1.47/h. The expensive part of this project was never the data.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Frames from <a href="https://worldview.earthdata.nasa.gov/">NASA GIBS</a> · GOES-East and GOES-West ABI GeoColor ·
+  fetched with <span class="mono">scripts/fetch_goes.py</span>, encoded with <span class="mono">scripts/make_timelapse.py</span> ·
+  10&nbsp;fps means one hour of weather per second.
+</footer>
+
+</div>
+
+<script>
+const V = document.getElementById('v'), EMPTY = document.getElementById('empty');
+const SCRUB = document.getElementById('scrub'), PLAY = document.getElementById('play');
+const CLOCK = document.getElementById('clock');
+const CD = document.getElementById('c-date'), CT = document.getElementById('c-time'), CF = document.getElementById('c-frame');
+const PLACES = document.getElementById('places'), ARCS = document.getElementById('arcs'), META = document.getElementById('meta');
+
+// how each place was chosen; the satellite comes from the clip name, the reason does not.
+const WHY = {
+  gulf:          ['GOES-East', 'Florida and the Bahamas banks; afternoon convection'],
+  amazon:        ['GOES-East', 'ITCZ convection over the basin'],
+  atlantic_itcz: ['GOES-East', 'open ocean, trade cumulus streets'],
+  andes:         ['GOES-East', 'orographic cloud, strongest diurnal cycle'],
+  california:    ['GOES-West', 'the stratocumulus deck'],
+  peru:          ['GOES-West', 'the other big deck'],
+  pacific_itcz:  ['GOES-West', 'deep convection, open ocean'],
+};
+const label = k => k.replace(/_x\d+$/,'').replace(/_/g,' ').replace(/\bitcz\b/,'ITCZ');
+const base  = k => k.replace(/_x\d+$/,'');
+
+let data = {}, place = null, clip = null, fps = 10;
+
+fetch('clips/clips.json').then(r => r.ok ? r.json() : Promise.reject(r.status)).then(d => {
+  data = d;
+  const keys = Object.keys(d).sort();
+  if (!keys.length) return fail('no clips encoded yet');
+  // prefer the stitched 768 px version of a place when both exist
+  const best = {};
+  for (const k of keys) { const b = base(k); if (!best[b] || k.includes('_x')) best[b] = k; }
+  const order = Object.values(best).sort((a,b) => (d[b].frames||0) - (d[a].frames||0));
+  PLACES.innerHTML = '';
+  for (const k of order) {
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.setAttribute('aria-pressed','false');
+    btn.innerHTML = `<span>${label(k)}</span><small>${(d[k].frames||0).toLocaleString()} fr</small>`;
+    btn.onclick = () => select(k);
+    btn.dataset.key = k;
+    PLACES.appendChild(btn);
+  }
+  fillTable(order);
+  select(order[0]);
+}).catch(e => fail('clips.json did not load (' + e + ')'));
+
+function fail(msg){ EMPTY.textContent = msg; EMPTY.hidden = false; }
+
+function fillTable(order){
+  const tb = document.getElementById('tbody');
+  tb.innerHTML = order.map(k => {
+    const p = data[k], w = WHY[base(k)] || ['—',''];
+    return `<tr><td>${label(k)}<br><span style="color:var(--faint);font-size:12px">${w[1]}</span></td>
+      <td>${w[0]}</td><td class="n">${(p.frames||0).toLocaleString()}</td>
+      <td class="n">${p.arcs||0}</td><td class="n">${p.px||256}</td><td class="n">10 min</td></tr>`;
+  }).join('');
+}
+
+function select(k){
+  place = k;
+  for (const b of PLACES.children) b.setAttribute('aria-pressed', String(b.dataset.key === k));
+  const p = data[k], list = (p.days || []).slice().reverse();
+  ARCS.innerHTML = '';
+  const mk = (row, text, sub, rate) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.setAttribute('aria-pressed','false');
+    b.innerHTML = `<span>${text}</span><i>${sub}</i>`;
+    b.onclick = () => load(row, rate);
+    b.dataset.file = row.file;
+    ARCS.appendChild(b);
+    return b;
+  };
+  for (const row of list) {
+    const d = new Date(row.start);
+    mk(row, d.toLocaleDateString(undefined,{month:'short', day:'numeric'}),
+       `${row.frames} fr · ${Math.round(row.span_min/60)} h`, 1);
+  }
+  if (p.all) mk(p.all, 'All arcs', `${p.all.frames} fr · ${p.arcs} days`, 2);
+  load(list[0] || p.all, 1);
+}
+
+function load(row, rate){
+  if (!row) return fail('this place has no arc long enough to encode');
+  clip = row; fps = 10 * (rate || 1);
+  for (const b of ARCS.children) b.setAttribute('aria-pressed', String(b.dataset.file === row.file));
+  EMPTY.hidden = true; CLOCK.hidden = false;
+  V.src = 'clips/' + row.file;
+  V.play().then(() => PLAY.textContent = 'Pause').catch(() => PLAY.textContent = 'Play');
+  PLAY.setAttribute('aria-pressed','false');
+  META.innerHTML = [
+    ['Frames', row.frames.toLocaleString()],
+    ['Covers', Math.round(row.span_min/60) + ' h ' + (row.span_min % 60) + ' min'],
+    ['Runs for', row.seconds + ' s'],
+    ['Starts', row.start.replace('T',' ').replace(':00Z',' UTC')],
+    ['Size', row.kb > 1024 ? (row.kb/1024).toFixed(1) + ' MB' : row.kb + ' KB'],
+  ].map(([a,b]) => `<div><span>${a}</span><b>${b}</b></div>`).join('');
+  tick();
+}
+
+// the point of the clock: every frame is a real ten-minute step, and scrubbing reads as a date.
+function tick(){
+  if (!clip || !V.duration || !isFinite(V.duration)) return;
+  const i = Math.min(clip.frames - 1, Math.floor(V.currentTime * fps));
+  const t = new Date(new Date(clip.start).getTime() + i * 10 * 60000);
+  const p2 = n => String(n).padStart(2,'0');
+  CD.textContent = t.toISOString().slice(0,10);
+  CT.textContent = p2(t.getUTCHours()) + ':' + p2(t.getUTCMinutes()) + ' UTC';
+  CF.textContent = 'frame ' + (i+1) + ' / ' + clip.frames;
+  if (document.activeElement !== SCRUB) SCRUB.value = Math.round(1000 * V.currentTime / V.duration);
+}
+V.addEventListener('timeupdate', tick);
+V.addEventListener('loadedmetadata', tick);
+V.addEventListener('play',  () => PLAY.textContent = 'Pause');
+V.addEventListener('pause', () => PLAY.textContent = 'Play');
+V.addEventListener('error', () => fail('could not play ' + (clip ? clip.file : 'clip')));
+
+SCRUB.addEventListener('input', () => {
+  if (!V.duration) return;
+  V.pause(); V.currentTime = V.duration * SCRUB.value / 1000; tick();
+});
+PLAY.onclick = () => V.paused ? V.play() : V.pause();
+const stepBy = n => { V.pause(); V.currentTime = Math.max(0, Math.min(V.duration - 1e-3, V.currentTime + n / fps)); tick(); };
+document.getElementById('step-f').onclick = () => stepBy(1);
+document.getElementById('step-b').onclick = () => stepBy(-1);
+for (const b of document.querySelectorAll('[data-rate]')) b.onclick = () => {
+  V.playbackRate = parseFloat(b.dataset.rate);
+  for (const o of document.querySelectorAll('[data-rate]')) o.classList.toggle('on', o === b);
+};
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+  if (e.key === ' ') { e.preventDefault(); PLAY.onclick(); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); stepBy(1); }
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); stepBy(-1); }
+});
+</script>
+</body>
+</html>
