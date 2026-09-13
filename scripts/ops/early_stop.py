@@ -75,7 +75,11 @@ def main(run, host, patience, min_kimg, act, watch):
                            f"{wasted_h:.1f} h, EUR{wasted_h * EUR_PER_HOUR:.0f} already spent past the peak)")
                 click.echo(f"   keep: {run}/*/network-snapshot-{best_kimg:06d}.pkl")
                 if act:
-                    cmd = "pkill -f 'train.py.*%s'" % Path(run).name
+                    # [t]rain.py matches "train.py" but not itself: a plain 'train.py.*name'
+                    # pattern also matched the shell running this pkill, killed it, and
+                    # reported "kill returned -15" on a kill that had in fact succeeded
+                    # (first real firing, 14 Sep 2026, ab-transfer).
+                    cmd = "pkill -f '[t]rain.py.*%s'" % Path(run).name
                     out, rc = sh(cmd if not host else f"ssh {host} \"{cmd}\"", 60)
                     click.echo("   trainer killed" if rc == 0 else f"   kill returned {rc}")
                 return
