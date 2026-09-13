@@ -29,7 +29,7 @@ sys.path.insert(0, SG3)
 sys.path.insert(0, str(Path(__file__).parent))
 
 
-def expand_generator(G, hw):
+def expand_generator(G, hw, smooth=(5, 1.6)):
     """Re-shape the synthesis network to paint hw = (h, w) blocks of 4x4 instead of one."""
     import torch
     h, w = hw
@@ -37,10 +37,14 @@ def expand_generator(G, hw):
     c = b4.const.data                                   # [C, 4, 4]
     # tile the learned constant, then soften the joins so the field starts continuous
     big = c.repeat(1, h, w)
-    if h * w > 1:
-        k = torch.tensor([[1., 2., 1.], [2., 4., 2.], [1., 2., 1.]], device=c.device) / 16
-        k = k.expand(big.shape[0], 1, 3, 3)
-        big = torch.nn.functional.conv2d(big[None], k, padding=1, groups=big.shape[0])[0]
+    if h * w > 1 and smooth:
+        # the joins between tiled copies are a real seam (measured 1.44x without this);
+        # a gaussian over the constant removes it before anything upsamples it
+        n, sig = smooth
+        ax = torch.arange(n, device=c.device, dtype=torch.float32) - (n - 1) / 2
+        g = torch.exp(-(ax ** 2) / (2 * sig ** 2)); g = g / g.sum()
+        k = (g[:, None] * g[None, :]).expand(big.shape[0], 1, n, n)
+        big = torch.nn.functional.conv2d(big[None], k, padding=n // 2, groups=big.shape[0])[0]
     b4.const = torch.nn.Parameter(big)
     return G
 
@@ -129,8 +133,9 @@ def patch_spatial_blend(G, centres, blend):
 @click.option("--blend", default=0.6, type=float, help="how wide the transition between regions is; low is an abrupt edge, high is a slow gradient")
 @click.option("--truncation", default=0.7, type=float)
 @click.option("--noise", default="random", type=click.Choice(["random", "none"]))
+@click.option("--smooth", default="5,1.6", help="gaussian over the tiled constant as size,sigma -- or 'none' to see the seam it removes")
 @click.option("--out", default=None, type=click.Path(path_type=Path))
-def main(network, tiles, seed, seeds, regions, blend, truncation, noise, out):
+def main(network, tiles, seed, seeds, regions, blend, truncation, noise, smooth, out):
     import torch
     from PIL import Image
     from latent import load_G
@@ -140,7 +145,8 @@ def main(network, tiles, seed, seeds, regions, blend, truncation, noise, out):
     dev = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
     G = load_G(network, dev)
     base = G.img_resolution
-    G = expand_generator(G, (h_n, w_n))
+    sm = None if smooth == "none" else (int(smooth.split(",")[0]), float(smooth.split(",")[1]))
+    G = expand_generator(G, (h_n, w_n), sm)
 
     ids = [int(v) for v in (seeds.split(",") if seeds else [str(seed)])]
     ws = torch.cat([G.mapping(torch.from_numpy(np.random.RandomState(s).randn(1, G.z_dim)).to(dev), None, truncation_psi=truncation) for s in ids])

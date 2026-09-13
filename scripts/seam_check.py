@@ -25,7 +25,17 @@ def ratios(path, block=256):
     vc = np.mean(gx[ccols])/np.median(gx) if ccols else float("nan")
     h = np.mean(gy[rows])/np.median(gy) if rows else float("nan")
     return v, vc, h, W, H
+rows = []
 print(f"{'image':22} {'v-seam':>7} {'control':>8} {'h-seam':>7}  size")
 for f in sorted(pathlib.Path(sys.argv[1]).glob("*.png")):
     v, vc, h, W, H = ratios(f)
     print(f"{f.stem:22} {v:7.3f} {vc:8.3f} {h:7.3f}  {W}x{H}")
+    rows.append((v, vc))
+if rows:
+    import statistics
+    per = [v / c for v, c in rows]
+    bm = statistics.fmean(v for v, _ in rows); cm = statistics.fmean(c for _, c in rows)
+    print(f"\nboundary/control per image, averaged: {statistics.fmean(per):.3f}   (1.0 = no seam)")
+    print(f"ratio of the means instead:          {bm / cm:.3f}   <- NOT the statistic; both terms")
+    print("   scale with how much structure each image has, which varies several-fold between")
+    print("   seeds, so averaging them separately and dividing at the end invents or hides seams.")
