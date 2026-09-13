@@ -198,13 +198,13 @@ function card(s){
   const barPct = barKm / s.km * 100;
   return `<article class="scene ${v}" data-id="${s.id}">
     <button class="pic" aria-label="open ${s.reg} at native resolution">
-      <img src="low/${s.id}.jpg" data-full="${s.id}.jpg" alt="${s.reg}, ${s.km} km across" loading="lazy">
+      <img src="low/${s.id}.jpg" data-full="${s.hi ? "z9/" : ""}${s.id}.jpg" alt="${s.reg}, ${s.km} km across" loading="lazy">
       <span class="v">${v}</span>
       <span class="scale"><i style="width:${barPct.toFixed(1)}%"></i>${barKm} km</span>
     </button>
     <div class="body">
       <div class="head"><b>${s.reg.replace(/_/g," ")} <span style="color:var(--faint);font-weight:400">· ${s.rgm.replace(/_/g," ")}</span></b><span class="mono">${win(s)} · ${s.date}</span></div>
-      <div class="stats"><span>cloud <b>${(s.cf*100).toFixed(0)}%</b></span><span>black <b>${(s.bk*100).toFixed(1)}%</b></span><span>contrast <b>${s.sd.toFixed(2)}</b></span><span>${s.mpp} m/px · ${s.px} px</span></div>
+      <div class="stats"><span>cloud <b>${(s.cf*100).toFixed(0)}%</b></span><span>black <b>${(s.bk*100).toFixed(1)}%</b></span><span>contrast <b>${s.sd.toFixed(2)}</b></span><span>${s.hi ? `<b>native ${Math.round(s.mpp/2)} m/px · ${s.px*2} px</b>` : `${s.mpp} m/px · ${s.px} px`}</span></div>
       <div class="acts"><button class="k">Keep</button><button class="r">Reject</button><button class="u">Clear</button></div>
       <textarea class="cmt" rows="1" placeholder="comment — what's good or wrong here, what to do about scenes like it">${(comments.get(s.id) || "").replace(/</g,"&lt;")}</textarea>
     </div>
@@ -240,8 +240,8 @@ function renderAll(){ renderRail(); renderGrid(); renderProgress(); }
 const dlg = document.getElementById("dlg");
 function openFull(){
   const s = shown[cur]; if (!s) return;
-  document.getElementById("fimg").src = `${s.id}.jpg`;
-  document.getElementById("ftitle").innerHTML = `<b>${s.reg.replace(/_/g," ")}</b> — ${win(s)} — ${s.px} px at ${s.mpp} m/px — ${s.date}`;
+  document.getElementById("fimg").src = `${s.hi ? "z9/" : ""}${s.id}.jpg`;
+  document.getElementById("ftitle").innerHTML = `<b>${s.reg.replace(/_/g," ")}</b> — ${win(s)} — ${s.hi ? `${s.px*2} px at ${Math.round(s.mpp/2)} m/px (native, from z9)` : `${s.px} px at ${s.mpp} m/px`} — ${s.date}`;
   if (!dlg.open) dlg.showModal();
 }
 document.getElementById("fk").onclick = () => { setVerdict(shown[cur].id, "keep"); };

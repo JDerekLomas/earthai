@@ -53,7 +53,7 @@
   .card{background:var(--surface); border:1px solid var(--hair); border-radius:4px; box-shadow:var(--shadow); display:grid; grid-template-columns:256px 1fr; overflow:hidden; border-left:4px solid transparent}
   @media (max-width:600px){ .card{grid-template-columns:1fr} }
   .card.agree{border-left-color:var(--ok)} .card.disagree{border-left-color:var(--no)}
-  .card img{display:block; width:256px; height:256px; object-fit:cover; background:var(--sunk)}
+  .card img{display:block; width:256px; height:256px; object-fit:cover; background:var(--sunk); image-rendering:auto}
   .card .body{padding:10px 12px; display:flex; flex-direction:column; gap:8px; min-width:0}
   .who{display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--faint)}
   .who b{color:var(--muted); font-weight:500}
@@ -122,7 +122,7 @@ function card(r){
   return `<article class="card ${v}" data-id="${r.id}">
     <img src="tiles/${r.id}.jpg" alt="${r.reg}" loading="lazy">
     <div class="body">
-      <div class="who"><span><b>${r.src} z${r.z}</b> · ${r.reg.replace(/_/g," ")} · ${r.date || "composite"}</span><span>${r.km} km · ${r.group}${r.set === "landshapes" ? " · " + r.b : ""}</span></div>
+      <div class="who"><span><b>${r.src} z${r.z}</b> · ${r.reg.replace(/_/g," ")} · ${r.date || "composite"}${r.px >= 512 ? " · <b>native res</b>" : " · z8 only"}</span><span>${r.km} km · ${r.group}${r.set === "landshapes" ? " · " + r.b : ""}</span></div>
       <div class="lab">
         <span>subject</span><span class="big">${L.cloud_form !== "clear" && L.cloud_form !== "other" && r.set !== "landshapes" ? L.cloud_form.replace(/_/g," ") : L.landform.replace(/_/g," ")} <span style="font-weight:400;color:var(--muted)">· ${L.surface}</span></span>
         <span>cloud cover</span><span>${L.cloud_cover}% <span class="pix">pixels say ${pct(r.cf)}${coverOff ? ' <span class="miss">— off by more than 25</span>' : ""}</span></span>
