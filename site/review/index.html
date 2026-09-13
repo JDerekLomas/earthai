@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The 7.72 Network</title>
+<meta name="description" content="The best cloud generator this project has produced, its FID curve against the previous run, and the large continuous canvases it paints.">
+<style>html{color-scheme:light dark} body{margin:0} img{max-width:100%}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#e9edf1; --surface:#ffffff; --sunk:#dfe5ea;
+    --ink:#13202e; --muted:#5b6b7d; --faint:#8493a4;
+    --line:#c7d1da; --hair:#dbe2e8;
+    --ochre:#b3652a; --cool:#37718f; --deep:#0f2233;
+    --ok:#2f7d5b; --no:#a33a2a;
+    --shadow:0 1px 2px rgba(15,34,51,.08), 0 8px 24px rgba(15,34,51,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+      --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+      --line:#27394b; --hair:#1c2c3c;
+      --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+      --ok:#5cb98d; --no:#e0765f;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+    --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+    --line:#27394b; --hair:#1c2c3c;
+    --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+    --ok:#5cb98d; --no:#e0765f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    background:var(--ground); color:var(--ink);
+    font:400 16px/1.55 "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    padding-block:44px 72px; padding-left:20px; padding-right:20px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1120px; margin:0 auto; display:flex; flex-direction:column; gap:54px}
+  h1,h2,h3{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif; text-wrap:balance; margin:0}
+  h1{font-size:clamp(30px,4.6vw,46px); font-weight:600; letter-spacing:-.015em; line-height:1.08}
+  h2{font-size:clamp(20px,2.6vw,26px); font-weight:600; letter-spacing:-.01em}
+  h3{font-size:16px; font-weight:600}
+  p{margin:0; max-width:66ch}
+  a{color:var(--cool)}
+  .lede{font-size:clamp(17px,2vw,19px); color:var(--muted); max-width:62ch}
+  .eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--faint)}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+  section{display:flex; flex-direction:column; gap:18px}
+  .head{display:flex; flex-direction:column; gap:8px}
+  header{display:flex; flex-direction:column; gap:16px}
+  .claim{font-family:"IBM Plex Sans Condensed",sans-serif; font-size:clamp(19px,2.4vw,23px); line-height:1.35;
+    max-width:34ch; border-left:3px solid var(--ochre); padding-left:18px}
+  .claim b{color:var(--ochre); font-weight:600}
+  .xl{font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.06em; text-decoration:none;
+    color:var(--muted); border-bottom:1px solid var(--line); padding-bottom:2px}
+  .xl:hover{color:var(--cool); border-color:var(--cool)}
+  .links{display:flex; flex-wrap:wrap; gap:20px}
+
+  figure{margin:0; display:flex; flex-direction:column; gap:9px}
+  .plate{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:8px;
+    box-shadow:var(--shadow); line-height:0}
+  .plate img{display:block; width:100%; border-radius:2px; cursor:zoom-in}
+  figcaption{font-size:13.5px; color:var(--muted); max-width:72ch; line-height:1.5}
+  figcaption b{color:var(--ink); font-weight:600}
+  .two{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:18px}
+
+  .chartbox{background:var(--surface); border:1px solid var(--hair); border-radius:4px;
+    padding:20px 18px 14px; box-shadow:var(--shadow)}
+  .chartbox svg{display:block; width:100%; height:auto; overflow:visible}
+  .key{display:flex; flex-wrap:wrap; gap:18px; margin-top:12px; font-size:13px; color:var(--muted)}
+  .key i{display:inline-block; width:20px; height:3px; border-radius:2px; margin-right:7px; vertical-align:middle}
+
+  .tw{overflow-x:auto; background:var(--surface); border:1px solid var(--hair); border-radius:4px; box-shadow:var(--shadow)}
+  table{border-collapse:collapse; width:100%; font-size:13.5px; min-width:520px}
+  th,td{text-align:right; padding:9px 14px; border-top:1px solid var(--hair); white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  thead th{border-top:0; font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--faint); padding-top:13px; padding-bottom:11px}
+  td.n{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums}
+  tr.best td{background:var(--sunk); font-weight:600}
+  .good{color:var(--ok); font-weight:600}
+  .bad{color:var(--no); font-weight:600}
+
+  .cols{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:18px}
+  .note{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:16px 18px;
+    display:flex; flex-direction:column; gap:8px; box-shadow:var(--shadow)}
+  .note p{font-size:14px; color:var(--muted)}
+  .note.ask{border-left:3px solid var(--cool)}
+  .note.warn{border-left:3px solid var(--no)}
+  ol{margin:0; padding-left:1.2em; color:var(--muted); font-size:14.5px; max-width:66ch}
+  ol li{margin:7px 0}
+  ol li b{color:var(--ink)}
+  footer{border-top:1px solid var(--line); padding-top:22px; font-size:13px; color:var(--faint)}
+
+  dialog{border:0; padding:0; background:transparent; max-width:96vw; max-height:96vh}
+  dialog::backdrop{background:rgba(6,17,28,.88)}
+  dialog img{display:block; max-width:96vw; max-height:90vh; width:auto; border-radius:3px}
+  dialog form{display:flex; flex-direction:column; gap:8px; align-items:flex-end}
+  dialog button{font:500 13px "IBM Plex Sans",sans-serif; background:var(--surface); color:var(--ink);
+    border:1px solid var(--line); border-radius:3px; padding:7px 13px; cursor:pointer}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">earthai · 14 sep 2026 · snapshot at 200 kimg</div>
+  <h1>The 7.72 network</h1>
+  <p class="claim">The clean dataset did what the longer training never could. Best FID <b>7.72</b>, against <b>12.14</b> for the previous cloud run — which then spent 2,800 more kimg getting worse.</p>
+  <p class="lede">Everything on this page comes from one snapshot, taken 3½ hours into a run that is still going. Nothing here is cherry-picked from a larger batch: the seeds were chosen before the images were seen, and each is shown as it came out.</p>
+  <div class="links">
+    <a class="xl" href="../goes/">timelapse &rarr;</a>
+    <a class="xl" href="../sharp/">resolution &rarr;</a>
+    <a class="xl" href="../triage/">tile triage &rarr;</a>
+    <a class="xl" href="../">scale ladder &rarr;</a>
+  </div>
+</header>
+
+<section>
+  <figure>
+    <div class="plate"><img src="img/wide_a.jpg" alt="A four-thousand pixel wide panorama of cloud streets over dark ocean" loading="eager"></div>
+    <figcaption><b>4096 × 1024, one image.</b> Not tiles laid side by side — the generator was widened and painted this in a single pass, so there is no seam to hide. Four different skies occupy different parts of the canvas and the network paints the transitions between them. Click any image to see it full size.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="head">
+    <h2>Why this run is different</h2>
+    <p>Same architecture, same card, same transfer start. What changed is the data: the z9 re-fetch at native resolution, with overcast capped at 15% of the set instead of 43%.</p>
+  </div>
+  <div class="chartbox">
+    <svg id="chart" viewBox="0 0 900 360" role="img" aria-label="FID against training progress for three runs"></svg>
+    <div class="key">
+      <span><i style="background:#b3652a"></i>clouds z9, transfer (this run)</span>
+      <span><i style="background:#37718f"></i>clouds z8, the previous run</span>
+      <span><i style="background:#8493a4"></i>land z8</span>
+      <span style="color:var(--faint)">lower is better · FID50k_full</span>
+    </div>
+  </div>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Run</th><th>Best FID</th><th>at kimg</th><th>Trained to</th><th>Spent past its peak</th></tr></thead>
+      <tbody>
+        <tr class="best"><td>clouds z9, transfer — <b>this run</b></td><td class="n"><span class="good">7.72</span></td><td class="n">200</td><td class="n">still going</td><td class="n">stopping at 600</td></tr>
+        <tr><td>clouds z8, the previous run</td><td class="n">12.14</td><td class="n">200</td><td class="n">3000</td><td class="n"><span class="bad">2800 kimg ≈ €11</span></td></tr>
+        <tr><td>land z8</td><td class="n">12.71</td><td class="n">1200</td><td class="n">1236</td><td class="n">36 kimg</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>The shape of the orange curve is the argument for the early stop being armed on it: it bottomed at 200 kimg and has risen at every snapshot since — 8.72, 8.89, 9.84. The blue curve is the same story at a worse level, and last time nobody was watching, so it ran for another eleven euros of getting worse. <b>FID measures distribution match, not beauty</b>, so the number is a stopping instrument and not a verdict on the pictures. The pictures are below.</p>
+</section>
+
+<section>
+  <div class="head">
+    <h2>Real, generated, and where it started</h2>
+    <p>Top row is real satellite tiles from the training set. Middle is the network at this snapshot. Bottom is the pretrained network it started from, before it had seen a single cloud — it generates dogs, because that is what LSUN Dog contains.</p>
+  </div>
+  <figure>
+    <div class="plate"><img src="img/reals.jpg" alt="A row of real satellite cloud tiles" loading="lazy"></div>
+    <figcaption class="mono" style="color:var(--faint)">real tiles</figcaption>
+  </figure>
+  <figure>
+    <div class="plate"><img src="img/fakes200.jpg" alt="A row of generated cloud tiles at 200 kimg" loading="lazy"></div>
+    <figcaption class="mono" style="color:var(--faint)">generated, 200 kimg</figcaption>
+  </figure>
+  <figure>
+    <div class="plate"><img src="img/fakes_init.jpg" alt="A row of dog images from the pretrained network" loading="lazy"></div>
+    <figcaption class="mono" style="color:var(--faint)">the starting network, 0 kimg — dogs</figcaption>
+  </figure>
+  <p>What to look for in the middle row: open-cell convection, cloud streets, the sharp edge where a deck ends, and overcast that still has structure in it rather than being flat white. What is missing: the network has no idea that cloud shadows should fall consistently, and at this size you cannot easily tell.</p>
+</section>
+
+<section>
+  <div class="head">
+    <h2>Large canvases</h2>
+    <p>Each is a single continuous generation at the size stated, not a mosaic. Several latent codes occupy different regions and the network paints the transitions between them.</p>
+  </div>
+  <figure>
+    <div class="plate"><img src="img/wide_b.jpg" alt="Wide panorama, a dense cumulus field meeting open ocean" loading="lazy"></div>
+    <figcaption>4096 × 1024 · four skies · <span class="mono">truncation 0.8</span></figcaption>
+  </figure>
+  <figure>
+    <div class="plate"><img src="img/wide_c.jpg" alt="Wide panorama with five weather regions" loading="lazy"></div>
+    <figcaption>4096 × 1024 · five skies · <span class="mono">truncation 0.7</span> — lower truncation means closer to the average sky, which is safer and duller</figcaption>
+  </figure>
+  <figure>
+    <div class="plate"><img src="img/single_sky.jpg" alt="A wide canvas generated from a single latent code" loading="lazy"></div>
+    <figcaption><b>3072 × 1536 from one latent.</b> One sky everywhere: seamless by construction, and monotonous for the same reason. This is the baseline the region blending exists to improve on.</figcaption>
+  </figure>
+  <div class="two">
+    <figure>
+      <div class="plate"><img src="img/square_a.jpg" alt="Square canvas with six weather regions" loading="lazy"></div>
+      <figcaption>2048 × 2048 · six skies</figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="img/square_b.jpg" alt="Square canvas with four weather regions" loading="lazy"></div>
+      <figcaption>2048 × 2048 · four skies</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>The seam problem, and an honest account of the fix</h2>
+    <p>Blending regions by nearest-centre makes the boundary between two of them a straight line. On a canvas of six regions on a regular grid, those landed as visible vertical and horizontal edges — the one thing that reads instantly as fake in a sky.</p>
+  </div>
+  <div class="two">
+    <figure>
+      <div class="plate"><img src="img/warp_0.jpg" alt="Canvas with straight boundaries between regions" loading="lazy"></div>
+      <figcaption><b>Before.</b> Same seeds, same everything, straight bisectors.</figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="img/square_a.jpg" alt="The same canvas with meandering boundaries" loading="lazy"></div>
+      <figcaption><b>After.</b> Centres jittered off the lattice and the boundaries bent by a shared low-frequency field, so they meander like fronts.</figcaption>
+    </figure>
+  </div>
+  <div class="note warn">
+    <h3>I could not measure this, and I am not going to pretend I did</h3>
+    <p>I built a line detector to prove the seams were gone. It took three rebuilds to get past its own controls — each rebuild caught by a control catching a different error — and it still reports "no line" on a canvas where the seams are plainly visible. Every synthetic control I wrote spanned the whole canvas; a real region boundary spans about a third of it, inside an image already full of cloud edges at every angle. The control matched the <em>kind</em> of defect but not its <em>shape</em>. So the pair above is a controlled visual comparison, one parameter changed, and the judgement is yours rather than a number's.</p>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>What I'd like from you</h2>
+    <p>Three questions where my opinion is worth less than yours.</p>
+  </div>
+  <div class="cols">
+    <div class="note ask">
+      <h3>1 · Is the seam fix enough?</h3>
+      <p>Look at the pair above at full size. If the boundaries still read as boundaries, the next move is fewer regions on a bigger canvas rather than more blending.</p>
+    </div>
+    <div class="note ask">
+      <h3>2 · Truncation: safe or strange?</h3>
+      <p>0.7 gives plausible skies, 0.8 gives stranger and more varied ones. The panoramas above are labelled. Which way do you want it pushed?</p>
+    </div>
+    <div class="note ask">
+      <h3>3 · The triage is still blocking</h3>
+      <p>The <a href="../triage/">cloud-fraction bands</a> set the real overcast cap, and those are aesthetic calls I can't make for you. It's the one thing gating the next dataset build.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>What this is not</h2>
+  </div>
+  <ol>
+    <li><b>Not a finished comparison.</b> This is the transfer-learning arm. The from-scratch arm runs next on the same data, and until it does, "transfer is better" is an assumption, not a result.</li>
+    <li><b>Not trained on the fixed dataset.</b> The gate that decided which tiles to keep was itself buggy — it read darkness as missing data and threw out ~22,000 good tiles, mostly the high-contrast cloud fields over dark ocean. That is fixed, but this network was trained before the fix, so there is a better dataset waiting.</li>
+    <li><b>Not measured for beauty.</b> FID compares statistics. It cannot tell you whether a sky is worth looking at, which is the actual goal, which is why the pictures are here at full size.</li>
+  </ol>
+</section>
+
+<footer>
+  Trained on 97,458 tiles of NASA GIBS MODIS/VIIRS true colour at z9, StyleGAN2-ADA at 256 px, transferred from LSUN Dog ·
+  snapshot <span class="mono">network-snapshot-000200.pkl</span>, FID50k_full 7.72 ·
+  canvases generated with <span class="mono">scripts/expand.py</span> on an L40S beside the training run.
+</footer>
+
+</div>
+
+<dialog id="lb"><form method="dialog"><button value="close">Close</button><img id="lb-img" alt=""></form></dialog>
+
+<script>
+// ---- FID curves. Data is the real jsonl content from the three runs, trimmed to 1500 kimg
+// so the early peak is readable; the z8 clouds run continues flat to 3000.
+const RUNS = [
+  {name:"clouds z9 transfer", color:"#b3652a", w:2.5, pts:[[0,242.84],[100,10.46],[200,7.72],[300,8.72],[400,8.89],[500,9.84]]},
+  {name:"clouds z8", color:"#37718f", w:1.8, pts:[[0,239.87],[100,15.41],[200,12.14],[300,12.36],[400,13.67],[500,14.69],[600,13.83],[700,14.19],[800,15.9],[900,16.43],[1000,16.8],[1100,19.0],[1200,18.76],[1300,17.08],[1400,16.66],[1500,17.38]]},
+  {name:"land z8", color:"#8493a4", w:1.8, pts:[[0,219.75],[100,19.69],[200,16.05],[300,15.12],[400,15.62],[500,15.43],[600,15.41],[700,14.12],[800,14.18],[900,13.29],[1000,13.24],[1100,13.53],[1200,12.71]]},
+];
+const W=900,H=360,L=54,R=16,T=16,B=34;
+const xmax=1500, ymin=6, ymax=22;                // the 0-kimg values are off-scale by design
+const sx = k => L + (k/xmax)*(W-L-R);
+const sy = v => T + (1-(Math.min(v,ymax)-ymin)/(ymax-ymin))*(H-T-B);
+let s = "";
+// grid + axes
+for (let v=ymin; v<=ymax; v+=4){
+  s += `<line x1="${L}" y1="${sy(v)}" x2="${W-R}" y2="${sy(v)}" stroke="var(--hair)" stroke-width="1"/>`;
+  s += `<text x="${L-8}" y="${sy(v)+4}" text-anchor="end" font-size="11" font-family="IBM Plex Mono, monospace" fill="var(--faint)">${v}</text>`;
+}
+for (let k=0; k<=xmax; k+=300){
+  s += `<text x="${sx(k)}" y="${H-B+18}" text-anchor="middle" font-size="11" font-family="IBM Plex Mono, monospace" fill="var(--faint)">${k}</text>`;
+}
+s += `<text x="${L}" y="${H-2}" font-size="11" font-family="IBM Plex Mono, monospace" fill="var(--faint)">kimg — thousands of images shown to the discriminator</text>`;
+// lines
+for (const r of RUNS){
+  const pts = r.pts.filter(p => p[0]>0 && p[0]<=xmax);
+  s += `<polyline fill="none" stroke="${r.color}" stroke-width="${r.w}" stroke-linejoin="round"
+          points="${pts.map(p=>`${sx(p[0])},${sy(p[1])}`).join(" ")}"/>`;
+  // mark each run's best
+  const best = pts.reduce((a,b)=> b[1]<a[1]?b:a);
+  s += `<circle cx="${sx(best[0])}" cy="${sy(best[1])}" r="4.5" fill="${r.color}"/>`;
+  s += `<text x="${sx(best[0])+9}" y="${sy(best[1])-8}" font-size="12" font-weight="600"
+          font-family="IBM Plex Mono, monospace" fill="${r.color}">${best[1].toFixed(2)}</text>`;
+}
+document.getElementById("chart").innerHTML = s;
+
+// ---- click any plate image to see it at full size
+const lb = document.getElementById("lb"), lbi = document.getElementById("lb-img");
+for (const img of document.querySelectorAll(".plate img")){
+  img.addEventListener("click", () => { lbi.src = img.src; lbi.alt = img.alt; lb.showModal(); });
+}
+lb.addEventListener("click", e => { if (e.target === lb) lb.close(); });
+</script>
+</body>
+</html>

@@ -141,6 +141,7 @@
     <a class="xl" href="../">scale ladder &rarr;</a>
     <a class="xl" href="../triage/">tile triage &rarr;</a>
     <a class="xl" href="../sharp/">resolution &rarr;</a>
+    <a class="xl" href="../review/">the network &rarr;</a>
     <a class="xl" href="../scenes/">scenes &rarr;</a>
     <a class="xl" href="https://github.com/JDerekLomas/earthai">source &rarr;</a>
   </div>
@@ -187,6 +188,46 @@
   <div class="eyebrow">Sequences held for this place</div>
   <div class="arcs" id="arcs"></div>
   <p style="font-size:14px;color:var(--muted)">Each button is one continuous daylight arc. GeoColor switches to infrared after dark and those frames are dropped, so a place's archive is a string of day-long runs separated by night, not one unbroken month. <b>All arcs</b> plays them end to end at double speed — the cuts you see are sunsets.</p>
+</section>
+
+<section>
+  <div class="head">
+    <div class="eyebrow">Multi-day · through the night</div>
+    <h2>What night costs, side by side</h2>
+    <p>The clips above stop at dusk, because GeoColor stops being a photograph then. These do not stop. Each is a single unbroken run of <b>43 to 67 hours</b> — two or three full nights — with the same instants rendered two ways: GeoColor on the left, Band&nbsp;13 infrared on the right. A blue dot beside the timestamp marks local night.</p>
+  </div>
+  <div class="player">
+    <div>
+      <div class="stage" style="aspect-ratio:1536/798">
+        <video id="cv" playsinline muted loop preload="metadata"></video>
+        <div class="empty" id="cempty">loading…</div>
+      </div>
+      <div class="transport">
+        <input class="scrub" id="cscrub" type="range" min="0" max="1000" value="0" step="1" aria-label="scrub through the multi-day sequence">
+        <div class="row">
+          <button id="cplay" aria-pressed="false">Pause</button>
+          <div class="seg" role="group" aria-label="playback speed">
+            <button data-crate="0.5">½×</button><button data-crate="1" class="on">1×</button>
+            <button data-crate="2">2×</button><button data-crate="4">4×</button>
+          </div>
+          <span class="mono" id="cinfo" style="font-size:12px;color:var(--muted)"></span>
+        </div>
+      </div>
+    </div>
+    <div class="rail">
+      <div class="card">
+        <div class="hd"><div class="eyebrow">Place</div></div>
+        <div class="places" id="cplaces"></div>
+      </div>
+      <div class="card">
+        <div class="hd"><div class="eyebrow">Watch for</div></div>
+        <div class="meta" style="display:block; padding:10px 14px 14px; font-size:13.5px; color:var(--muted); line-height:1.5">
+          The left panel goes dark and fills with city lights while the right panel carries on unchanged — same clouds, same minute, different physics. Infrared measures cloud-top temperature, so it cannot tell day from night. That is the argument for training a temporal model on infrared rather than on true colour.
+        </div>
+      </div>
+    </div>
+  </div>
+  <p style="font-size:14px;color:var(--muted)">A third rendering, <span class="mono">Air Mass</span>, was fetched and dropped: it carries a static no-data mask across the southern third of every scene here — measured at 53–78% of the southernmost tiles, while GeoColor over the same ground is clean. That is a property of the product, not of the fetch.</p>
 </section>
 
 <section>
@@ -360,6 +401,42 @@ for (const b of document.querySelectorAll('[data-rate]')) b.onclick = () => {
   V.playbackRate = parseFloat(b.dataset.rate);
   for (const o of document.querySelectorAll('[data-rate]')) o.classList.toggle('on', o === b);
 };
+// ---- the multi-day comparison player, fed by compare/compare.json
+const CV=document.getElementById('cv'), CEMPTY=document.getElementById('cempty');
+const CSCRUB=document.getElementById('cscrub'), CPLAY=document.getElementById('cplay');
+const CINFO=document.getElementById('cinfo'), CPLACES=document.getElementById('cplaces');
+let cdata={}, ckey=null;
+fetch('compare/compare.json').then(r=>r.ok?r.json():Promise.reject(r.status)).then(d=>{
+  cdata=d; const keys=Object.keys(d);
+  if(!keys.length){ CEMPTY.textContent='no comparison clips yet'; return; }
+  CPLACES.innerHTML='';
+  for(const k of keys){
+    const b=document.createElement('button'); b.type='button'; b.setAttribute('aria-pressed','false');
+    b.innerHTML=`<span>${label(k)}</span><small>${d[k].hours} h</small>`;
+    b.dataset.k=k; b.onclick=()=>cselect(k); CPLACES.appendChild(b);
+  }
+  cselect(keys[0]);
+}).catch(e=>{ CEMPTY.textContent='compare.json did not load ('+e+')'; });
+
+function cselect(k){
+  ckey=k; const row=cdata[k];
+  for(const b of CPLACES.children) b.setAttribute('aria-pressed', String(b.dataset.k===k));
+  CEMPTY.hidden=true;
+  CV.src='compare/'+row.file;
+  CV.play().then(()=>CPLAY.textContent='Pause').catch(()=>CPLAY.textContent='Play');
+  CINFO.textContent=`${row.frames} instants · ${row.hours} h · ${row.nights} night frames · ${row.layers.join(' + ')}`;
+}
+CV.addEventListener('timeupdate',()=>{ if(CV.duration && document.activeElement!==CSCRUB) CSCRUB.value=Math.round(1000*CV.currentTime/CV.duration); });
+CV.addEventListener('play',()=>CPLAY.textContent='Pause');
+CV.addEventListener('pause',()=>CPLAY.textContent='Play');
+CV.addEventListener('error',()=>{ CEMPTY.hidden=false; CEMPTY.textContent='could not play '+(ckey?cdata[ckey].file:'clip'); });
+CSCRUB.addEventListener('input',()=>{ if(!CV.duration) return; CV.pause(); CV.currentTime=CV.duration*CSCRUB.value/1000; });
+CPLAY.onclick=()=>CV.paused?CV.play():CV.pause();
+for(const b of document.querySelectorAll('[data-crate]')) b.onclick=()=>{
+  CV.playbackRate=parseFloat(b.dataset.crate);
+  for(const o of document.querySelectorAll('[data-crate]')) o.classList.toggle('on', o===b);
+};
+
 addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
   if (e.key === ' ') { e.preventDefault(); PLAY.onclick(); }

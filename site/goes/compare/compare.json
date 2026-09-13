@@ -1,0 +1,47 @@
+{
+ "gulf": {
+  "file": "gulf_compare.mp4",
+  "layers": [
+   "geocolor",
+   "ir"
+  ],
+  "frames": 260,
+  "start": "2026-09-11T00:00:00Z",
+  "end": "2026-09-12T19:30:00Z",
+  "hours": 43.5,
+  "nights": 135,
+  "seconds": 21.7,
+  "kb": 21210,
+  "px": "1536x798"
+ },
+ "california": {
+  "file": "california_compare.mp4",
+  "layers": [
+   "geocolor",
+   "ir"
+  ],
+  "frames": 398,
+  "start": "2026-09-11T00:00:00Z",
+  "end": "2026-09-13T18:50:00Z",
+  "hours": 66.8,
+  "nights": 206,
+  "seconds": 33.2,
+  "kb": 20043,
+  "px": "1536x798"
+ },
+ "amazon": {
+  "file": "amazon_compare.mp4",
+  "layers": [
+   "geocolor",
+   "ir"
+  ],
+  "frames": 261,
+  "start": "2026-09-11T00:00:00Z",
+  "end": "2026-09-12T19:30:00Z",
+  "hours": 43.5,
+  "nights": 128,
+  "seconds": 21.8,
+  "kb": 25793,
+  "px": "1536x798"
+ }
+}

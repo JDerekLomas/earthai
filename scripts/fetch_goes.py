@@ -31,7 +31,29 @@ from build_dataset import stats  # noqa: E402
 
 UA = {"User-Agent": "earthai-goes/0.1 (research; github.com/JDerekLomas/earthai)"}
 URL = ("https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/{layer}/default/{t}/"
-       "GoogleMapsCompatible_Level7/{z}/{y}/{x}.png")
+       "{tms}/{z}/{y}/{x}.png")
+
+# Which rendering of the same sky. Measured 13 Sep 2026: all three serve every 10 minutes,
+# day AND night, for at least the last 28 days.
+#   geocolor  true colour by day; at night an infrared rendering over city lights -- a
+#             different-looking picture, but the cloud field is continuous through dusk
+#   ir        Band 13 clean infrared, cloud-top temperature: looks the same at noon and 2am
+#   airmass   RGB composite of water-vapour and ozone channels; shows jet streaks, dry
+#             intrusions and the air masses clouds form in, round the clock
+LAYERS = {"geocolor": ("ABI_GeoColor", "GoogleMapsCompatible_Level7"),
+          "ir": ("ABI_Band13_Clean_Infrared", "GoogleMapsCompatible_Level6"),
+          "airmass": ("ABI_Air_Mass", "GoogleMapsCompatible_Level6")}
+
+
+def layer_name(sat: str, layer: str) -> str:
+    return SATS[sat].split("_ABI")[0] + "_" + LAYERS[layer][0]
+
+
+def tms_for(layer_full: str) -> str:
+    for suffix, tms in LAYERS.values():
+        if layer_full.endswith(suffix):
+            return tms
+    return "GoogleMapsCompatible_Level7"
 
 SATS = {
     "goes_east": "GOES-East_ABI_GeoColor",
@@ -53,7 +75,7 @@ PLACES = {
 
 def tile(layer, t, z, x, y):
     try:
-        r = requests.get(URL.format(layer=layer, t=t, z=z, y=y, x=x), headers=UA, timeout=40)
+        r = requests.get(URL.format(layer=layer, tms=tms_for(layer), t=t, z=z, y=y, x=x), headers=UA, timeout=40)
     except requests.RequestException:
         return None
     if r.status_code != 200 or len(r.content) < 900:
@@ -89,11 +111,17 @@ def fetch(layer, t, z, x, y, span=1):
 @click.option("--stride", default=10, type=int, help="minutes between frames (10 is the native cadence)")
 @click.option("--out", default="data/goes", type=click.Path(path_type=Path))
 @click.option("--workers", default=6, type=int)
+@click.option("--layer", default="geocolor", type=click.Choice(list(LAYERS)),
+              help="which rendering; non-geocolor layers get their own directory")
+@click.option("--allday", is_flag=True,
+              help="keep night frames too. Without it GeoColor is daylight-only, because its night "
+                   "rendering is a different picture; the comparison timelapse wants both")
+@click.option("--places", default=None, help="comma-separated subset of places")
 @click.option("--span", default=1, type=int, help="stitch an NxN block of tiles per frame (3 = 768 px); costs N^2 requests")
 @click.option("--max-black", default=0.01, type=float, help="drop frames with more pure-black (missing) pixels than this")
 @click.option("--min-mean", default=0.18, type=float, help="drop night frames (GeoColor goes infrared after dark)")
-def main(place, all_places, days, hours, stride, out, workers, max_black, min_mean, span):
-    names = list(PLACES) if all_places else [place]
+def main(place, all_places, days, hours, stride, out, workers, max_black, min_mean, layer, allday, places, span):
+    names = list(PLACES) if all_places else (places.split(",") if places else [place])
     if not names or names == [None]:
         raise SystemExit("give --place or --all")
     now = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0) - timedelta(hours=3)
@@ -103,17 +131,20 @@ def main(place, all_places, days, hours, stride, out, workers, max_black, min_me
 
     for name in names:
         sat, z, x, y, (h0, h1) = PLACES[name]
-        (out / (name if span == 1 else f"{name}_x{span}")).mkdir(exist_ok=True)
+        ltag = "" if layer == "geocolor" else f"_{layer}"
+        dname = f"{name}{'' if span == 1 else f'_x{span}'}{ltag}"
+        lfull = layer_name(sat, layer)
+        (out / dname).mkdir(exist_ok=True)
         times = []
         if hours:
             # still daylight-only: GeoColor switches to infrared at night, which is a different
             # picture entirely and reads as missing data to a black-pixel filter
             times = [t for t in (now - timedelta(minutes=stride * k) for k in range(hours * 60 // stride))
-                     if h0 <= t.hour < h1]
+                     if allday or h0 <= t.hour < h1]
         else:
             for d in range(days):
                 day = now - timedelta(days=d)
-                for h in range(h0, min(h1, 24)):           # daylight only; GeoColor goes IR at night
+                for h in (range(24) if allday else range(h0, min(h1, 24))):   # GeoColor goes IR at night
                     for m in range(0, 60, stride):
                         t = day.replace(hour=h, minute=m)
                         if t < now:
@@ -123,21 +154,30 @@ def main(place, all_places, days, hours, stride, out, workers, max_black, min_me
 
         def one(t):
             ts = t.strftime("%Y-%m-%dT%H:%M:00Z")
-            tag = "" if span == 1 else f"_x{span}"
-            fid = f"{name}{tag}_{ts.replace(':', '')}"
-            f = out / f"{name}{tag}" / f"{ts.replace(':', '')}.jpg"
+            fid = f"{dname}_{ts.replace(':', '')}"
+            f = out / dname / f"{ts.replace(':', '')}.jpg"
             if fid in seen or f.exists():
                 return None
-            im = fetch(SATS[sat], ts, z, x, y, span)
+            im = fetch(lfull, ts, z, x, y, span)
             if im is None:
                 return None
             s = stats(np.asarray(im))
             # s["nodata"] counts pixels that are EXACTLY black -- an actual hole. s["black"]
             # counts merely dark ones, which over deep ocean is 2-5% of a good daylight frame.
-            if s["nodata"] > max_black or s["mean"] < min_mean:   # gaps, and night
+            # In all-day mode there is NO pixel test for a hole, and inventing one would be
+            # worse than having none. Measured over four night frames: open Atlantic ocean at
+            # night renders exactly (0,0,0) across an entire tile -- one read 1.00, 0.98, 0.92
+            # -- which is pixel-for-pixel identical to a missing tile (positive control: a
+            # blacked-out tile also reads 1.00). GIBS PNGs are fully opaque, so alpha carries
+            # nothing either. The only real signal is the HTTP response, and tile() already
+            # drops the whole frame when any tile 404s. Daylight mode keeps the pixel test,
+            # where it works and where a black region really is a swath gap.
+            if (not allday and (s["nodata"] > max_black or s["mean"] < min_mean)) or \
+               (allday and s["nodata"] > 0.98):        # an entirely black FRAME is still junk
+
                 return None
             im.save(f, quality=90)
-            return dict(id=fid, place=name, sat=sat, t=ts, z=z, x=x, y=y, span=span,
+            return dict(id=fid, place=name, sat=sat, layer=layer, t=ts, z=z, x=x, y=y, span=span,
                         **{k: round(v, 3) for k, v in s.items()})
 
         with ThreadPoolExecutor(workers) as ex:
@@ -156,7 +196,7 @@ def main(place, all_places, days, hours, stride, out, workers, max_black, min_me
             log.write(json.dumps(r) + "\n")
             kept += 1
         log.flush()
-        on_disk = len(list((out / (name if span == 1 else f"{name}_x{span}")).glob("*.jpg")))
+        on_disk = len(list((out / dname).glob("*.jpg")))
         click.echo(f"{name:14} +{kept:5} new, {on_disk:6} on disk, of {len(times)} slots  ({sat})")
     total = sum(1 for _ in open(out / "goes.jsonl")) if (out / "goes.jsonl").exists() else 0
     click.echo(f"-> {out}   {total} frames total")
