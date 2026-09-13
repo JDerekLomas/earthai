@@ -143,6 +143,87 @@ def summarize(rows: dict[str, list[float]]) -> dict:
                     n=int(np.isfinite(v).sum())) for k, v in rows.items()}
 
 
+
+# ---------------------------------------------------------------- figures
+def _grey(a, lo, hi):
+    g = np.clip((np.nan_to_num(a, nan=lo) - lo) / (hi - lo), 0, 1)
+    return (g * 255).astype(np.uint8)
+
+
+def _coast(land):
+    from scipy.ndimage import binary_dilation
+    return binary_dilation(land, iterations=1) & ~land
+
+
+def _paint(img8, inside, land, tint_outside=True):
+    """grey field -> RGB with the coastline in ochre and the uncovered region dimmed."""
+    rgb = np.stack([img8] * 3, -1).astype(np.int16)
+    if tint_outside:
+        rgb[~inside] = (rgb[~inside] * 0.35 + np.array([20, 30, 45])).astype(np.int16)
+    rgb[_coast(land)] = [179, 101, 42]
+    return Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8))
+
+
+def _rmap_rgb(r, inside, land):
+    """correlation map: blue (negative) .. dark (0) .. warm white (1); uncovered dimmed."""
+    v = np.nan_to_num(r, nan=0.0)
+    pos = np.clip(v, 0, 1); neg = np.clip(-v, 0, 1)
+    R = 18 + 237 * pos; G = 28 + 200 * pos + 60 * neg; B = 45 + 120 * pos + 180 * neg
+    rgb = np.stack([R, G, B], -1)
+    rgb[~inside] = [12, 16, 24]
+    rgb[_coast(land)] = [179, 101, 42]
+    return Image.fromarray(rgb.astype(np.uint8))
+
+
+def _label(im, text):
+    from PIL import ImageFont
+    d = ImageDraw.Draw(im)
+    f = ImageFont.load_default(size=15)
+    d.rectangle([0, 0, im.width, 24], fill=(6, 17, 28))
+    d.text((8, 4), text, fill=(228, 236, 244), font=f)
+    return im
+
+
+def render_maps(out, rmap_T, rmap_C, inside, land, meta):
+    a = _label(_rmap_rgb(rmap_T, inside, land), "infrared anomaly: r per pixel, all hours")
+    b = _label(_rmap_rgb(rmap_C, inside, land), "cloud mask anomaly: r per pixel, daylight")
+    strip = Image.new("RGB", (N * 2 + 8, N), (6, 17, 28))
+    strip.paste(a, (0, 0)); strip.paste(b, (N + 8, 0))
+    strip.save(out / "agreement_maps.jpg", quality=88)
+
+
+def render_examples(out, hours, C, G, H, L, geo, inside, land, series):
+    """Five hours: clear-ish, mixed and overcast by GOES cloud share, plus the best and worst hourly agreement."""
+    day = [t for t in sorted(C)]
+    if not day:
+        return []
+    share = {t: float(np.nanmean(C[t].astype(np.float32)[inside & ~land])) for t in day}
+    ranked = sorted(day, key=lambda t: share[t])
+    picks = {"clear-ish": ranked[len(ranked) // 5], "mixed": ranked[len(ranked) // 2], "overcast": ranked[4 * len(ranked) // 5]}
+    by_t = {s["t"]: s for s in series}
+    scored = [t for t in day if t.strftime("%Y-%m-%dT%HZ") in by_t and by_t[t.strftime("%Y-%m-%dT%HZ")]["anom"] == by_t[t.strftime("%Y-%m-%dT%HZ")]["anom"]]
+    if scored:
+        picks["best agreement"] = max(scored, key=lambda t: by_t[t.strftime("%Y-%m-%dT%HZ")]["anom"])
+        picks["worst agreement"] = min(scored, key=lambda t: by_t[t.strftime("%Y-%m-%dT%HZ")]["anom"])
+    rows = []
+    for name, t in picks.items():
+        g = geo.get(t + timedelta(minutes=10)) or geo.get(t - timedelta(minutes=10)) or geo.get(t)
+        geo_im = Image.open(g).convert("RGB").resize((N, N), Image.BOX)
+        geo_im = _label(geo_im, f"GeoColor  {t:%d %b %H}Z")
+        ir = _label(_paint(_grey(G[t].astype(np.float32), -60, 25), np.ones_like(inside), land, False), "GOES band 13, -60..25 C")
+        sb = _label(_paint(_grey(H[t].astype(np.float32), -60, 25), inside, land), "HRRR simulated 10.7 um")
+        cm = _label(_paint(_grey(C[t].astype(np.float32), 0, 1), np.ones_like(inside), land, False), "GOES cloud mask")
+        lc = _label(_paint(_grey(L[t]["LCDC"].astype(np.float32), 0, 1), inside, land), "HRRR low cloud fraction")
+        strip = Image.new("RGB", (N * 5 + 32, N), (6, 17, 28))
+        for k, im in enumerate([geo_im, ir, sb, cm, lc]):
+            strip.paste(im, (k * (N + 8), 0))
+        fn = f"example_{name.replace(' ', '_')}.jpg"
+        strip.save(out / fn, quality=86)
+        st = by_t.get(t.strftime("%Y-%m-%dT%HZ"), {})
+        rows.append(dict(name=name, t=t.strftime("%Y-%m-%dT%HZ"), file=fn, cloud_share=round(share[t], 3), anom_r=st.get("anom"), shuffled_r=st.get("shuf")))
+    return rows
+
+
 # ---------------------------------------------------------------- main
 @click.command()
 @click.option("--place", default="california")
@@ -279,8 +360,32 @@ def main(place, lon, limit, out, seed):
         B["persist"]["ctl_persist24h_raw"].append(corr(c, C[u24].astype(np.float32), mo) if u24 in C else float("nan"))
         B["persist"]["ctl_persist1h_anom"].append(corr(ca, C[u1].astype(np.float32) - mC[u1.hour], mo) if u1 in C else float("nan"))
 
+
+    # ---- per-pixel agreement maps over the month (where does HRRR know the sky?)
+    def pixel_corr(pairs):
+        n = np.zeros((N, N)); sx = np.zeros((N, N)); sy = np.zeros((N, N)); sxx = np.zeros((N, N)); syy = np.zeros((N, N)); sxy = np.zeros((N, N))
+        for a, b in pairs:
+            m = np.isfinite(a) & np.isfinite(b)
+            a = np.where(m, a, 0); b = np.where(m, b, 0)
+            n += m; sx += a; sy += b; sxx += a * a; syy += b * b; sxy += a * b
+        cov = sxy / np.maximum(n, 1) - (sx / np.maximum(n, 1)) * (sy / np.maximum(n, 1))
+        va = sxx / np.maximum(n, 1) - (sx / np.maximum(n, 1)) ** 2; vb = syy / np.maximum(n, 1) - (sy / np.maximum(n, 1)) ** 2
+        r = cov / np.sqrt(np.maximum(va * vb, 1e-9))
+        r[n < 20] = np.nan
+        return r
+    rmap_T = pixel_corr((anomG(t), anomH(t)) for t in hours)
+    rmap_C = pixel_corr((C[t].astype(np.float32) - mC[t.hour], L[t]["LCDC"].astype(np.float32) - mL["LCDC"][t.hour]) for t in sorted(C))
+    o_pairs = [(t, other_day(t, H)) for t in hours]
+    rmap_T_shuf = pixel_corr((anomG(t), anomH(o)) for t, o in o_pairs if o)
+    result_maps = dict(
+        temperature_anomaly_r=dict(ocean=float(np.nanmean(rmap_T[inside & ocean])), land=float(np.nanmean(rmap_T[inside & land])),
+                                   shuffled_ocean=float(np.nanmean(rmap_T_shuf[inside & ocean]))),
+        cloud_anomaly_r=dict(ocean=float(np.nanmean(rmap_C[inside & ocean]))))
+    render_maps(out, rmap_T, rmap_C, inside, land, hr.meta)
+    examples = render_examples(out, hours, C, G, H, L, geo, inside, land, series)
+
     result = dict(
-        place=place, generated=datetime.utcnow().strftime("%Y-%m-%dT%H:%MZ"), grid_px=N, km_per_px=round(mpp / 1000, 2),
+        place=place, maps=result_maps, examples=examples, generated=datetime.now().strftime("%Y-%m-%dT%H:%MZ"), grid_px=N, km_per_px=round(mpp / 1000, 2),
         coverage=dict(frame=round(float(inside.mean()), 3), ocean=round(float(ocean.mean()), 3),
                       covered_ocean=round(float(mo.mean()), 3),
                       band_coverage={name: round(float((inside & (coast_km >= lo) & (coast_km < hi)).sum() / max(((coast_km >= lo) & (coast_km < hi)).sum(), 1)), 3)

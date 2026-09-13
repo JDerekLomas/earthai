@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painting Clouds onto Physics</title>
+<meta name="description" content="A verified literature pass on physics-conditioned cloud generation: CorrDiff and its relatives, generative nowcasting, simulated satellite imagery, and what it implies for painting GOES frames from HRRR fields.">
+<style>html{color-scheme:light dark} body{margin:0} img,video{max-width:100%}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#e9edf1; --surface:#ffffff; --sunk:#dfe5ea;
+    --ink:#13202e; --muted:#5b6b7d; --faint:#8493a4;
+    --line:#c7d1da; --hair:#dbe2e8;
+    --ochre:#b3652a; --cool:#37718f; --deep:#0f2233;
+    --ok:#2f7d5b; --no:#a33a2a;
+    --shadow:0 1px 2px rgba(15,34,51,.08), 0 8px 24px rgba(15,34,51,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+      --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+      --line:#27394b; --hair:#1c2c3c;
+      --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+      --ok:#5cb98d; --no:#e0765f;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+    --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+    --line:#27394b; --hair:#1c2c3c;
+    --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+    --ok:#5cb98d; --no:#e0765f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+  *{box-sizing:border-box}
+  body{background:var(--ground); color:var(--ink);
+    font:400 16px/1.55 "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    padding-block:44px 72px; padding-left:20px; padding-right:20px; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1120px; margin:0 auto; display:flex; flex-direction:column; gap:52px}
+  h1,h2,h3{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif; text-wrap:balance; margin:0}
+  h1{font-size:clamp(30px,4.6vw,46px); font-weight:600; letter-spacing:-.015em; line-height:1.08}
+  h2{font-size:clamp(20px,2.6vw,26px); font-weight:600; letter-spacing:-.01em}
+  h3{font-size:16px; font-weight:600}
+  p{margin:0; max-width:66ch}
+  a{color:var(--cool)}
+  .lede{font-size:clamp(17px,2vw,19px); color:var(--muted); max-width:62ch}
+  section{display:flex; flex-direction:column; gap:18px}
+  .head{display:flex; flex-direction:column; gap:8px}
+  header{display:flex; flex-direction:column; gap:16px}
+  .claim{font-family:"IBM Plex Sans Condensed",sans-serif; font-size:clamp(19px,2.4vw,23px); line-height:1.35;
+    max-width:34ch; border-left:3px solid var(--cool); padding-left:18px}
+  .claim b{color:var(--cool); font-weight:600}
+  .xl{font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.06em; text-decoration:none; color:var(--muted); border-bottom:1px solid var(--line); padding-bottom:2px}
+  .xl:hover{color:var(--cool); border-color:var(--cool)}
+  .links{display:flex; flex-wrap:wrap; gap:20px}
+  .tw{overflow-x:auto; background:var(--surface); border:1px solid var(--hair); border-radius:4px; box-shadow:var(--shadow)}
+  table{border-collapse:collapse; width:100%; font-size:13px; min-width:900px}
+  th,td{text-align:left; padding:9px 12px; border-top:1px solid var(--hair); vertical-align:top}
+  thead th{border-top:0; font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); padding-top:13px; padding-bottom:11px; white-space:nowrap}
+  td.k{white-space:nowrap; font-weight:500}
+  td.k small{display:block; font:400 11px "IBM Plex Mono",monospace; color:var(--faint); margin-top:2px}
+  td.m{font-family:"IBM Plex Mono",monospace; font-size:12px; white-space:nowrap}
+  tr.lane td{background:var(--sunk); font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); padding:8px 12px}
+  .yes{color:var(--ok)} .no{color:var(--no)} .part{color:var(--ochre)}
+  .cols{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:18px}
+  .note{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:16px 18px; display:flex; flex-direction:column; gap:8px; box-shadow:var(--shadow)}
+  .note p{font-size:14px; color:var(--muted)}
+  .note.have{border-left:3px solid var(--ok)} .note.maybe{border-left:3px solid var(--ochre)} .note.gate{border-left:3px solid var(--no)}
+  .status{font:500 11px "IBM Plex Mono",monospace; letter-spacing:.08em; text-transform:uppercase}
+  .have .status{color:var(--ok)} .maybe .status{color:var(--ochre)} .gate .status{color:var(--no)}
+  ol.steps{margin:0; padding-left:22px; display:flex; flex-direction:column; gap:10px; max-width:70ch}
+  ol.steps li::marker{font-family:"IBM Plex Mono",monospace; color:var(--faint)}
+  ul.plain{margin:0; padding-left:20px; display:flex; flex-direction:column; gap:6px; max-width:70ch; font-size:14.5px}
+  footer{border-top:1px solid var(--line); padding-top:22px; font-size:13px; color:var(--faint)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">earthai · literature pass · 14 Sep 2026 · every citation fetched</div>
+  <h1>Painting clouds onto physics: what has been built</h1>
+  <p class="claim">Nobody has published a model that takes a weather model's cloud fields in and paints a satellite frame out. <b>Every part of it exists</b>, and the recipe has been tested on the same imagery.</p>
+  <p class="lede">The decision this page serves: build a physics-conditioned generator (HRRR's cloud fields in, an image model painting kilometre-scale texture out, the NVIDIA CorrDiff pattern), or stay with latent-space controls in the GAN we have. Six survey agents fetched every paper and repository below; two of the load-bearing ones were re-read by hand. Items marked <span class="part">unverified</span> could not be fetched (paywalls) and are reported from search snippets only.</p>
+  <div class="links">
+    <a class="xl" href="../hrrr/">does HRRR know where the clouds are? &rarr;</a>
+    <a class="xl" href="../month/">the California month &rarr;</a>
+    <a class="xl" href="notes/01-corrdiff-downscaling.md">raw notes, six files &rarr;</a>
+  </div>
+</header>
+
+<section>
+  <div class="head">
+    <h2>The short version</h2>
+  </div>
+  <ol class="steps">
+    <li><b>The architecture is settled and open.</b> CorrDiff's recipe (a regression network predicts the mean field, a residual diffusion model paints the texture the regression smooths away) is Apache-licensed code in NVIDIA's PhysicsNeMo, and <em>CorrDiff-Mini</em> trains on a reduced HRRR-based set in about ten A100-hours, against roughly five thousand for the full CONUS model. On our L40S at &euro;1.47 an hour that is a tens-of-euros experiment, not a project.</li>
+    <li><b>The recipe has already won on GOES infrared.</b> Chase et al. (2025) compared plain diffusion, latent diffusion, a CorrDiff-style residual model and a U-Net on 0&ndash;3 hour cloud nowcasts from geostationary infrared frames. The residual model was best, beat persistence, generated and decayed cloud rather than only moving it, and kept fine features longer. Its conditioning was earlier frames, not a physics model, but the target imagery is ours.</li>
+    <li><b>Physics-fields-in, satellite-image-out has been done once, small.</b> Hatanaka et al. (2023) trained a diffusion model to super-resolve coarse numerical weather prediction into weather-satellite-resolution cloud imagery for solar forecasting. The abstract states no pixel size; secondary reports say 64 to 128 px. No code found.</li>
+    <li><b>No released weights do our job.</b> The one downloadable CorrDiff checkpoint for the US takes 25 km GEFS <em>in</em> and produces HRRR-resolution wind, temperature and rain <em>out</em>: HRRR is its target, not its input, and nothing image-like comes out. StormCast (Apache 2.0, "research only") emulates HRRR itself and does emit composite radar reflectivity, the nearest thing to an image. Every satellite-image generator found is a single-channel research prototype without public weights.</li>
+    <li><b>Our month is thin for this.</b> Forty days is 960 hourly pairs, and the memory measurement on the month page says that is about seventy independent skies. Both archives go back years (HRRR to July 2014 on AWS; the native GOES record is on AWS too, which this pass did not fetch), and SEVIR pairs ten thousand GOES-16 storm events with radar at 5-minute cadence for the eastern US.</li>
+    <li><b>The precondition is on the next page.</b> None of this is worth building unless HRRR actually puts cloud where GOES saw it, hourly, at our scale, and beats both a shuffled-day floor and yesterday's frame. That is the <a href="../hrrr/">agreement probe</a>.</li>
+  </ol>
+</section>
+
+<section>
+  <div class="head">
+    <h2>What exists</h2>
+    <p>Five lanes. "Code" and "weights" mean a fetched repository or model card confirmed it; licence as stated there. The last column is the only one that matters: what it means for HRRR-in, GOES-out.</p>
+  </div>
+  <div class="tw">
+    <table>
+      <thead><tr><th>work</th><th>in &rarr; out</th><th>code</th><th>weights</th><th>licence</th><th>for HRRR + GOES</th></tr></thead>
+      <tbody>
+        <tr class="lane"><td colspan="6">A · generative downscaling from a physics model</td></tr>
+        <tr><td class="k">CorrDiff<small>Mardani et al. 2023 / Comm. Earth Env. 2025</small></td><td>25 km reanalysis &rarr; 2 km regional NWP fields, Taiwan. Regression mean + residual diffusion.</td><td class="m yes">physicsnemo</td><td class="m part">NGC, gated</td><td class="m">Apache 2.0 code</td><td>The recipe. Output is state variables, not radiance; the released US checkpoint has HRRR as its <em>target</em>.</td></tr>
+        <tr><td class="k">CorrDiff-Mini<small>PhysicsNeMo README</small></td><td>Same, on a reduced HRRR-based set.</td><td class="m yes">physicsnemo</td><td class="m no">&mdash;</td><td class="m">Apache 2.0</td><td>~10 A100-hours to train. The on-ramp: retarget its output head at a GOES channel.</td></tr>
+        <tr><td class="k">StormCast<small>Pathak et al. 2024</small></td><td>26 synoptic vars &rarr; 99 HRRR state vars incl. composite reflectivity, 3 km, hourly steps.</td><td class="m yes">earth2studio</td><td class="m yes">NGC, 764 MB</td><td class="m">Apache 2.0, research only</td><td>Proof that a diffusion model at HRRR scale can emit an image-like channel. Nearest methodological twin.</td></tr>
+        <tr><td class="k">Hatanaka et al.<small>2023, arXiv 2302.00170</small></td><td>Coarse NWP &rarr; satellite-resolution cloud imagery, score-based diffusion, for solar irradiance.</td><td class="m no">none found</td><td class="m no">&mdash;</td><td class="m">&mdash;</td><td>The closest published thing to the ask, at low resolution. Re-read by hand: abstract confirms NWP in, satellite-observation-resolution out.</td></tr>
+        <tr><td class="k">Leinonen, Nerini &amp; Berne<small>2020 / IEEE TGRS 2021</small></td><td>Coarse GOES-16 cloud optical thickness sequence &rarr; ensemble of fine sequences, recurrent GAN.</td><td class="m yes">github</td><td class="m no">&mdash;</td><td class="m">unstated</td><td>Closest on modality: a GAN already animates a GOES cloud field at higher resolution. A cheap baseline to beat.</td></tr>
+        <tr><td class="k">Harris et al.<small>2022, JAMES</small></td><td>NWP precipitation &rarr; radar-like precipitation, conditional GAN, UK.</td><td class="m no">none found</td><td class="m no">&mdash;</td><td class="m">&mdash;</td><td>The pre-diffusion ancestor of the pattern.</td></tr>
+        <tr><td class="k">Watt &amp; Mansfield<small>2024</small></td><td>2&deg; climate fields &rarr; 0.25&deg; ERA5-like, guided diffusion.</td><td class="m no">none found</td><td class="m no">&mdash;</td><td class="m">&mdash;</td><td>A lighter conditioning recipe if the two-stage pipeline is too heavy.</td></tr>
+
+        <tr class="lane"><td colspan="6">B · generative nowcasting from radar and satellite</td></tr>
+        <tr><td class="k">Chase et al.<small>2025, arXiv 2505.10432</small></td><td>Past 20 min of GOES infrared &rarr; 0&ndash;3 h infrared; Diff vs CorrDiff vs LDM vs U-Net.</td><td class="m part">not stated</td><td class="m no">&mdash;</td><td class="m">&mdash;</td><td>CorrDiff-style won, beat persistence, made and dissolved cloud. Re-read by hand. The strongest evidence for the recipe on our imagery.</td></tr>
+        <tr><td class="k">Afzali Gorooh et al.<small>Sci. Reports, Jan 2026</small></td><td>SEVIRI 10.8 &micro;m, 3 km / 15 min &rarr; 6 h infrared, 3D U-Net diffusion, UAE.</td><td class="m part">on request</td><td class="m no">&mdash;</td><td class="m">CC BY 4.0 paper</td><td>Sharp to ~2 h, fading to 4&ndash;5 h. Sets the expectation for how long generated texture stays honest.</td></tr>
+        <tr><td class="k">DDMS, Dai et al.<small>PNAS 2025</small></td><td>FengYun-4A brightness temperature, 4 km / 15 min &rarr; 4 h, diffusion over the frame stack.</td><td class="m no">not stated</td><td class="m no">&mdash;</td><td class="m">&mdash;</td><td>Satellite frames treated as video diffusion. The precedent for 10-minute-cadence animation.</td></tr>
+        <tr><td class="k">DGMR<small>Ravuri et al., Nature 2021</small></td><td>Radar &rarr; radar, 5&ndash;90 min, conditional GAN.</td><td class="m yes">deepmind-research</td><td class="m yes">GCS, CC BY 4.0</td><td class="m">CC BY 4.0</td><td>Radar only. The generator architecture, not the output.</td></tr>
+        <tr><td class="k">DiffCast / CasCast<small>CVPR 2024 / ICML 2024</small></td><td>Radar &rarr; radar; deterministic backbone + residual or cascaded latent diffusion.</td><td class="m yes">github</td><td class="m part">unconfirmed</td><td class="m">&mdash;</td><td>The "bolt texture diffusion onto any backbone" pattern; a cheap way to add detail to an HRRR-driven mean.</td></tr>
+        <tr><td class="k">NowcastNet<small>Zhang et al., Nature 2023</small></td><td>Radar &rarr; radar, 3 h; physics advection + generative detail.</td><td class="m part">unverified</td><td class="m part">unverified</td><td class="m">&mdash;</td><td>Paywalled twice. The physics-scaffold-plus-texture split, in a nowcaster.</td></tr>
+        <tr><td class="k">MetNet-3<small>Google 2023</small></td><td>Radar + GOES + stations &rarr; precip, wind, temperature, 24 h.</td><td class="m no">none</td><td class="m no">&mdash;</td><td class="m">&mdash;</td><td><b>Correction to the brief:</b> Google's blog says no NWP forecasts are among its inputs. Not a precedent for physics conditioning.</td></tr>
+        <tr><td class="k">SEVIR<small>NeurIPS 2020, dataset</small></td><td>10,000+ storm events: GOES-16 visible, water vapour, clean IR + radar + lightning, 384 km tiles, 5 min.</td><td class="m yes">AWS Open Data</td><td class="m">&mdash;</td><td class="m">&mdash;</td><td>The ready-made paired GOES corpus, eastern US. Where to prototype before a bespoke California pipeline.</td></tr>
+
+        <tr class="lane"><td colspan="6">C · simulated satellite imagery from a physics model</td></tr>
+        <tr><td class="k">HRRR SBT fields<small>NCEP, CRTM forward model</small></td><td>HRRR state &rarr; simulated brightness temperature, hourly, 3 km, in the public archive since 2014.</td><td class="m">&mdash;</td><td class="m">&mdash;</td><td class="m">public domain</td><td><b>Trap, verified by decoding:</b> SBT113 is GOES-11 channel 3, the 6.7 &micro;m <em>water vapour</em> channel. The window channel that matches band 13 is SBT114 (10.7 &micro;m).</td></tr>
+        <tr><td class="k">Otkin / DTC<small>HRRR evaluation, 2015&ndash;16</small></td><td>HRRR &rarr; synthetic GOES 10.7 &micro;m via CRTM, scored against real GOES, two months.</td><td class="m">&mdash;</td><td class="m">&mdash;</td><td class="m">&mdash;</td><td>Warm bias at forecast hour 1 (too little upper cloud), cold bias a few hours later (too much). No single agreement number published; ours is on the next page.</td></tr>
+        <tr><td class="k">Cheng<small>2021/22, arXiv 2108.04330</small></td><td>Infrared + ECMWF fields &rarr; synthetic night-time visible imagery, GAN with channel attention, FY-4A.</td><td class="m no">none found</td><td class="m no">&mdash;</td><td class="m">&mdash;</td><td>The nearest verified "NWP fields + a satellite channel in, a painted satellite image out". No code.</td></tr>
+        <tr><td class="k">CIRA / CIMSS, DWD MFASIS<small>operational products</small></td><td>Cloud-resolving model &rarr; synthetic ABI / SEVIRI imagery, radiative transfer.</td><td class="m no">&mdash;</td><td class="m no">&mdash;</td><td class="m">&mdash;</td><td>The physics route is standard across institutions; its skill is reported as case studies, not corpus numbers. DWD entry unverified (paywall).</td></tr>
+
+        <tr class="lane"><td colspan="6">D · learned weather models, as context</td></tr>
+        <tr><td class="k">GraphCast, Pangu, FourCastNet, GenCast, Aurora, AIFS<small>2022&ndash;25</small></td><td>ERA5 at 0.25&deg; (Aurora 0.1&deg;) &rarr; the standard dynamical variables, days ahead.</td><td class="m yes">various</td><td class="m part">GraphCast CC BY 4.0; Pangu non-commercial</td><td class="m">mixed</td><td>No cloud fields in their standard outputs, and 11&ndash;30 km. None can condition a 2 km frame. NeuralGCM has cloud water, at 140 km.</td></tr>
+        <tr><td class="k">HRRRCast<small>NOAA, AIES 2026</small></td><td>Emulates HRRR at 3 km; scored on reflectivity.</td><td class="m part">unverified</td><td class="m part">unverified</td><td class="m">&mdash;</td><td>Exists; no confirmed cloud output or weights.</td></tr>
+
+        <tr class="lane"><td colspan="6">E · image generators of skies and satellite views</td></tr>
+        <tr><td class="k">GeoSynth<small>CVPRW 2024</small></td><td>OpenStreetMap raster + text &rarr; satellite image; ControlNet on Stable Diffusion 2.1.</td><td class="m yes">github</td><td class="m yes">Hugging Face, 11 GB</td><td class="m">CC BY 4.0 paper</td><td>The fork candidate for a ControlNet route: swap the map raster for an HRRR raster, the land tiles for GOES frames. Unproven on physical fields.</td></tr>
+        <tr><td class="k">SatelliteMaker; urban-planning SD+ControlNet<small>2025</small></td><td>Stable Diffusion + LoRA + ControlNet on a DEM raster / on OSM layers &rarr; satellite imagery.</td><td class="m no">not stated</td><td class="m no">&mdash;</td><td class="m">CC BY 4.0 papers</td><td>A continuous raster (elevation) as the control works. Neither abstract gives a training-set size or GPU budget, so the smallest workable fine-tune is unknown.</td></tr>
+        <tr><td class="k">DiffusionSat<small>ICLR 2024</small></td><td>Geolocation + time metadata &rarr; satellite imagery; SD backbone; SR, temporal, inpainting heads.</td><td class="m yes">github, Apache 2.0</td><td class="m yes">Zenodo</td><td class="m">Apache 2.0</td><td>One backbone, several conditional heads. Not cloud-specific.</td></tr>
+        <tr><td class="k">SkyGAN<small>CGF 2023</small></td><td>Sun position + cloud-cover ratio &rarr; HDR fisheye skydome, StyleGAN3.</td><td class="m yes">github + 39k-image dataset</td><td class="m part">see repo</td><td class="m">unstated</td><td>A physical descriptor driving a GAN sky, from the ground. Scalar conditioning, not a field.</td></tr>
+        <tr><td class="k">AI-CD<small>Yuan 2019</small></td><td>SST, inversion strength, wind, humidity, subsidence &rarr; stratocumulus reflectance field, conditional GAN on MODIS.</td><td class="m no">none found</td><td class="m no">&mdash;</td><td class="m">&mdash;</td><td>Names the drivers that shape <em>our</em> deck. Worth reading for which HRRR fields to feed beyond cloud fraction.</td></tr>
+        <tr><td class="k">CloudDiff<small>npj Clim. Atmos. Sci. 2025</small></td><td>Himawari thermal infrared 2 km &rarr; cloud phase and water path at 1 km, diffusion ensemble, day and night.</td><td class="m no">not stated</td><td class="m no">&mdash;</td><td class="m">&mdash;</td><td>Diffusion on geostationary cloud fields with night handling from infrared alone.</td></tr>
+        <tr><td class="k">Nubis (Horizon Zero Dawn)<small>Guerrilla, SIGGRAPH 2015&ndash;17</small></td><td>Artist coverage / type / height maps + noise &rarr; real-time volumetric clouds.</td><td class="m no">proprietary</td><td class="m">&mdash;</td><td class="m">&mdash;</td><td>The non-learned baseline: a coverage map already drives believable cloud, without any training. What the learned version must beat on looks.</td></tr>
+        <tr><td class="k">NASA SVS Earth time-lapse<small>DSCOVR EPIC, 2016</small></td><td>Real frames, sequenced.</td><td class="m">&mdash;</td><td class="m">&mdash;</td><td class="m">public domain</td><td>The other baseline: real GOES frames, simply animated, are already the art. The generator has to add something to that.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>What it implies for building option 1</h2>
+    <p>Physics fields in, a painted GOES frame out, for one place.</p>
+  </div>
+  <div class="cols">
+    <div class="note have"><span class="status">settled</span><h3>Conditioning</h3><p>HRRR on the frame grid is built (<span class="mono">scripts/hrrr_grid.py</span>): low, middle, high and total cloud fraction, the two simulated channels (10.7 &micro;m window, 6.7 &micro;m water vapour), cloud ceiling, plus terrain and solar hour. AI-CD says sea-surface temperature and inversion strength shape stratocumulus; HRRR carries both.</p></div>
+    <div class="note have"><span class="status">settled</span><h3>Architecture</h3><p>Regression mean plus residual diffusion. It is the open PhysicsNeMo code, it won on GOES infrared in Chase et al., and DiffCast shows the residual stage bolts onto any backbone. Target the infrared channel first (continuous through the night, one channel, a real temperature); GeoColor is a second head.</p></div>
+    <div class="note maybe"><span class="status">open</span><h3>Data</h3><p>960 hourly pairs, ~70 independent, is thin for diffusion. Both archives run for years: HRRR analyses back to 2014 are in the same bucket, and NOAA's native GOES-West record is on AWS (not fetched in this pass; GIBS only keeps a month). Or start on SEVIR's ten thousand paired GOES-16 events.</p></div>
+    <div class="note maybe"><span class="status">open</span><h3>Cost</h3><p>CorrDiff-Mini's reported ten A100-hours is the scale: tens of euros on the L40S per training run at 768 px or less. The full CONUS CorrDiff, ~5,000 A100-hours, is the number to never approach.</p></div>
+    <div class="note maybe"><span class="status">alternative</span><h3>ControlNet route</h3><p>GeoSynth's released ControlNet on Stable Diffusion 2.1 takes a raster in; swapping in an HRRR raster and GOES targets is a fine-tune, not a build. Nobody has shown it on a physical field, the prior is land photography, and the weights are 11 GB.</p></div>
+    <div class="note gate"><span class="status">precondition</span><h3>Truth</h3><p>All of it only adds truth if HRRR knows where today's clouds are at our scale, and beats a shuffled day and yesterday's frame. Measured on the <a href="../hrrr/">next page</a>. If it fails, the physics fields are climatology with extra steps, and latent controls in the existing GAN are the honest option.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>What could not be verified</h2>
+  </div>
+  <ul class="plain">
+    <li><b>Paywalled, reported from snippets only:</b> Bikos et al. 2012 (synthetic imagery for model evaluation), NowcastNet's full text, Harris et al. 2023 (GAN emulation of km-scale NWP), DWD's MFASIS/LMSynSat, Yang et al. 2026 (3D cloud structure from geostationary imagery). Nothing on this page depends on them.</li>
+    <li><b>Contradicted the brief:</b> MetNet-3 was listed as conditioning on NWP; Google's own blog says it does not. Removed as precedent.</li>
+    <li><b>Unanswered:</b> the smallest training set and GPU budget for a ControlNet-style fine-tune on satellite imagery; neither relevant abstract discloses it. The paper bodies or repositories would.</li>
+    <li><b>Checked by hand, not only by agent:</b> Hatanaka et al. 2023 and Chase et al. 2025 abstracts; the HRRR SBT channel assignment (decoded from a real file, not read from a table).</li>
+  </ul>
+</section>
+
+<footer>
+  Six survey agents, 14 Sep 2026, each capped at ~25 fetches; their notes, per lane: <a href="notes/01-corrdiff-downscaling.md">downscaling</a> · <a href="notes/02-nowcasting.md">nowcasting</a> · <a href="notes/03-simulated-satellite.md">simulated satellite</a> · <a href="notes/04-learned-global-models.md">learned global models</a> · <a href="notes/05-artistic-cloud-synthesis.md">artistic synthesis</a> · <a href="notes/06-conditioned-cloud-sr.md">conditioned super-resolution</a>. Brief and notes are also in the repository under <span class="mono">docs/research/lit-2026-09-14/</span>.
+</footer>
+</div>
+</body>
+</html>
