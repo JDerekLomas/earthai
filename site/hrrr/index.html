@@ -168,13 +168,13 @@
 <section id="fcst">
   <div class="head">
     <h2>After the satellite data runs out: the forecast hours</h2>
-    <p>The analysis hour has GOES assimilated into it. The 6- and 12-hour forecasts do not: they are the physics carrying the sky alone, which is what a generator would lean on once the last real frame is hours old. Same pairs, same controls. The persistence bars are the satellite's own frame the same number of hours earlier, the thing a forecast has to beat to be worth anything.</p>
+    <p>The analysis hour has GOES assimilated into it. The 6- and 12-hour forecasts do not: they are the physics carrying the sky alone, which is what a generator would lean on once the last real frame is hours old. Same pairs, same controls. The persistence column is the satellite's own frame the same number of hours earlier as the forecast's lead (one hour for the analysis row), which is what a forecast has to beat to be worth anything.</p>
   </div>
-  <div class="tw"><table id="fcsttable"><thead><tr><th>HRRR</th><th>cloud mask r, daylight ocean</th><th>shuffled</th><th>infrared r</th><th>shuffled</th><th>infrared r, ocean</th><th>hit / false alarm, 15 km</th><th>pairs</th></tr></thead><tbody><tr><td colspan="8" style="color:var(--faint)">forecast hours not scored yet</td></tr></tbody></table></div>
+  <div class="tw"><table id="fcsttable"><thead><tr><th>HRRR</th><th>cloud mask r, daylight ocean</th><th>persistence at the same lead</th><th>infrared r</th><th>persistence at the same lead</th><th>infrared r, ocean</th><th>hit / false alarm, 15 km</th><th>pairs</th></tr></thead><tbody><tr><td colspan="8" style="color:var(--faint)">forecast hours not scored yet</td></tr></tbody></table></div>
   <p id="fcstnote" style="font-size:14px;color:var(--muted)"></p>
-  <p><b>The physics holds most of its skill once the satellite is gone.</b> For the daylight cloud mask over ocean, agreement falls from 0.36 at the analysis hour to 0.25 at six hours and 0.23 at twelve. The loss happens at the start, when the assimilated satellite view is left behind, and then flattens: twelve hours out the model still places the deck twice as well as the satellite's own frame from a day earlier (0.11), and its shuffled-day floor stays at zero. Near the coast the same numbers run 0.47, 0.36, 0.34.</p>
-  <p><b>For the large cold-cloud pattern the forecast is better than the analysis.</b> Infrared agreement rises from 0.45 to 0.54 at six hours, and the analysis hour's 4 K warm bias vanishes. That is the known spin-up: the analysis starts with too little upper cloud and the model grows it over the first hours. So for anything a generator would take from physics beyond the next hour or two, the 6-hour forecast is the better conditioning field, not the analysis.</p>
-  <p>Read together with the memory measurement on the month page, this settles the division of labour. The last real frame owns the next one to three hours (persistence 0.62 for the mask, 0.75 for infrared at one hour, gone by a day). The physics owns everything after that, at the scale of the deck's edge and the synoptic pattern, and it can be chained forward indefinitely because a new forecast is issued every hour. What neither supplies is the texture below about 30 km, which is the generator's job.</p>
+  <p><b>For the large cold-cloud pattern, physics beats persistence from six hours on.</b> Infrared agreement for the 6-hour forecast is 0.54 (95% interval 0.51 to 0.58) against 0.39 (0.34 to 0.45) for the satellite's own frame six hours earlier; at twelve hours it is 0.52 against 0.26. The forecast even beats the analysis hour (0.45), and the analysis hour's 4 K warm bias vanishes. That is the known spin-up: the analysis starts with too little upper cloud and the model grows it over the first hours. For anything a generator takes from physics beyond the next hour or two, the 6-hour forecast is the better conditioning field.</p>
+  <p><b>For the low deck itself, its own memory outlasts the model's skill on it.</b> The daylight cloud-mask agreement for the 6-hour forecast is 0.25 (0.20 to 0.30), but the satellite's frame from six hours earlier scores 0.33 (0.30 to 0.37): persistence still wins at six hours, and the intervals barely touch. By a day, persistence has fallen to 0.10 while the 12-hour forecast holds 0.24 (0.19 to 0.28), so the physics wins the deck somewhere between six hours and a day. (A 12-hour persistence bar for the mask cannot be measured, since twelve hours from a daylight frame is night.) The analysis hour, with the satellite assimilated, scores 0.36 (0.31 to 0.41).</p>
+  <p>Read together with the memory measurement on the month page, this settles the division of labour. The last real frame owns the next few hours: for the deck at least six, for the whole picture about two. The physics owns the synoptic pattern and the high cloud from six hours on, and the deck's placement from somewhere under a day on, at the scale of the deck's edge and above; and it can be chained forward indefinitely because a new forecast is issued every hour. What neither supplies is the texture below about 30 km, which is the generator's job.</p>
 </section>
 
 <section>
@@ -199,17 +199,19 @@ fetch("california/agreement.json").then(r=>r.json()).then(J=>{
   const T=J.temperature.overall, Cc=J.cloud.overall, P=Cc.persist;
   document.getElementById("gen").textContent = `generated ${J.generated} · ${J.n.hours} hours, ${J.n.days} days, ${J.n.daylight_pairs} daylight pairs · HRRR covers ${(J.coverage.frame*100).toFixed(0)}% of the frame`;
   // stats
+  const CI=J.ci||{}; const ciT=(k)=>(CI.temperature&&CI.temperature[k]&&CI.temperature[k][0]!=null)?` <small style="font-size:12px;color:var(--faint)">${f(CI.temperature[k][0])}–${f(CI.temperature[k][1])}</small>`:"";
+  const ciC=(g,k)=>(CI.cloud&&CI.cloud[g]&&CI.cloud[g][k]&&CI.cloud[g][k][0]!=null)?` <small style="font-size:12px;color:var(--faint)">${f(CI.cloud[g][k][0])}–${f(CI.cloud[g][k][1])}</small>`:"";
   const S=[
-    ["ok", f(T.anom_pearson.mean), "infrared anomaly r, HRRR vs GOES, mean of hourly"],
-    ["ctl", f(T.ctl_shuffled_anom.mean), "shuffled-day floor"],
-    ["ctl", f(T.ctl_persist24h_anom.mean), "GOES 24 h earlier"],
-    ["ctl", f(T.ctl_persist1h_anom.mean), "GOES 1 h earlier"],
-    ["ok", f(Cc.LCDC.anom_pearson.mean), "cloud-mask anomaly r vs low cloud fraction, daylight, ocean"],
-    ["ctl", f(Cc.LCDC.ctl_shuffled_anom.mean), "shuffled-day floor"],
-    ["ctl", f(P.ctl_persist24h_anom.mean), "GOES mask 24 h earlier"],
-    ["ctl", f(P.ctl_persist1h_anom.mean), "GOES mask 1 h earlier"],
+    ["ok", f(T.anom_pearson.mean)+ciT("anom_pearson"), "infrared anomaly r, HRRR vs GOES, mean of hourly"],
+    ["ctl", f(T.ctl_shuffled_anom.mean)+ciT("ctl_shuffled_anom"), "shuffled-day floor"],
+    ["ctl", f(T.ctl_persist24h_anom.mean)+ciT("ctl_persist24h_anom"), "GOES 24 h earlier"],
+    ["ctl", f(T.ctl_persist1h_anom.mean)+ciT("ctl_persist1h_anom"), "GOES 1 h earlier"],
+    ["ok", f(Cc.LCDC.anom_pearson.mean)+ciC("LCDC","anom_pearson"), "cloud-mask anomaly r vs low cloud fraction, daylight, ocean"],
+    ["ctl", f(Cc.LCDC.ctl_shuffled_anom.mean)+ciC("LCDC","ctl_shuffled_anom"), "shuffled-day floor"],
+    ["ctl", f(P.ctl_persist24h_anom.mean)+ciC("persist","ctl_persist24h_anom"), "GOES mask 24 h earlier"],
+    ["ctl", f(P.ctl_persist1h_anom.mean)+ciC("persist","ctl_persist1h_anom"), "GOES mask 1 h earlier"],
   ];
-  document.getElementById("stats").innerHTML = S.map(([c,v,l])=>`<div class="stat ${c}"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
+  document.getElementById("stats").innerHTML = S.map(([c,v,l])=>`<div class="stat ${c}"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("") + `<div class="stat"><div class="l">Small grey ranges are 95% intervals from resampling whole days, since hours within a day are not independent (weather memory is 6 h).</div></div>`;
   document.getElementById("mapcap").textContent = `Month-long per-pixel anomaly correlation, mean over covered ocean: infrared ${f(J.maps.temperature_anomaly_r.ocean)} (shuffled ${f(J.maps.temperature_anomaly_r.shuffled_ocean)}), over land ${f(J.maps.temperature_anomaly_r.land)}; cloud mask ${f(J.maps.cloud_anomaly_r.ocean)}.`;
   // series chart
   const W=900,H=300,L=46,R=12,Tt=12,B=34; const ser=J.series; const n=ser.length;
@@ -226,13 +228,16 @@ fetch("california/agreement.json").then(r=>r.json()).then(J=>{
   const lt=document.querySelector("#ladder tbody"); const Lt=J.temperature.ladder, Lc=J.cloud.ladder.LCDC;
   lt.innerHTML=Object.keys(Lt).map(k=>`<tr><td>${k}</td><td class="n">${f(Lt[k].anom_pearson.mean)}</td><td class="n">${f(Lt[k].ctl_shuffled.mean)}</td><td class="n">${Lc[k]?f(Lc[k].anom_pearson.mean):"–"}</td><td class="n">${Lc[k]&&Lc[k].ctl_shuffled_anom?f(Lc[k].ctl_shuffled_anom.mean):"–"}</td></tr>`).join("");
   // forecast hours, if scored
-  const rowFor=(label,X)=>{ const T=X.temperature.overall, L=X.cloud.overall.LCDC; return `<tr><td>${label}</td><td class="n">${f(L.anom_pearson.mean)}</td><td class="n">${f(L.ctl_shuffled_anom.mean)}</td><td class="n">${f(T.anom_pearson.mean)}</td><td class="n">${f(T.ctl_shuffled_anom.mean)}</td><td class="n">${f(T.anom_pearson_ocean.mean)}</td><td class="n">${f(L.hit_rate_15km.mean)} / ${f(L.false_alarm_15km.mean)}</td><td class="n">${X.n.daylight_pairs} / ${X.n.ir_pairs}</td></tr>`; };
+  const cix=(X,g,k)=>{ const c=X.ci&&(g==="temperature"?X.ci.temperature[k]:X.ci.cloud[g]&&X.ci.cloud[g][k]); return (c&&c[0]!=null)?` <small style="color:var(--faint)">${f(c[0])}–${f(c[1])}</small>`:""; };
+  const rowFor=(label,X,lag)=>{ const T=X.temperature.overall, L=X.cloud.overall.LCDC, Pp=X.cloud.overall.persist; const pk=`ctl_persist${lag}h_anom`;
+    const pm=(lag&&Pp[pk])?f(Pp[pk].mean):"–", pt=(lag&&T[pk])?f(T[pk].mean):"–";
+    return `<tr><td>${label}</td><td class="n">${f(L.anom_pearson.mean)}${cix(X,"LCDC","anom_pearson")}</td><td class="n">${pm}</td><td class="n">${f(T.anom_pearson.mean)}${cix(X,"temperature","anom_pearson")}</td><td class="n">${pt}</td><td class="n">${f(T.anom_pearson_ocean.mean)}</td><td class="n">${f(L.hit_rate_15km.mean)} / ${f(L.false_alarm_15km.mean)}</td><td class="n">${X.n.daylight_pairs} / ${X.n.ir_pairs}</td></tr>`; };
   Promise.all([6,12].map(h=>fetch(`california_f${String(h).padStart(2,"0")}/agreement.json`).then(r=>r.ok?r.json():null).catch(()=>null))).then(([F6,F12])=>{
     if (!F6 && !F12) return;
     const tb=document.querySelector("#fcsttable tbody");
-    let rows=[rowFor("analysis (f00)",J)]; if (F6) rows.push(rowFor("6 h forecast",F6)); if (F12) rows.push(rowFor("12 h forecast",F12));
+    let rows=[rowFor("analysis (f00)",J,1)]; if (F6) rows.push(rowFor("6 h forecast",F6,6)); if (F12) rows.push(rowFor("12 h forecast",F12,12));
     const P=J.cloud.overall.persist, Tt=J.temperature.overall;
-    rows.push(`<tr><td style="color:var(--faint)">persistence bars</td><td class="n">1 h ${f(P.ctl_persist1h_anom.mean)} · 24 h ${f(P.ctl_persist24h_anom.mean)}</td><td></td><td class="n">1 h ${f(Tt.ctl_persist1h_anom.mean)} · 24 h ${f(Tt.ctl_persist24h_anom.mean)}</td><td></td><td></td><td></td><td></td></tr>`);
+    rows.push(`<tr><td style="color:var(--faint)">shuffled-day floor · GOES 24 h earlier</td><td class="n">${f(J.cloud.overall.LCDC.ctl_shuffled_anom.mean)} · ${f(P.ctl_persist24h_anom.mean)}</td><td></td><td class="n">${f(Tt.ctl_shuffled_anom.mean)} · ${f(Tt.ctl_persist24h_anom.mean)}</td><td></td><td></td><td></td><td></td></tr>`);
     tb.innerHTML=rows.join("");
     const drop = F6 ? ((J.cloud.overall.LCDC.anom_pearson.mean - F6.cloud.overall.LCDC.anom_pearson.mean)/J.cloud.overall.LCDC.anom_pearson.mean*100).toFixed(0) : null;
     document.getElementById("fcstnote").textContent = drop!=null ? `From analysis to 6-hour forecast the cloud-mask agreement changes by ${-drop}%.` + (F12 ? ` At 12 hours it is ${f(F12.cloud.overall.LCDC.anom_pearson.mean)}.` : "") : "";

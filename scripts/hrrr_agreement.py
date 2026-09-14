@@ -324,9 +324,9 @@ def main(place, lon, limit, out, seed, fhour):
         o = other_day(t, H)
         A["ctl_shuffled_anom"].append(corr(ga, anomH(o), m) if o else float("nan"))
         A["ctl_shuffled_raw_spearman"].append(corr(g, H[o].astype(np.float32), m, rank=True) if o else float("nan"))
-        for lag, name in ((24, "ctl_persist24h_anom"), (1, "ctl_persist1h_anom")):
+        for lag in (1, 6, 12, 24):          # the bar a forecast at lead `lag` has to beat
             u = t - timedelta(hours=lag)
-            A[name].append(corr(ga, anomG(u), m) if u in G else float("nan"))
+            A[f"ctl_persist{lag}h_anom"].append(corr(ga, anomG(u), m) if u in G else float("nan"))
         A["ctl_persist24h_raw_spearman"].append(corr(g, G[t - timedelta(hours=24)].astype(np.float32), m, rank=True)
                                                 if t - timedelta(hours=24) in G else float("nan"))
         for name, lo, hi in BANDS:
@@ -378,9 +378,10 @@ def main(place, lon, limit, out, seed, fhour):
                 if o:
                     Bladder[k][kk]["ctl_shuffled_anom"].append(corr(block(ca, kk), block(np.nan_to_num(L[o][k].astype(np.float32) - mL[k][t.hour]), kk), bm))
         # persistence bars for the mask (GOES vs GOES), independent of field
-        B["persist"]["ctl_persist24h_anom"].append(corr(ca, C[u24].astype(np.float32) - mC[u24.hour], mo) if u24 in C else float("nan"))
         B["persist"]["ctl_persist24h_raw"].append(corr(c, C[u24].astype(np.float32), mo) if u24 in C else float("nan"))
-        B["persist"]["ctl_persist1h_anom"].append(corr(ca, C[u1].astype(np.float32) - mC[u1.hour], mo) if u1 in C else float("nan"))
+        for lag in (1, 6, 12, 24):
+            u = t - timedelta(hours=lag)
+            B["persist"][f"ctl_persist{lag}h_anom"].append(corr(ca, C[u].astype(np.float32) - mC[u.hour], mo) if u in C else float("nan"))
 
 
     # ---- per-pixel agreement maps over the month (where does HRRR know the sky?)
@@ -406,8 +407,28 @@ def main(place, lon, limit, out, seed, fhour):
     render_maps(out, rmap_T, rmap_C, inside, land, hr.meta)
     examples = render_examples(out, hours, C, G, H, L, geo, inside, land, series)
 
+    # ---- confidence intervals: hourly scores are autocorrelated (6 h memory), so resample DAYS
+    def boot(values, times, n=1000, seed=0):
+        rng = np.random.default_rng(seed)
+        byday = defaultdict(list)
+        for v, t in zip(values, times):
+            if v == v:
+                byday[t.date()].append(v)
+        days_ = list(byday)
+        if len(days_) < 5:
+            return [None, None]
+        means = []
+        for _ in range(n):
+            pick = rng.choice(len(days_), len(days_), replace=True)
+            means.append(np.mean([x for i in pick for x in byday[days_[i]]]))
+        return [round(float(np.percentile(means, 2.5)), 4), round(float(np.percentile(means, 97.5)), 4)]
+    Chours = sorted(C)
+    ci = dict(temperature={k: boot(v, hours) for k, v in A.items() if k.startswith(("anom", "ctl_"))},
+              cloud={k: {kk: boot(vv, Chours) for kk, vv in B[k].items() if kk.startswith(("anom", "ctl_", "raw"))}
+                     for k in ("LCDC", "TCDC", "persist")})
+
     result = dict(
-        place=place, fhour=fhour, maps=result_maps, examples=examples, generated=datetime.now().strftime("%Y-%m-%dT%H:%MZ"), grid_px=N, km_per_px=round(mpp / 1000, 2),
+        place=place, fhour=fhour, ci=ci, maps=result_maps, examples=examples, generated=datetime.now().strftime("%Y-%m-%dT%H:%MZ"), grid_px=N, km_per_px=round(mpp / 1000, 2),
         coverage=dict(frame=round(float(inside.mean()), 3), ocean=round(float(ocean.mean()), 3),
                       covered_ocean=round(float(mo.mean()), 3),
                       band_coverage={name: round(float((inside & (coast_km >= lo) & (coast_km < hi)).sum() / max(((coast_km >= lo) & (coast_km < hi)).sum(), 1)), 3)
@@ -434,8 +455,10 @@ def main(place, lon, limit, out, seed, fhour):
     T = result["temperature"]["overall"]
     print("\n(a) TEMPERATURE  band 13, HRRR simulated vs GOES, hourly means over", len(hours), "hours")
     for k in ("raw_spearman", "raw_mae_K", "raw_bias_K", "anom_pearson", "anom_pearson_ocean", "anom_pearson_land",
-              "ctl_shuffled_anom", "ctl_persist24h_anom", "ctl_persist1h_anom", "ctl_shuffled_raw_spearman", "ctl_persist24h_raw_spearman"):
-        print(f"   {k:30s} {T[k]['mean']:8.3f}  (median {T[k]['median']}, n={T[k]['n']})")
+              "ctl_shuffled_anom", "ctl_persist1h_anom", "ctl_persist6h_anom", "ctl_persist12h_anom", "ctl_persist24h_anom",
+              "ctl_shuffled_raw_spearman", "ctl_persist24h_raw_spearman"):
+        c95 = ci["temperature"].get(k)
+        print(f"   {k:30s} {T[k]['mean']:8.3f}  (median {T[k]['median']}, n={T[k]['n']})" + (f"  95% {c95}" if c95 and c95[0] is not None else ""))
     print("   by band (anomaly r / shuffled / persist24h):")
     for b, v in result["temperature"]["by_band"].items():
         print(f"     {b:22s} {v['anom_pearson']['mean']:6.3f} / {v['ctl_shuffled']['mean']:6.3f} / {v['ctl_persist24h']['mean']:6.3f}   covers {result['coverage']['band_coverage'][b]:.0%}")
@@ -447,7 +470,8 @@ def main(place, lon, limit, out, seed, fhour):
               f"hit {v['hit_rate_15km']['mean']:.2f} FA {v['false_alarm_15km']['mean']:.2f} acc {v['accuracy_15km']['mean']:.2f}  "
               f"cloud share goes {v['cloud_share_goes']['mean']:.2f} hrrr {v['cloud_share_hrrr']['mean']:.2f}")
     pv = result["cloud"]["overall"]["persist"]
-    print(f"   persistence bars: 24h anom {pv['ctl_persist24h_anom']['mean']:.3f}  24h raw {pv['ctl_persist24h_raw']['mean']:.3f}  1h anom {pv['ctl_persist1h_anom']['mean']:.3f}")
+    print("   persistence bars (anom): " + "  ".join(f"{lag}h {pv[f'ctl_persist{lag}h_anom']['mean']:.3f}" for lag in (1, 6, 12, 24)) + f"  24h raw {pv['ctl_persist24h_raw']['mean']:.3f}")
+    print("   95% CI: LCDC anom", ci["cloud"]["LCDC"]["anom_pearson"], " shuffled", ci["cloud"]["LCDC"]["ctl_shuffled_anom"])
     for k in ("LCDC", "TCDC"):
         print(f"   {k} by band (anom r / shuffled):", {b: f"{v['anom_pearson']['mean']:.3f}/{v.get('ctl_shuffled_anom', {}).get('mean', float('nan')):.3f}" for b, v in result["cloud"]["by_band"][k].items()})
         print(f"   {k} ladder (anom r / shuffled):", {kk: f"{v['anom_pearson']['mean']:.3f}/{v.get('ctl_shuffled_anom', {}).get('mean', float('nan')):.3f}" for kk, v in result["cloud"]["ladder"][k].items()})

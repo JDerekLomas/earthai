@@ -64,3 +64,8 @@ of done are live at https://earthai-scales.vercel.app/ : `/month/` (full clean m
   24 h persistence bar 0.11 and floor 0.00. Infrared r RISES 0.45 -> 0.54 -> 0.52 and the +4.2 K warm
   bias goes to 0: analysis-hour spin-up (too little upper cloud), as Otkin/DTC reported. => condition
   on f06 fields, not f00, for anything beyond the next hour or two. Live at /hrrr/#fcst.
+- **Matched persistence bars + day-block bootstrap CIs (later on 14 Sep):** infrared f06 0.54 [0.51 to 0.58] beats
+  persistence-6h 0.39 [0.34 to 0.45]; f12 0.52 beats persistence-12h 0.26. But the daylight cloud MASK
+  f06 0.25 [0.20 to 0.30] LOSES to mask persistence-6h 0.33 [0.30 to 0.37]; physics wins the deck only between 6 h and
+  24 h (persistence-24h 0.10 vs f12 0.24). Mask persistence-12h is unmeasurable (night). => the deck's
+  own memory outlasts the model's skill on it; physics is for the synoptic/high cloud and for beyond ~half a day.
