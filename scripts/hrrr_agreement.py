@@ -6,6 +6,7 @@ removed. Nothing compared the archive against a physics model. This does, with t
 controls a physics skeleton must beat before it is worth building on.
 
     python scripts/hrrr_agreement.py --place california
+    python scripts/hrrr_agreement.py --place california --fhour 6     # the 6 h forecast, same pairs
 
 Pairs every HRRR analysis hour (data/hrrr/<place>, from fetch_hrrr.py) with the GOES frames at
 the same instant (Band 13 infrared at :00; GeoColor at the nearest slot, :50 or :10).
@@ -248,14 +249,16 @@ def render_examples(out, hours, C, G, H, L, geo, inside, land, series):
 @click.option("--limit", default=0, type=int, help="first N HRRR hours only (smoke test)")
 @click.option("--out", default=None, type=click.Path(path_type=Path), help="default site/hrrr/<place>")
 @click.option("--seed", default=0, type=int)
-def main(place, lon, limit, out, seed):
+@click.option("--fhour", default=0, type=int, help="score the N-hour forecast (data/hrrr/<place>_fNN) instead of the analysis")
+def main(place, lon, limit, out, seed, fhour):
     random.seed(seed)
-    out = out or Path("site/hrrr") / place
+    tag = place if fhour == 0 else f"{place}_f{fhour:02d}"
+    out = out or Path("site/hrrr") / tag
     out.mkdir(parents=True, exist_ok=True)
     pal = IRPalette(CMAP)
     print(f"palette: {len(pal.temp)} colours kept, {int(pal.dropped.sum())} ambiguous cold greys dropped, "
           f"worst inversion error under +-2 noise {pal.selfcheck_max_error_c:.2f} C")
-    hr = Hrrr(Path("data/hrrr") / place, place)
+    hr = Hrrr(Path("data/hrrr") / tag, place)
     ir = {stamp(p): p for p in (Path("data/goes") / f"{place}_x3_ir").glob("*.jpg")}
     geo = {stamp(p): p for p in (Path("data/goes") / f"{place}_x3").glob("*.jpg")}
     land = np.asarray(Image.open(Path("data/terrain") / f"{place}_land.png").convert("L").resize((N, N), Image.BOX)) > 127
@@ -404,7 +407,7 @@ def main(place, lon, limit, out, seed):
     examples = render_examples(out, hours, C, G, H, L, geo, inside, land, series)
 
     result = dict(
-        place=place, maps=result_maps, examples=examples, generated=datetime.now().strftime("%Y-%m-%dT%H:%MZ"), grid_px=N, km_per_px=round(mpp / 1000, 2),
+        place=place, fhour=fhour, maps=result_maps, examples=examples, generated=datetime.now().strftime("%Y-%m-%dT%H:%MZ"), grid_px=N, km_per_px=round(mpp / 1000, 2),
         coverage=dict(frame=round(float(inside.mean()), 3), ocean=round(float(ocean.mean()), 3),
                       covered_ocean=round(float(mo.mean()), 3),
                       band_coverage={name: round(float((inside & (coast_km >= lo) & (coast_km < hi)).sum() / max(((coast_km >= lo) & (coast_km < hi)).sum(), 1)), 3)

@@ -165,6 +165,15 @@
   <div id="examples" style="display:flex; flex-direction:column; gap:18px"></div>
 </section>
 
+<section id="fcst">
+  <div class="head">
+    <h2>After the satellite data runs out: the forecast hours</h2>
+    <p>The analysis hour has GOES assimilated into it. The 6- and 12-hour forecasts do not: they are the physics carrying the sky alone, which is what a generator would lean on once the last real frame is hours old. Same pairs, same controls. The persistence bars are the satellite's own frame the same number of hours earlier, the thing a forecast has to beat to be worth anything.</p>
+  </div>
+  <div class="tw"><table id="fcsttable"><thead><tr><th>HRRR</th><th>cloud mask r, daylight ocean</th><th>shuffled</th><th>infrared r</th><th>shuffled</th><th>infrared r, ocean</th><th>hit / false alarm, 15 km</th><th>pairs</th></tr></thead><tbody><tr><td colspan="8" style="color:var(--faint)">forecast hours not scored yet</td></tr></tbody></table></div>
+  <p id="fcstnote" style="font-size:14px;color:var(--muted)"></p>
+</section>
+
 <section>
   <div class="head"><h2>How it was measured</h2></div>
   <ul class="plain">
@@ -213,6 +222,18 @@ fetch("california/agreement.json").then(r=>r.json()).then(J=>{
   bt.innerHTML=Object.keys(Bt).map(b=>{ const c=Bc[b]||{}; return `<tr><td>${b}</td><td class="n">${(J.coverage.band_coverage[b]*100).toFixed(0)}%</td><td class="n">${f(Bt[b].anom_pearson.mean)}</td><td class="n">${f(Bt[b].ctl_shuffled.mean)}</td><td class="n">${f(Bt[b].ctl_persist24h.mean)}</td><td class="n">${c.anom_pearson?f(c.anom_pearson.mean):"–"}</td><td class="n">${c.ctl_shuffled_anom?f(c.ctl_shuffled_anom.mean):"–"}</td></tr>`; }).join("");
   const lt=document.querySelector("#ladder tbody"); const Lt=J.temperature.ladder, Lc=J.cloud.ladder.LCDC;
   lt.innerHTML=Object.keys(Lt).map(k=>`<tr><td>${k}</td><td class="n">${f(Lt[k].anom_pearson.mean)}</td><td class="n">${f(Lt[k].ctl_shuffled.mean)}</td><td class="n">${Lc[k]?f(Lc[k].anom_pearson.mean):"–"}</td><td class="n">${Lc[k]&&Lc[k].ctl_shuffled_anom?f(Lc[k].ctl_shuffled_anom.mean):"–"}</td></tr>`).join("");
+  // forecast hours, if scored
+  const rowFor=(label,X)=>{ const T=X.temperature.overall, L=X.cloud.overall.LCDC; return `<tr><td>${label}</td><td class="n">${f(L.anom_pearson.mean)}</td><td class="n">${f(L.ctl_shuffled_anom.mean)}</td><td class="n">${f(T.anom_pearson.mean)}</td><td class="n">${f(T.ctl_shuffled_anom.mean)}</td><td class="n">${f(T.anom_pearson_ocean.mean)}</td><td class="n">${f(L.hit_rate_15km.mean)} / ${f(L.false_alarm_15km.mean)}</td><td class="n">${X.n.daylight_pairs} / ${X.n.ir_pairs}</td></tr>`; };
+  Promise.all([6,12].map(h=>fetch(`california_f${String(h).padStart(2,"0")}/agreement.json`).then(r=>r.ok?r.json():null).catch(()=>null))).then(([F6,F12])=>{
+    if (!F6 && !F12) return;
+    const tb=document.querySelector("#fcsttable tbody");
+    let rows=[rowFor("analysis (f00)",J)]; if (F6) rows.push(rowFor("6 h forecast",F6)); if (F12) rows.push(rowFor("12 h forecast",F12));
+    const P=J.cloud.overall.persist, Tt=J.temperature.overall;
+    rows.push(`<tr><td style="color:var(--faint)">persistence bars</td><td class="n">1 h ${f(P.ctl_persist1h_anom.mean)} · 24 h ${f(P.ctl_persist24h_anom.mean)}</td><td></td><td class="n">1 h ${f(Tt.ctl_persist1h_anom.mean)} · 24 h ${f(Tt.ctl_persist24h_anom.mean)}</td><td></td><td></td><td></td><td></td></tr>`);
+    tb.innerHTML=rows.join("");
+    const drop = F6 ? ((J.cloud.overall.LCDC.anom_pearson.mean - F6.cloud.overall.LCDC.anom_pearson.mean)/J.cloud.overall.LCDC.anom_pearson.mean*100).toFixed(0) : null;
+    document.getElementById("fcstnote").textContent = drop!=null ? `From analysis to 6-hour forecast the cloud-mask agreement changes by ${-drop}%.` + (F12 ? ` At 12 hours it is ${f(F12.cloud.overall.LCDC.anom_pearson.mean)}.` : "") : "";
+  });
   // examples
   document.getElementById("examples").innerHTML=(J.examples||[]).map(e=>`<figure><div class="strip"><img src="california/${e.file}" alt="Five panels for ${e.t}: GeoColor, GOES infrared, HRRR simulated infrared, GOES cloud mask, HRRR low cloud" loading="lazy"></div><figcaption><b>${e.name}</b> · ${e.t} · ocean cloud share ${f(e.cloud_share)} · infrared anomaly r ${f(e.anom_r)} (shuffled ${f(e.shuffled_r)})</figcaption></figure>`).join("");
 });
