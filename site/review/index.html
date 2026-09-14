@@ -251,7 +251,21 @@
     <figure><div class="plate"><img src="img/kimg/wide_000200.jpg" alt="Panorama at 200 kimg" loading="lazy"></div><figcaption class="mono" style="color:var(--faint)">panorama · 200 kimg</figcaption></figure>
     <figure><div class="plate"><img src="img/kimg/wide_000600.jpg" alt="The same panorama at 600 kimg" loading="lazy"></div><figcaption class="mono" style="color:var(--faint)">same panorama · 600 kimg</figcaption></figure>
   </div>
-  <p><b>My read, offered as one opinion:</b> the later snapshots come out softer rather than more varied. At 200 the small cumulus and the edges of cloud streets are crisp; at 400 and 600 the same seeds are smoother, with one exception — the open-cell field bottom-left only turns sharp at 600. Another session training on terrain saw the opposite, more variety later, and both can be true: variety of <em>kinds</em> of scene is a different thing from sharpness of texture. If you prefer a later snapshot, that is a reason to raise the early stop's patience on beauty-led runs.</p>
+  <p><b>I said these looked softer. Measured, that was wrong.</b> My first read of this page was that 400 and 600 come out smoother than 200. A session training on terrain built an instrument for exactly this question — hold the seeds fixed, then measure how far apart the samples are from each other and how much fine detail they carry — and running it on these same twelve seeds contradicts me: the later snapshots are <em>sharper</em>, and it is <em>variety</em> that falls.</p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>same seeds, same instrument</th><th>variety</th><th>fine detail</th></tr></thead>
+      <tbody>
+        <tr><td>clouds 200 kimg &mdash; this run</td><td class="n">1.00&times;</td><td class="n">1.00&times;</td></tr>
+        <tr><td>clouds 400 kimg</td><td class="n">0.91&times;</td><td class="n">1.15&times;</td></tr>
+        <tr><td>clouds 600 kimg</td><td class="n">0.90&times;</td><td class="n">1.28&times;</td></tr>
+        <tr><td>terrain 400 kimg &mdash; the other run</td><td class="n">1.15&times;</td><td class="n">0.98&times;</td></tr>
+        <tr><td>terrain 600 kimg</td><td class="n">1.07&times;</td><td class="n">1.00&times;</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Extra fine detail can mean real structure or just grain, and this session has already been fooled once by a metric that rewarded an unsharp mask ten times over the real thing. So it was checked: across all three snapshots the balance between the finest scale and the mid scale stays fixed at 0.108&ndash;0.110, where added noise moves it to 0.171 and an unsharp mask to 0.132. The extra detail at 600 is structure, not grain.</p>
+  <p><b>What survives of my claim,</b> and what it means for choosing a network: "not more varied" holds and is now measured, but "softer" was an artefact of how I was looking. The two runs also disagree by domain — clouds gain detail and lose variety with training, terrain holds detail and peaks in variety at 400 — so this is a per-dataset measurement, not a property of training. None of these numbers say <em>beautiful</em>; they say sharper and less varied, and which of those you want is the judgement that is actually yours. If it is variety, the early stop's patience should rise on beauty-led runs, because the score keeps pointing at a different snapshot than variety does.</p>
 </section>
 
 <section>
