@@ -84,6 +84,18 @@ flatness across one run's snapshots, never its numbers against ours).
 - Agents are authorized for this (Derek asked). Global rules apply: at most ~8 subagents, Sonnet, each
   writes results to a file and prints only heads/counts.
 
+## Triage key (fixed 14 Sep, morning)
+`TRIAGE_KEY` on the earthai-scales Vercel project was stored EMPTY, so `/api/verdicts` returned 401 to
+everyone and no triage verdict could be saved server-side. Cause: `vercel env add` on CLI 54.x stores an
+empty value when the value comes from stdin or a file redirect (reproduced: pulled length 0 both ways).
+Fixed by deleting the empty rows and creating the var through the REST API (`POST /v10/projects/{id}/env`
+with the CLI's token from `~/Library/Application Support/com.vercel.cli/auth.json`), then redeploying.
+Verified: pull length 32, GET with the key 200, wrong key 401. **To get the key again:** `cd site &&
+npx vercel env pull .env.probe --environment=production` — it is Encrypted, not Sensitive, so pull reveals
+it; read it, delete the file. Derek's link is `https://earthai-scales.vercel.app/triage/#k=<key>`. Never
+re-add it with `vercel env add`. The page merges browser-only verdicts up on the next successful load, so
+anything Derek marked while it was broken syncs itself.
+
 ## Conventions and traps from this project
 - Every measurement gets a control shaped like the real input. The recurring bug this week was a proxy
   failing hardest on the most interesting subject (darkness read as missing data, three times).
