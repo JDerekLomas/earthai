@@ -70,7 +70,14 @@ PLACES = {
     "california":   ("goes_west", 6, 9, 24, (16, 24)),    # the stratocumulus deck
     "peru":         ("goes_west", 6, 14, 33, (13, 22)),   # the other big deck
     "pacific_itcz": ("goes_west", 6, 5, 30, (17, 24)),    # deep convection, open ocean
+    # the whole lower 48 from GOES-East, z5 (3.5 km/px at 40N, about HRRR's own 3 km): a 7x4
+    # block of tiles whose TOP-LEFT is (4, 10): lon -135 to -56.25, lat 21.9 to 55.8, 1792x1024.
+    # GOES-East sits at 75W, so California is 45 degrees off nadir here: oblique but reprojected.
+    "conus":        ("goes_east", 5, 4, 10, (11, 24)),
 }
+# places fetched as a RECTANGULAR block (cols, rows) with x, y as the top-left tile, rather
+# than an NxN --span centred on the named tile. Their directory is <name><layer tag>.
+RECT = {"conus": (7, 4)}
 
 
 def tile(layer, t, z, x, y):
@@ -83,21 +90,27 @@ def tile(layer, t, z, x, y):
     return Image.open(io.BytesIO(r.content)).convert("RGB")
 
 
-def fetch(layer, t, z, x, y, span=1):
-    """One frame. span>1 stitches a span x span block of neighbouring tiles around (x, y),
+def fetch(layer, t, z, x, y, span=1, rect=None):
+    """One frame. rect=(cols, rows) stitches that block with (x, y) as its top-left tile.
+    span>1 stitches a span x span block of neighbouring tiles around (x, y),
     because a single 256 px tile is too small to look at -- the sky is the subject, and at
     z6 one tile is a postage stamp of it. The named tile stays near the centre of the block."""
-    if span == 1:
+    if span == 1 and rect is None:
         return tile(layer, t, z, x, y)
-    x0, y0 = x - span // 2, y - span // 2
-    grid = [(dx, dy) for dy in range(span) for dx in range(span)]
+    if rect:
+        cols, rows = rect
+        x0, y0 = x, y
+    else:
+        cols = rows = span
+        x0, y0 = x - span // 2, y - span // 2
+    grid = [(dx, dy) for dy in range(rows) for dx in range(cols)]
     # the tiles of one frame are independent, and a tile is ~1 s; fetching them in sequence
     # made a 3x3 frame a 9 s operation and the whole archive an overnight job.
     with ThreadPoolExecutor(min(len(grid), 9)) as ex:
         ims = list(ex.map(lambda g: tile(layer, t, z, x0 + g[0], y0 + g[1]), grid))
     if any(im is None for im in ims):
         return None                  # a partial frame is a hole in the sky, not a frame
-    canvas = Image.new("RGB", (256 * span, 256 * span))
+    canvas = Image.new("RGB", (256 * cols, 256 * rows))
     for (dx, dy), im in zip(grid, ims):
         canvas.paste(im, (256 * dx, 256 * dy))
     return canvas
@@ -132,7 +145,8 @@ def main(place, all_places, days, hours, stride, out, workers, max_black, min_me
     for name in names:
         sat, z, x, y, (h0, h1) = PLACES[name]
         ltag = "" if layer == "geocolor" else f"_{layer}"
-        dname = f"{name}{'' if span == 1 else f'_x{span}'}{ltag}"
+        rect = RECT.get(name)
+        dname = f"{name}{ltag}" if rect else f"{name}{'' if span == 1 else f'_x{span}'}{ltag}"
         lfull = layer_name(sat, layer)
         (out / dname).mkdir(exist_ok=True)
         times = []
@@ -158,7 +172,7 @@ def main(place, all_places, days, hours, stride, out, workers, max_black, min_me
             f = out / dname / f"{ts.replace(':', '')}.jpg"
             if fid in seen or f.exists():
                 return None
-            im = fetch(lfull, ts, z, x, y, span)
+            im = fetch(lfull, ts, z, x, y, span, rect)
             if im is None:
                 return None
             s = stats(np.asarray(im))
@@ -180,9 +194,9 @@ def main(place, all_places, days, hours, stride, out, workers, max_black, min_me
             # saturates to pure white (the 8 brightest overcast frames of a California month
             # read 0.0000), so any tile more than 5% pure white is the server, not the sky.
             # See scripts/goes_qc.py, which applies the same test to frames already on disk.
-            a_ = np.asarray(im); pure = a_.min(-1) >= 253; side = a_.shape[0] // span
+            a_ = np.asarray(im); pure = a_.min(-1) >= 253; side = 256
             if max(float(pure[yy * side:(yy + 1) * side, xx * side:(xx + 1) * side].mean())
-                   for yy in range(span) for xx in range(span)) > 0.05:
+                   for yy in range(a_.shape[0] // side) for xx in range(a_.shape[1] // side)) > 0.05:
                 return None
             im.save(f, quality=90)
             return dict(id=fid, place=name, sat=sat, layer=layer, t=ts, z=z, x=x, y=y, span=span,

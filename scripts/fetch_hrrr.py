@@ -7,6 +7,11 @@ so neither fits: this one reads the .idx sidecar, pulls single fields by HTTP by
 model cells that covers the frame.
 
     python scripts/fetch_hrrr.py --place california --start 2026-08-05 --days 40
+    python scripts/fetch_hrrr.py --place california --start 2026-08-05 --days 40 --fhour 6
+
+--fhour N fetches the N-hour FORECAST valid at each hour (the cycle N hours earlier, file
+wrfsfcfNN) into data/hrrr/<place>_fNN/, named by VALID time so the agreement probe pairs it
+with the same GOES frames. f00 is the analysis, which has satellite data assimilated in.
 
 Source: NOAA HRRR on AWS Open Data, bucket noaa-hrrr-bdp-pds, hourly analyses (f00) back to
 2014-07-30, 3 km, free. Writes data/hrrr/<place>/YYYY-MM-DDTHHZ.npz with:
@@ -74,11 +79,12 @@ def decode(blob: bytes) -> np.ndarray:
         eccodes.codes_release(h)
 
 
-def fetch_hour(t: datetime, out: Path, win: tuple[int, int, int, int]) -> str:
+def fetch_hour(t: datetime, out: Path, win: tuple[int, int, int, int], fhour: int = 0) -> str:
     dst = out / (t.strftime("%Y-%m-%dT%HZ") + ".npz")
     if dst.exists():
         return "have"
-    base = f"{BUCKET}/hrrr.{t:%Y%m%d}/conus/hrrr.t{t:%H}z.wrfsfcf00.grib2"
+    c = t - timedelta(hours=fhour)                       # the cycle that issued this valid hour
+    base = f"{BUCKET}/hrrr.{c:%Y%m%d}/conus/hrrr.t{c:%H}z.wrfsfcf{fhour:02d}.grib2"
     r = requests.get(base + ".idx", headers=UA, timeout=60)
     if r.status_code == 404:
         return "missing"
@@ -111,8 +117,9 @@ def fetch_hour(t: datetime, out: Path, win: tuple[int, int, int, int]) -> str:
 @click.option("--days", default=40, type=int)
 @click.option("--out", default=None, type=click.Path(path_type=Path), help="default data/hrrr/<place>")
 @click.option("--workers", default=6, type=int)
-def main(place, start, days, out, workers):
-    out = out or Path("data/hrrr") / place
+@click.option("--fhour", default=0, type=int, help="forecast hour valid at each hour (0 = analysis)")
+def main(place, start, days, out, workers, fhour):
+    out = out or Path("data/hrrr") / (place if fhour == 0 else f"{place}_f{fhour:02d}")
     out.mkdir(parents=True, exist_ok=True)
     win = crop_window(place)
     print(f"crop window cols {win[0]}:{win[1]} rows {win[2]}:{win[3]} -> {win[3]-win[2]}x{win[1]-win[0]} cells")
@@ -120,17 +127,17 @@ def main(place, start, days, out, workers):
     hours = [t0 + timedelta(hours=h) for h in range(days * 24)]
     tally: dict[str, int] = {}
     with ThreadPoolExecutor(workers) as ex:
-        for t, res in zip(hours, ex.map(lambda t: _safe(t, out, win), hours)):
+        for t, res in zip(hours, ex.map(lambda t: _safe(t, out, win, fhour), hours)):
             tally[res] = tally.get(res, 0) + 1
             if res not in ("ok", "have"):
                 print(f"  {t:%Y-%m-%dT%HZ} {res}")
     print(json.dumps(tally))
-    (out / "fetch.json").write_text(json.dumps(dict(place=place, start=start, days=days, window=win, tally=tally), indent=1))
+    (out / "fetch.json").write_text(json.dumps(dict(place=place, start=start, days=days, fhour=fhour, window=win, tally=tally), indent=1))
 
 
-def _safe(t, out, win):
+def _safe(t, out, win, fhour=0):
     try:
-        return fetch_hour(t, out, win)
+        return fetch_hour(t, out, win, fhour)
     except Exception as e:  # noqa: BLE001
         return f"error:{type(e).__name__}:{str(e)[:60]}"
 
