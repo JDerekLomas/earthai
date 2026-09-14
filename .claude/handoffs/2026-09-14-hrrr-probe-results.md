@@ -45,3 +45,18 @@ of done are live at https://earthai-scales.vercel.app/ : `/month/` (full clean m
   this session); SEVIR for the eastern US.
 - Conditioning stack is built: `scripts/hrrr_grid.py` puts any HRRR field on the frame grid.
 - GPU box untouched by this work (earth-96 is queued for it after the scratch arm).
+
+## Added later on 14 Sep (afternoon)
+- **Month page** now plays the whole month as one clip (`month.mp4`, 640 px, crf 30), a same-hour
+  flipbook for every solar hour (`hours/HH.mp4`), and a 3-day motion-interpolated sample
+  (`smooth3.mp4`, ffmpeg minterpolate mci x3; ~1 min per 3 days at 512 px, so ~15 min a month).
+- **Rolling fetch**: launchd agent `com.dereklomas.earthai-goes` (plist in `~/Library/LaunchAgents`,
+  NOT in the repo) runs `scripts/ops/rolling_fetch.sh 3` at 04:00 local; log `scratch/goes_rolling.log`.
+- **CONUS place**: `fetch_goes.py --place conus` = GOES-East z5, 7x4 tiles (1792x1024, ~3.5 km/px,
+  lon -135..-56.25, lat 21.9..55.8) into `data/goes/conus{,_ir}`. 36-day backfill started 09:33Z.
+  Sizes: ~150 MB/day both layers; California ~37 MB/day; HRRR window ~8 MB/day per forecast hour.
+- **Forecast-hour probe**: `fetch_hrrr.py --fhour 6|12` -> `data/hrrr/california_f06|f12`;
+  `hrrr_agreement.py --fhour N` -> `site/hrrr/california_fNN/`. `scripts/ops/forecast_probe_followup.sh`
+  (nohup, 09:38Z) waits for the fetch, scores both, commits, deploys, writes `scratch/forecast_probe.DONE`.
+  The probe page's "forecast hours" section fills itself when those JSON files exist.
+- Next: QC + month page + sky_memory for `conus` once the backfill lands (a regime comparison).
