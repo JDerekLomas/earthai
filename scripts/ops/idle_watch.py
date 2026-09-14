@@ -17,6 +17,14 @@ apart, which is what makes it safe to act on.
 
 Nothing is stopped unless the box's name is in `autostop` in ops.json AND it has been idle
 for `idle_minutes`. Someone else's box is reported, never touched.
+
+The idle clock is persisted in scratch/idle_state.json. Without that, the launchd job
+(which runs this once every N minutes, not with --watch) started a fresh clock on every
+run, reported "idle 0 min" forever, and never stopped anything: 256 log entries, 10 of
+them IDLE on earthai-gpu, zero STOPPED, while the box billed five idle hours on 2026-09-14.
+
+A tmux session named train_*, collect_* or build_* also counts as working: queued runs
+wait in tmux with the GPU at 0% until the run ahead of them finishes.
 """
 from __future__ import annotations
 
@@ -30,6 +38,7 @@ from pathlib import Path
 import click
 
 CFG = Path(__file__).with_name("ops.json")
+STATE = Path(__file__).resolve().parents[2] / "scratch" / "idle_state.json"
 PRICE = {"L40S-1-48G": 1.47, "L4-1-24G": 0.75, "H100-1-80G": 2.73, "L40S-2-96G": 2.94,
          "RENDER-S": 1.00, "GPU-3070-S": 1.00}
 # A process whose presence means "working" even if the GPU reads 0 this second. These are
@@ -37,6 +46,7 @@ PRICE = {"L40S-1-48G": 1.47, "L4-1-24G": 0.75, "H100-1-80G": 2.73, "L40S-2-96G":
 # kworker kernel threads and reported an idle box as busy, which is the one failure a
 # monitor must not have.
 JOB_PATTERNS = ["train.py", "vllm", "VLLM", "dataset_tool.py", "fetch_tiles.py",
+                "collect_scenes", "build_training_set", "snapshot_compare", "contact_sheet",
                 "fetch_goes.py", "fetch_scenes.py", "build_dataset.py", "curate_",
                 "celery", "gunicorn", "uvicorn", "ocr_", "-m vllm",
                 # a box being loaded with data is working, even though its GPU reads 0.
@@ -65,7 +75,8 @@ def probe(ip, samples, gap):
     for i in range(samples):
         out, rc = sh(f"ssh -o ConnectTimeout=10 -o BatchMode=yes root@{ip} "
                      f"'nvidia-smi --query-gpu=utilization.gpu,memory.used --format=csv,noheader; "
-                     f"echo ---; ps -eo comm,args --no-headers'", 45)
+                     f"echo ---; ps -eo comm,args --no-headers; "
+                     f"tmux list-sessions -F \"tmux-session #S\" 2>/dev/null; true'", 45)   # no tmux != no ssh
         if rc != 0:
             return None
         head, _, rest = out.partition("---")
@@ -79,6 +90,9 @@ def probe(ip, samples, gap):
         except ValueError:
             utils.append(0); mem.append(0)
         jobs = sorted({p for p in JOB_PATTERNS if p in rest})
+        jobs += sorted(l.split()[1] for l in rest.splitlines()
+                       if l.startswith("tmux-session ") and
+                       l.split()[1].startswith(("train_", "collect_", "build_")))
         if i < samples - 1:
             time.sleep(gap)
     return dict(util=max(utils), util_mean=sum(utils) / len(utils), mem=max(mem), jobs=jobs)
@@ -112,10 +126,17 @@ def load_cfg():
 def main(stop, watch, samples):
     cfg = load_cfg()
     n = samples or cfg["samples"]
-    seen_idle = {}                      # name -> first time seen idle in this process
+    # name -> first time seen idle. Persisted, because launchd runs this as a one-shot.
+    seen_idle = {}
+    if STATE.exists():
+        try:
+            seen_idle = {k: datetime.fromisoformat(v) for k, v in json.loads(STATE.read_text()).items()}
+        except (ValueError, json.JSONDecodeError):
+            seen_idle = {}
 
     while True:
-        rows = instances(cfg["zone"])
+        zones = cfg.get("zones") or [cfg["zone"]]
+        rows = [dict(s, _zone=z) for z in zones for s in instances(z)]
         if not rows:
             click.echo("no instances (is `scw` configured?)"); return
         now = datetime.now(timezone.utc)
@@ -139,8 +160,10 @@ def main(stop, watch, samples):
                 waste += price
                 mark = f"  <- idle {mins:.0f} min, costing EUR{price:.2f}/h"
                 if stop and name in cfg["autostop"] and mins >= cfg["idle_minutes"]:
-                    out, rc = sh(f"scw instance server stop {s['id']} zone={cfg['zone']}", 120)
+                    out, rc = sh(f"scw instance server stop {s['id']} zone={s['_zone']}", 120)
                     mark += "  STOPPED" if rc == 0 else f"  stop failed ({rc})"
+                    if rc == 0:
+                        seen_idle.pop(name, None)
                 elif stop and name not in cfg["autostop"]:
                     mark += "  (not in autostop, left alone)"
             else:
@@ -148,6 +171,8 @@ def main(stop, watch, samples):
             click.echo(f"{name:16} {typ:12} {st:8} {'':10} {price:6.2f} {up:6.1f}h  {verdict:12} {why}{mark}")
         if waste:
             click.echo(f"\nidle burn right now: EUR{waste:.2f}/h = EUR{waste*24:.0f}/day")
+        live = {s["name"] for s in rows if s["state"] == "running"}
+        STATE.write_text(json.dumps({k: v.isoformat() for k, v in seen_idle.items() if k in live}))
         if not watch:
             return
         time.sleep(watch * 60)
