@@ -417,7 +417,15 @@ def main(place, lon, limit, out, seed):
                    ladder={k: {f"{kk * mpp / 1000:.0f} km": summarize(v) for kk, v in ll.items()} for k, ll in Bladder.items()}),
         series=series,
     )
-    (out / "agreement.json").write_text(json.dumps(result, indent=1))
+    def _clean(o):   # NaN is not JSON; a browser's fetch().json() rejects the whole file
+        if isinstance(o, float) and o != o:
+            return None
+        if isinstance(o, dict):
+            return {k: _clean(v) for k, v in o.items()}
+        if isinstance(o, list):
+            return [_clean(v) for v in o]
+        return o
+    (out / "agreement.json").write_text(json.dumps(_clean(result), indent=1))
 
     # ---- report
     T = result["temperature"]["overall"]
