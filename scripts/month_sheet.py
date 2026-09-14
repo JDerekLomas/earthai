@@ -11,8 +11,10 @@ the month cut by LOCAL day, and a single still that shows all of it at once.
 Writes to --out (default site/month/<dir name>/):
   calendar.jpg   rows = days, columns = local solar hours. The month at a glance: persistence,
                  burn-off, the days the deck never came in.
-  noon.mp4       one frame per day at local solar noon, 2 fps. Day-to-day change, isolated
-                 from the diurnal cycle.
+  month.mp4      EVERY frame in order as one continuous clip, no cut at midnight: the month as
+                 one motion, 24 fps = four hours a second, about four minutes long.
+  hours/HH.mp4   one frame per day at solar hour HH, for all 24 hours, 3 fps. The noon flipbook
+                 generalised: day-to-day change with the daily cycle held still, at any hour.
   days/*.mp4     one clip per local day
   month.json     what the page reads
 
@@ -117,6 +119,32 @@ def main(src, lon, out, hours, thumb, min_frames, clip_width, crf, daylight_clip
     if noon_row:
         click.echo(f"noon.mp4  {len(noon)} days  {noon_row['kb']} KB")
 
+    # ---- the whole month as one continuous clip (the archive's own order; gaps simply jump)
+    allts = sorted(frames)
+    month_row = encode([frames[t] for t in allts], out / "month.mp4", 24, None, 30, 640)   # 5,600 frames: 768/crf24 made a 180 MB file
+    if month_row:
+        month_row["file"] = "month.mp4"
+        click.echo(f"month.mp4  {len(allts)} frames  {month_row['seconds']}s  {month_row['kb'] // 1024} MB")
+
+    # ---- same-hour flipbooks, one per solar hour
+    (out / "hours").mkdir(exist_ok=True)
+    hour_rows = []
+    for h in range(24):
+        picks = []
+        for day in days:
+            base = datetime.strptime(day, "%Y-%m-%d")
+            tgt = (base + timedelta(hours=h) - timedelta(hours=lon / 15)).replace(second=0, microsecond=0)
+            tgt = tgt.replace(minute=(tgt.minute // 10) * 10)
+            f = nearest(frames, tgt, tol_min=20)
+            if f:
+                picks.append(f)
+        if len(picks) > 2:
+            r = encode(picks, out / "hours" / f"{h:02d}.mp4", 3, None, 22, 768)
+            if r:
+                r.update(hour=h, file=f"hours/{h:02d}.mp4", days=len(picks))
+                hour_rows.append(r)
+    click.echo(f"hours/  {len(hour_rows)} flipbooks")
+
     # ---- one clip per day
     rows = []
     for day in days:
@@ -135,7 +163,8 @@ def main(src, lon, out, hours, thumb, min_frames, clip_width, crf, daylight_clip
     manifest = dict(source=src.name, lon=lon, frames=len(frames), days=len(days),
                     first=min(frames).strftime("%Y-%m-%dT%H:%M:00Z"), last=max(frames).strftime("%Y-%m-%dT%H:%M:00Z"),
                     calendar="calendar.jpg", calendar_hours=cols, noon="noon.mp4" if noon_row else None,
-                    noon_days=[dd for dd, _ in noon], clips=rows, skipped_partial_days=skipped)
+                    noon_days=[dd for dd, _ in noon], month=month_row, hours=hour_rows,
+                    clips=rows, skipped_partial_days=skipped)
     (out / "month.json").write_text(json.dumps(manifest, indent=1))
     click.echo(f"-> {out}/month.json")
 

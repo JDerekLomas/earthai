@@ -132,14 +132,18 @@
 <section>
   <div class="head">
     <h2>Watch a day</h2>
-    <p>Pick a day. GeoColor clips run through local daylight; infrared clips run the full 24 hours, because infrared looks the same at night. The noon flipbook shows one frame per day at local solar noon — the day-to-day change with the daily cycle held still.</p>
+    <p>The whole month runs as one continuous clip, four hours a second, nothing cut at midnight. The three-day sample is the same frames with motion-compensated interpolation, two synthetic frames blended between every real pair, to see whether that reads as smoother or as smeared. Or pick a day. Or hold the clock still: the same-hour flipbook shows one frame per day at a chosen local solar hour, so what moves is the weather, not the sun.</p>
   </div>
   <div class="bar">
     <div class="seg" role="group" aria-label="layer">
       <button data-layer="california_x3" aria-pressed="true">GeoColor</button>
       <button data-layer="california_x3_ir" aria-pressed="false">Infrared</button>
     </div>
-    <button id="noonbtn">Noon flipbook</button>
+    <button id="monthbtn">Whole month</button>
+    <button id="smoothbtn" title="20-22 August, with two synthetic frames blended between every pair of real ones">3 days, blended</button>
+    <label class="mono" style="font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:8px">same hour, every day
+      <select id="hoursel" aria-label="solar hour for the same-hour flipbook" style="font:500 13px 'IBM Plex Mono',monospace;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:3px;padding:7px 8px"></select>
+    </label>
     <span class="mono" id="summary" style="font-size:12px;color:var(--muted)"></span>
   </div>
   <div class="player">
@@ -289,7 +293,7 @@ function load(l){
       b.innerHTML=`<span>${d.toLocaleDateString(undefined,{month:"short",day:"numeric",timeZone:"UTC"})}</span><small>${c.frames} fr</small>`;
       b.onclick=()=>play(c); b.dataset.file=c.file; DAYS.appendChild(b);
     }
-    if (m.clips.length) play(m.clips[m.clips.length-1]); else { EMPTY.hidden=false; EMPTY.textContent="no clips in this layer yet"; }
+    if (m.month) play(Object.assign({}, m.month, {date:`the whole month, ${m.days} days, four hours a second`})); else if (m.clips.length) play(m.clips[m.clips.length-1]); else { EMPTY.hidden=false; EMPTY.textContent="no clips in this layer yet"; }
   }).catch(e=>{ EMPTY.hidden=false; EMPTY.textContent=`this layer is not built yet (${e})`; SUM.textContent=""; });
 }
 function play(c){
@@ -297,9 +301,20 @@ function play(c){
   for (const b of DAYS.children) b.setAttribute("aria-pressed", String(b.dataset.file===c.file));
   INFO.innerHTML=`<b>${c.date || "noon flipbook"}</b> · ${c.frames} frames · ${c.seconds}s` + (c.span_min ? ` · covers ${Math.round(c.span_min/60)} h` : "");
 }
-document.getElementById("noonbtn").onclick=()=>{
-  const m=cache[layer]; if (!m || !m.noon) return;
-  play({file:m.noon, frames:m.noon_days.length, seconds:(m.noon_days.length/2).toFixed(1), date:`noon, ${m.noon_days.length} days`});
+document.getElementById("monthbtn").onclick=()=>{
+  const m=cache[layer]; if (!m || !m.month) return;
+  play(Object.assign({}, m.month, {date:`the whole month, ${m.days} days, four hours a second`}));
+};
+document.getElementById("smoothbtn").onclick=()=>{
+  const m=cache[layer]; if (!m || !m.smooth3) return;
+  play(Object.assign({}, m.smooth3, {date:"20-22 Aug, motion-blended: two synthetic frames between each real pair"}));
+};
+const HSEL=document.getElementById("hoursel");
+for (let h=0; h<24; h++){ const o=document.createElement("option"); o.value=h; o.textContent=`${String(h).padStart(2,"0")}:00 solar`+(h===12?" (noon)":""); if (h===12) o.selected=true; HSEL.appendChild(o); }
+HSEL.onchange=()=>{
+  const m=cache[layer]; if (!m || !m.hours) return;
+  const r=m.hours.find(x=>x.hour===Number(HSEL.value)); if (!r) return;
+  play(Object.assign({}, r, {date:`${String(r.hour).padStart(2,"0")}:00 solar, one frame per day, ${r.days} days`}));
 };
 for (const b of document.querySelectorAll("[data-layer]")) b.onclick=()=>load(b.dataset.layer);
 V.addEventListener("timeupdate",()=>{ if (V.duration && document.activeElement!==SCRUB) SCRUB.value=Math.round(1000*V.currentTime/V.duration); });

@@ -58,6 +58,281 @@
   "2026-09-12",
   "2026-09-13"
  ],
+ "month": {
+  "file": "month.mp4",
+  "frames": 5244,
+  "start": "2026-08-05T00:10:00Z",
+  "end": "2026-09-13T19:50:00Z",
+  "span_min": 57340,
+  "seconds": 218.5,
+  "kb": 184833
+ },
+ "hours": [
+  {
+   "file": "hours/00.mp4",
+   "frames": 40,
+   "start": "2026-08-05T08:00:00Z",
+   "end": "2026-09-13T08:00:00Z",
+   "span_min": 56160,
+   "seconds": 13.3,
+   "kb": 4006,
+   "hour": 0,
+   "days": 40
+  },
+  {
+   "file": "hours/01.mp4",
+   "frames": 40,
+   "start": "2026-08-05T09:00:00Z",
+   "end": "2026-09-13T09:00:00Z",
+   "span_min": 56160,
+   "seconds": 13.3,
+   "kb": 3673,
+   "hour": 1,
+   "days": 40
+  },
+  {
+   "file": "hours/02.mp4",
+   "frames": 40,
+   "start": "2026-08-05T10:00:00Z",
+   "end": "2026-09-13T10:00:00Z",
+   "span_min": 56160,
+   "seconds": 13.3,
+   "kb": 3881,
+   "hour": 2,
+   "days": 40
+  },
+  {
+   "file": "hours/03.mp4",
+   "frames": 40,
+   "start": "2026-08-05T11:00:00Z",
+   "end": "2026-09-13T11:00:00Z",
+   "span_min": 56160,
+   "seconds": 13.3,
+   "kb": 3993,
+   "hour": 3,
+   "days": 40
+  },
+  {
+   "file": "hours/04.mp4",
+   "frames": 39,
+   "start": "2026-08-05T11:50:00Z",
+   "end": "2026-09-13T12:00:00Z",
+   "span_min": 56170,
+   "seconds": 13.0,
+   "kb": 3947,
+   "hour": 4,
+   "days": 39
+  },
+  {
+   "file": "hours/05.mp4",
+   "frames": 39,
+   "start": "2026-08-05T13:00:00Z",
+   "end": "2026-09-13T13:00:00Z",
+   "span_min": 56160,
+   "seconds": 13.0,
+   "kb": 3959,
+   "hour": 5,
+   "days": 39
+  },
+  {
+   "file": "hours/06.mp4",
+   "frames": 40,
+   "start": "2026-08-05T14:00:00Z",
+   "end": "2026-09-13T14:00:00Z",
+   "span_min": 56160,
+   "seconds": 13.3,
+   "kb": 3839,
+   "hour": 6,
+   "days": 40
+  },
+  {
+   "file": "hours/07.mp4",
+   "frames": 40,
+   "start": "2026-08-05T15:20:00Z",
+   "end": "2026-09-13T15:00:00Z",
+   "span_min": 56140,
+   "seconds": 13.3,
+   "kb": 4600,
+   "hour": 7,
+   "days": 40
+  },
+  {
+   "file": "hours/08.mp4",
+   "frames": 40,
+   "start": "2026-08-05T16:00:00Z",
+   "end": "2026-09-13T16:00:00Z",
+   "span_min": 56160,
+   "seconds": 13.3,
+   "kb": 5708,
+   "hour": 8,
+   "days": 40
+  },
+  {
+   "file": "hours/09.mp4",
+   "frames": 40,
+   "start": "2026-08-05T17:00:00Z",
+   "end": "2026-09-13T17:00:00Z",
+   "span_min": 56160,
+   "seconds": 13.3,
+   "kb": 5697,
+   "hour": 9,
+   "days": 40
+  },
+  {
+   "file": "hours/10.mp4",
+   "frames": 40,
+   "start": "2026-08-05T18:10:00Z",
+   "end": "2026-09-13T18:00:00Z",
+   "span_min": 56150,
+   "seconds": 13.3,
+   "kb": 5700,
+   "hour": 10,
+   "days": 40
+  },
+  {
+   "file": "hours/11.mp4",
+   "frames": 40,
+   "start": "2026-08-05T19:00:00Z",
+   "end": "2026-09-13T19:00:00Z",
+   "span_min": 56160,
+   "seconds": 13.3,
+   "kb": 5766,
+   "hour": 11,
+   "days": 40
+  },
+  {
+   "file": "hours/12.mp4",
+   "frames": 40,
+   "start": "2026-08-05T20:10:00Z",
+   "end": "2026-09-13T19:50:00Z",
+   "span_min": 56140,
+   "seconds": 13.3,
+   "kb": 5729,
+   "hour": 12,
+   "days": 40
+  },
+  {
+   "file": "hours/13.mp4",
+   "frames": 39,
+   "start": "2026-08-05T21:10:00Z",
+   "end": "2026-09-12T21:00:00Z",
+   "span_min": 54710,
+   "seconds": 13.0,
+   "kb": 5682,
+   "hour": 13,
+   "days": 39
+  },
+  {
+   "file": "hours/14.mp4",
+   "frames": 39,
+   "start": "2026-08-05T22:00:00Z",
+   "end": "2026-09-12T22:00:00Z",
+   "span_min": 54720,
+   "seconds": 13.0,
+   "kb": 5672,
+   "hour": 14,
+   "days": 39
+  },
+  {
+   "file": "hours/15.mp4",
+   "frames": 39,
+   "start": "2026-08-05T23:00:00Z",
+   "end": "2026-09-12T23:00:00Z",
+   "span_min": 54720,
+   "seconds": 13.0,
+   "kb": 5728,
+   "hour": 15,
+   "days": 39
+  },
+  {
+   "file": "hours/16.mp4",
+   "frames": 39,
+   "start": "2026-08-06T00:00:00Z",
+   "end": "2026-09-13T00:00:00Z",
+   "span_min": 54720,
+   "seconds": 13.0,
+   "kb": 5793,
+   "hour": 16,
+   "days": 39
+  },
+  {
+   "file": "hours/17.mp4",
+   "frames": 39,
+   "start": "2026-08-06T00:50:00Z",
+   "end": "2026-09-13T01:00:00Z",
+   "span_min": 54730,
+   "seconds": 13.0,
+   "kb": 5920,
+   "hour": 17,
+   "days": 39
+  },
+  {
+   "file": "hours/18.mp4",
+   "frames": 39,
+   "start": "2026-08-06T02:10:00Z",
+   "end": "2026-09-13T02:00:00Z",
+   "span_min": 54710,
+   "seconds": 13.0,
+   "kb": 4711,
+   "hour": 18,
+   "days": 39
+  },
+  {
+   "file": "hours/19.mp4",
+   "frames": 39,
+   "start": "2026-08-06T03:00:00Z",
+   "end": "2026-09-13T03:00:00Z",
+   "span_min": 54720,
+   "seconds": 13.0,
+   "kb": 3576,
+   "hour": 19,
+   "days": 39
+  },
+  {
+   "file": "hours/20.mp4",
+   "frames": 39,
+   "start": "2026-08-06T04:10:00Z",
+   "end": "2026-09-13T04:00:00Z",
+   "span_min": 54710,
+   "seconds": 13.0,
+   "kb": 3758,
+   "hour": 20,
+   "days": 39
+  },
+  {
+   "file": "hours/21.mp4",
+   "frames": 39,
+   "start": "2026-08-06T05:00:00Z",
+   "end": "2026-09-13T05:00:00Z",
+   "span_min": 54720,
+   "seconds": 13.0,
+   "kb": 3767,
+   "hour": 21,
+   "days": 39
+  },
+  {
+   "file": "hours/22.mp4",
+   "frames": 39,
+   "start": "2026-08-06T06:00:00Z",
+   "end": "2026-09-13T06:00:00Z",
+   "span_min": 54720,
+   "seconds": 13.0,
+   "kb": 3795,
+   "hour": 22,
+   "days": 39
+  },
+  {
+   "file": "hours/23.mp4",
+   "frames": 39,
+   "start": "2026-08-06T07:00:00Z",
+   "end": "2026-09-13T07:00:00Z",
+   "span_min": 54720,
+   "seconds": 13.0,
+   "kb": 3832,
+   "hour": 23,
+   "days": 39
+  }
+ ],
  "clips": [
   {
    "file": "days/2026-08-05.mp4",
@@ -462,5 +737,14 @@
  ],
  "skipped_partial_days": [
   "2026-08-04"
- ]
+ ],
+ "smooth3": {
+  "file": "smooth3.mp4",
+  "frames": 1285,
+  "seconds": 17.8,
+  "kb": 6666,
+  "start": "2026-08-20T00:00:00Z",
+  "end": "2026-08-22T23:50:00Z",
+  "note": "20-22 Aug, 10-minute frames motion-interpolated x3 (ffmpeg minterpolate mci), 72 fps"
+ }
 }
