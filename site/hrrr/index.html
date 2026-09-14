@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Does HRRR Know Where the Clouds Are</title>
+<meta name="description" content="The HRRR weather model against GOES-West over the California month: does physics put cloud where the satellite saw it, hourly, at the scale of our frame, with shuffled-day and persistence controls.">
+<style>html{color-scheme:light dark} body{margin:0} img,video{max-width:100%}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#e9edf1; --surface:#ffffff; --sunk:#dfe5ea;
+    --ink:#13202e; --muted:#5b6b7d; --faint:#8493a4;
+    --line:#c7d1da; --hair:#dbe2e8;
+    --ochre:#b3652a; --cool:#37718f; --deep:#0f2233;
+    --ok:#2f7d5b; --no:#a33a2a;
+    --shadow:0 1px 2px rgba(15,34,51,.08), 0 8px 24px rgba(15,34,51,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+      --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+      --line:#27394b; --hair:#1c2c3c;
+      --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+      --ok:#5cb98d; --no:#e0765f;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+    --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+    --line:#27394b; --hair:#1c2c3c;
+    --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+    --ok:#5cb98d; --no:#e0765f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+  *{box-sizing:border-box}
+  body{background:var(--ground); color:var(--ink);
+    font:400 16px/1.55 "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    padding-block:44px 72px; padding-left:20px; padding-right:20px; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1120px; margin:0 auto; display:flex; flex-direction:column; gap:52px}
+  h1,h2,h3{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif; text-wrap:balance; margin:0}
+  h1{font-size:clamp(30px,4.6vw,46px); font-weight:600; letter-spacing:-.015em; line-height:1.08}
+  h2{font-size:clamp(20px,2.6vw,26px); font-weight:600; letter-spacing:-.01em}
+  h3{font-size:16px; font-weight:600}
+  p{margin:0; max-width:66ch}
+  a{color:var(--cool)}
+  .lede{font-size:clamp(17px,2vw,19px); color:var(--muted); max-width:62ch}
+  .eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--faint)}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+  section{display:flex; flex-direction:column; gap:18px}
+  .head{display:flex; flex-direction:column; gap:8px}
+  header{display:flex; flex-direction:column; gap:16px}
+  .claim{font-family:"IBM Plex Sans Condensed",sans-serif; font-size:clamp(19px,2.4vw,23px); line-height:1.35;
+    max-width:34ch; border-left:3px solid var(--cool); padding-left:18px}
+  .claim b{color:var(--cool); font-weight:600}
+  .xl{font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.06em; text-decoration:none; color:var(--muted); border-bottom:1px solid var(--line); padding-bottom:2px}
+  .xl:hover{color:var(--cool); border-color:var(--cool)}
+  .links{display:flex; flex-wrap:wrap; gap:20px}
+  .card{background:var(--surface); border:1px solid var(--hair); border-radius:4px; box-shadow:var(--shadow)}
+  button{font:500 13px/1 "IBM Plex Sans",sans-serif; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:3px; padding:8px 12px; cursor:pointer}
+  button:hover{border-color:var(--cool); color:var(--cool)}
+  button[aria-pressed="true"]{background:var(--cool); border-color:var(--cool); color:#fff}
+  button:focus-visible{outline:2px solid var(--ochre); outline-offset:2px}
+  .seg{display:inline-flex; border:1px solid var(--line); border-radius:3px; overflow:hidden}
+  .seg button{border:0; border-radius:0; border-left:1px solid var(--line)}
+  .seg button:first-child{border-left:0}
+  .bar{display:flex; flex-wrap:wrap; gap:12px; align-items:center}
+
+
+
+  .chartbox{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:18px 16px 12px; box-shadow:var(--shadow)}
+  .chartbox svg{display:block; width:100%; height:auto; overflow:visible}
+  .key{display:flex; flex-wrap:wrap; gap:18px; margin-top:10px; font-size:13px; color:var(--muted)}
+  .key i{display:inline-block; width:20px; height:3px; border-radius:2px; margin-right:7px; vertical-align:middle}
+  .tw{overflow-x:auto; background:var(--surface); border:1px solid var(--hair); border-radius:4px; box-shadow:var(--shadow)}
+  table{border-collapse:collapse; width:100%; font-size:13.5px; min-width:480px}
+  th,td{text-align:right; padding:9px 14px; border-top:1px solid var(--hair); white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  thead th{border-top:0; font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); padding-top:13px; padding-bottom:11px}
+  td.n{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums}
+  .barcell{display:inline-block; height:8px; background:var(--cool); border-radius:1px; vertical-align:middle; margin-left:8px}
+  .two{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:18px}
+  .strip{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:8px; box-shadow:var(--shadow); line-height:0; overflow-x:auto}
+  .strip img{display:block; max-width:none; width:100%; min-width:900px; border-radius:2px}
+  .cols{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:18px}
+  .stat{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:16px 18px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:6px}
+  .stat .v{font:500 30px/1 "IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; letter-spacing:-.02em}
+  .stat .l{font-size:13px; color:var(--muted)}
+  .stat.ok{border-left:3px solid var(--ok)} .stat.ctl{border-left:3px solid var(--faint)} .stat.bad{border-left:3px solid var(--no)}
+  .stat.ok .v{color:var(--ok)} .stat.bad .v{color:var(--no)}
+  .verdict{font-family:"IBM Plex Sans Condensed",sans-serif; font-size:clamp(18px,2.2vw,22px); line-height:1.4; max-width:44ch; padding:18px 22px; background:var(--surface); border:1px solid var(--hair); border-left:3px solid var(--ochre); border-radius:4px; box-shadow:var(--shadow)}
+  ul.plain{margin:0; padding-left:20px; display:flex; flex-direction:column; gap:6px; max-width:70ch; font-size:14.5px}
+  figure{margin:0; display:flex; flex-direction:column; gap:8px}
+  figcaption{font-size:13.5px; color:var(--muted); max-width:78ch; line-height:1.5}
+  footer{border-top:1px solid var(--line); padding-top:22px; font-size:13px; color:var(--faint)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">earthai · physics against the satellite · California, Aug&ndash;Sep 2026</div>
+  <h1>Does HRRR know where the clouds are?</h1>
+  <p class="claim" id="claim">Hourly, for forty days, the weather model's cloud fields against the satellite frames at the same instant, <b>with the two controls a physics skeleton has to beat</b>.</p>
+  <p class="lede">HRRR is NOAA's 3 km hourly weather model. It carries cloud fractions by layer and a physics-rendered satellite view (a simulated 10.7 &micro;m brightness temperature). If we are to paint kilometre-scale texture onto its fields, they must first put cloud where GOES saw cloud, today, not on average. The measure is correlation of <em>weather anomalies</em>: what is left after the mean map for that hour of day is removed from both sides, so geography and the daily cycle cannot earn credit.</p>
+  <div class="links">
+    <a class="xl" href="../research/">what has been built &rarr;</a>
+    <a class="xl" href="../month/">the California month &rarr;</a>
+    <a class="xl" href="california/agreement.json">every number &rarr;</a>
+  </div>
+</header>
+
+<section>
+  <div class="head"><h2>The verdict</h2></div>
+  <p class="verdict">Yes, coarsely and near the coast. HRRR knows <b>today's</b> sky, not just the climate: it beats the shuffled-day floor everywhere, and beats yesterday's frame by two to four times. It does not come close to the frame from an hour ago. Its placement is right at the scale of the deck's edge and above, and unreliable pixel by pixel.</p>
+  <p>Three numbers carry the verdict. For the daylight cloud mask over ocean, the anomaly correlation between HRRR's low cloud fraction and what GOES saw is <b>0.36</b> (total cloud, 0.40), against <b>0.00</b> for the same hour on a random other day and <b>0.10</b> for the satellite's own frame a day earlier; the frame an hour earlier scores 0.62. For infrared temperature over the whole covered frame it is <b>0.45</b> against 0.01 and 0.19, with an hour's persistence at 0.75. And agreement grows with cell size, from 0.45 at 4 km to 0.58 at 122 km for infrared, 0.36 to 0.45 at 61 km for the mask: the model has the pattern, not the pixels. At 15 km cells it finds 77&ndash;82% of the satellite's cloud and 27% of what it paints is not there. It also runs slightly cloudier over the ocean than the satellite (68&ndash;71% cover against 61%) and about 4 K warm in infrared.</p>
+  <p>Where it knows the sky is where the deck meets the land. Within 50 km of the coast the cloud-mask agreement is 0.47 (0.53 for total cloud); 400 km out it is 0.25. Over open ocean the infrared agreement is 0.28, over land 0.43. The model gets the burn-off, the coastal clearing and the synoptic shape; the texture of the open-ocean deck is beyond it.</p>
+  <p><b>What this means for building on it.</b> The physics fields carry real, present-day information at exactly the scale a CorrDiff-style generator takes from its conditioning: the mean placement. Everything below about 30 km would be the generator's invention, which is the design. Two cautions. This is HRRR's <em>analysis</em> hour, its best estimate of now with satellite data assimilated, so it is an upper bound on what a forecast hour would give; the probe that matters for "what happens next" is the 6- and 12-hour forecasts against GOES, where persistence has collapsed and the physics has to carry the sky alone. And for frame-to-frame continuity the last real frame beats the model by a wide margin, so the physics earns its place for where the sky goes over hours, not for the next ten minutes.</p>
+  <div class="cols" id="stats"></div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>Where the model knows the sky</h2>
+    <p>Per pixel, over the whole month: how well HRRR's anomaly tracks the satellite's. Warm is agreement, blue is anti-correlation, dark is none. The dimmed third on the left is outside the model's western edge. Left: infrared temperature, all hours. Right: the daylight cloud mask against low cloud fraction, over ocean.</p>
+  </div>
+  <figure><div class="strip"><img src="california/agreement_maps.jpg" alt="Two maps of per-pixel correlation between HRRR and GOES over the California frame" loading="lazy"></div><figcaption id="mapcap"></figcaption></figure>
+</section>
+
+<section>
+  <div class="head">
+    <h2>Hour by hour</h2>
+    <p>Anomaly correlation for every hour of the month. The real pairing against the shuffled-day floor and the two persistence bars. Where the dots for the real pairing sit above the floor and above yesterday's frame is where the physics is adding something a climatology and a photograph could not.</p>
+  </div>
+  <div class="chartbox">
+    <svg id="series" viewBox="0 0 900 300" role="img" aria-label="Hourly anomaly correlation over the month: HRRR versus GOES, with controls"></svg>
+    <div class="key">
+      <span><i style="background:#37718f"></i>HRRR vs GOES, same hour</span>
+      <span><i style="background:#8493a4"></i>shuffled day (same hour, other day)</span>
+      <span><i style="background:#b3652a"></i>GOES 24 h earlier</span>
+      <span><i style="background:#b3652a;opacity:.45"></i>GOES 1 h earlier</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>By distance from the coast, and by scale</h2>
+    <p>The deck is a coastal object. Agreement by band offshore and inland, and after block-averaging both fields to coarser cells, which asks at what scale the model's placement becomes reliable.</p>
+  </div>
+  <div class="two">
+    <div class="tw"><table id="bands"><thead><tr><th>band</th><th>HRRR covers</th><th>infrared anomaly r</th><th>shuffled</th><th>persist 24 h</th><th>cloud mask r</th><th>shuffled</th></tr></thead><tbody></tbody></table></div>
+    <div class="tw"><table id="ladder"><thead><tr><th>cell size</th><th>infrared anomaly r</th><th>shuffled</th><th>cloud mask r</th><th>shuffled</th></tr></thead><tbody></tbody></table></div>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>Five hours, side by side</h2>
+    <p>GeoColor, the real infrared frame, the model's simulated infrared, the satellite cloud mask, and the model's low cloud fraction. Chosen by cloud cover (a clear-ish, a mixed and an overcast daylight hour) and by agreement (the best and the worst hour of the month).</p>
+  </div>
+  <div id="examples" style="display:flex; flex-direction:column; gap:18px"></div>
+</section>
+
+<section>
+  <div class="head"><h2>How it was measured</h2></div>
+  <ul class="plain">
+    <li><b>Pairs.</b> Every HRRR analysis hour (the f00 file, the model's best estimate of now) from 5 Aug to 13 Sep 2026, against the GOES-West Band 13 frame stamped at that hour and the GeoColor frame at the nearest 10-minute slot. Fetched by HTTP byte range from NOAA's public archive; nothing was paid for.</li>
+    <li><b>Grid.</b> HRRR's Lambert conformal cells were mapped through the frame's web-mercator pixels and sampled bilinearly, at 384 px (3.8 km per pixel, about the model's own spacing). The model's western edge cuts through the frame; only covered pixels are scored. Frame coverage and per-band coverage are reported.</li>
+    <li><b>Temperature.</b> The GIBS infrared frame is a colour-mapped JPEG. Its published palette has 237 distinct colours, so each pixel's nearest palette entry gives its temperature back; 99.4% of pixels sit within JPEG noise of an entry. One trap: the palette carries a second, coarser grey ramp for &minus;80 to &minus;70&nbsp;&deg;C that lands on the main one, so a warm pixel one JPEG count off read as a &minus;75&nbsp;&deg;C cloud top, and a first run put deep-cold cloud over a tenth of the warm Central Valley. Those ten greys are dropped; tops in that range cannot be recovered from this render and are rare here. A self-check now inverts every kept colour under &plusmn;2 noise (worst error 2&nbsp;&deg;C). Compared with HRRR's simulated 10.7 &micro;m channel (SBT114). The similarly named SBT113 is the 6.7 &micro;m water-vapour channel; a first run used it and read 40 K cold everywhere.</li>
+    <li><b>Cloud mask.</b> The GeoColor cloud test from the dataset builder (bright and unsaturated) at each pixel, in daylight (solar 09&ndash;16) over ocean, against HRRR's low, middle-or-high and total cloud fraction. Also as hit rate and false alarm at 15 km cells.</li>
+    <li><b>Controls.</b> Shuffled day: HRRR from a random other day at the same hour of day, so the diurnal phase matches and only the weather differs. Persistence: the satellite's own frame 24 h and 1 h earlier. All three run through the same grid, mask and metric as the real pairing.</li>
+  </ul>
+</section>
+
+<footer>
+  HRRR analyses from NOAA on AWS Open Data (<span class="mono">noaa-hrrr-bdp-pds</span>) · GOES-West via NASA GIBS · probe: <span class="mono">scripts/fetch_hrrr.py</span>, <span class="mono">scripts/hrrr_grid.py</span>, <span class="mono">scripts/hrrr_agreement.py</span> · <span id="gen"></span>
+</footer>
+</div>
+
+<script>
+const f = (x, d=2) => (x==null || x!==x) ? "–" : x.toFixed(d);
+fetch("california/agreement.json").then(r=>r.json()).then(J=>{
+  const T=J.temperature.overall, Cc=J.cloud.overall, P=Cc.persist;
+  document.getElementById("gen").textContent = `generated ${J.generated} · ${J.n.hours} hours, ${J.n.days} days, ${J.n.daylight_pairs} daylight pairs · HRRR covers ${(J.coverage.frame*100).toFixed(0)}% of the frame`;
+  // stats
+  const S=[
+    ["ok", f(T.anom_pearson.mean), "infrared anomaly r, HRRR vs GOES, mean of hourly"],
+    ["ctl", f(T.ctl_shuffled_anom.mean), "shuffled-day floor"],
+    ["ctl", f(T.ctl_persist24h_anom.mean), "GOES 24 h earlier"],
+    ["ctl", f(T.ctl_persist1h_anom.mean), "GOES 1 h earlier"],
+    ["ok", f(Cc.LCDC.anom_pearson.mean), "cloud-mask anomaly r vs low cloud fraction, daylight, ocean"],
+    ["ctl", f(Cc.LCDC.ctl_shuffled_anom.mean), "shuffled-day floor"],
+    ["ctl", f(P.ctl_persist24h_anom.mean), "GOES mask 24 h earlier"],
+    ["ctl", f(P.ctl_persist1h_anom.mean), "GOES mask 1 h earlier"],
+  ];
+  document.getElementById("stats").innerHTML = S.map(([c,v,l])=>`<div class="stat ${c}"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
+  document.getElementById("mapcap").textContent = `Month-long per-pixel anomaly correlation, mean over covered ocean: infrared ${f(J.maps.temperature_anomaly_r.ocean)} (shuffled ${f(J.maps.temperature_anomaly_r.shuffled_ocean)}), over land ${f(J.maps.temperature_anomaly_r.land)}; cloud mask ${f(J.maps.cloud_anomaly_r.ocean)}.`;
+  // series chart
+  const W=900,H=300,L=46,R=12,Tt=12,B=34; const ser=J.series; const n=ser.length;
+  const lx=i=>L+i/(n-1)*(W-L-R); const ly=c=>Tt+(1-Math.max(-0.2,Math.min(1,c)))/1.2*(H-Tt-B);
+  let s="";
+  for (const c of [-0.2,0,0.25,0.5,0.75,1]){ s+=`<line x1="${L}" y1="${ly(c)}" x2="${W-R}" y2="${ly(c)}" stroke="var(--hair)"/><text x="${L-8}" y="${ly(c)+4}" text-anchor="end" font-size="11" font-family="IBM Plex Mono,monospace" fill="var(--faint)">${c.toFixed(2)}</text>`; }
+  ser.forEach((p,i)=>{ if(p.t.endsWith("T00Z") && i%(24*5)===0){ s+=`<line x1="${lx(i)}" y1="${Tt}" x2="${lx(i)}" y2="${H-B}" stroke="var(--hair)" stroke-dasharray="2 4"/><text x="${lx(i)}" y="${H-B+17}" text-anchor="middle" font-size="11" font-family="IBM Plex Mono,monospace" fill="var(--faint)">${p.t.slice(5,10)}</text>`; }});
+  const line=(key,color,op=1,w=1.2)=>{ let pts=[]; ser.forEach((p,i)=>{ if(p[key]!=null && p[key]===p[key]) pts.push(`${lx(i)},${ly(p[key])}`); }); return `<polyline fill="none" stroke="${color}" stroke-width="${w}" opacity="${op}" points="${pts.join(" ")}"/>`; };
+  s+=line("p1","#b3652a",.45)+line("p24","#b3652a",.9)+line("shuf","#8493a4",.9)+line("anom","#37718f",1,1.8);
+  document.getElementById("series").innerHTML=s;
+  // bands
+  const bt=document.querySelector("#bands tbody"); const Bt=J.temperature.by_band, Bc=J.cloud.by_band.LCDC;
+  bt.innerHTML=Object.keys(Bt).map(b=>{ const c=Bc[b]||{}; return `<tr><td>${b}</td><td class="n">${(J.coverage.band_coverage[b]*100).toFixed(0)}%</td><td class="n">${f(Bt[b].anom_pearson.mean)}</td><td class="n">${f(Bt[b].ctl_shuffled.mean)}</td><td class="n">${f(Bt[b].ctl_persist24h.mean)}</td><td class="n">${c.anom_pearson?f(c.anom_pearson.mean):"–"}</td><td class="n">${c.ctl_shuffled_anom?f(c.ctl_shuffled_anom.mean):"–"}</td></tr>`; }).join("");
+  const lt=document.querySelector("#ladder tbody"); const Lt=J.temperature.ladder, Lc=J.cloud.ladder.LCDC;
+  lt.innerHTML=Object.keys(Lt).map(k=>`<tr><td>${k}</td><td class="n">${f(Lt[k].anom_pearson.mean)}</td><td class="n">${f(Lt[k].ctl_shuffled.mean)}</td><td class="n">${Lc[k]?f(Lc[k].anom_pearson.mean):"–"}</td><td class="n">${Lc[k]&&Lc[k].ctl_shuffled_anom?f(Lc[k].ctl_shuffled_anom.mean):"–"}</td></tr>`).join("");
+  // examples
+  document.getElementById("examples").innerHTML=(J.examples||[]).map(e=>`<figure><div class="strip"><img src="california/${e.file}" alt="Five panels for ${e.t}: GeoColor, GOES infrared, HRRR simulated infrared, GOES cloud mask, HRRR low cloud" loading="lazy"></div><figcaption><b>${e.name}</b> · ${e.t} · ocean cloud share ${f(e.cloud_share)} · infrared anomaly r ${f(e.anom_r)} (shuffled ${f(e.shuffled_r)})</figcaption></figure>`).join("");
+});
+</script>
+</body>
+</html>

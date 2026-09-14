@@ -63,8 +63,17 @@ class IRPalette:
     """Nearest-colour lookup through a 6-bit RGB cube, built once from the GIBS colormap."""
     def __init__(self, xml: Path):
         ents = re.findall(r'rgb="(\d+),(\d+),(\d+)"[^>]*sourceValue="\(([-\d.]+),([-\d.]+)\]"', xml.read_text())
-        self.rgb = np.array([[int(r), int(g), int(b)] for r, g, b, _, _ in ents], np.int16)
-        self.temp = np.array([(float(a) + float(b)) / 2 for *_, a, b in ents], np.float32)
+        rgb = np.array([[int(r), int(g), int(b)] for r, g, b, _, _ in ents], np.int16)
+        temp = np.array([(float(a) + float(b)) / 2 for *_, a, b in ents], np.float32)
+        # TRAP (found 2026-09-14): the palette carries TWO grey ramps. The main one runs from
+        # -18.9 C (197) to 56.7 C (2), one grey level per half degree. A second, coarser one
+        # sits at -79.6..-70.6 C (230, 204, 177, 155, 129, 102, 76, 54, 27, 5) and lands ON the
+        # first: (102,102,102) is both -74.6 C and one JPEG count from 18.1 C. Nearest-colour
+        # then read a tenth of warm land as deep-cold cloud tops. The cold ramp is dropped:
+        # tops between -80 and -70 C cannot be recovered from this render and will read warm.
+        grey = (rgb[:, 0] == rgb[:, 1]) & (rgb[:, 1] == rgb[:, 2])
+        self.dropped = grey & (temp < -20) & (temp > -85)
+        self.rgb, self.temp = rgb[~self.dropped], temp[~self.dropped]
         q = np.arange(64) * 4 + 2
         cube = np.stack(np.meshgrid(q, q, q, indexing="ij"), -1).reshape(-1, 3).astype(np.int16)
         idx = np.empty(len(cube), np.int32)
@@ -72,6 +81,14 @@ class IRPalette:
             d = np.abs(cube[s:s + 16384, None, :] - self.rgb[None]).sum(-1)
             idx[s:s + 16384] = d.argmin(1)
         self.lut = self.temp[idx].reshape(64, 64, 64)
+        # self-check: every kept colour, perturbed by JPEG-sized noise, must invert to itself
+        worst = 0.0
+        for d in (-2, 0, 2):
+            noisy = np.clip(self.rgb + d, 0, 255).astype(np.uint8)
+            worst = max(worst, float(np.abs(self(noisy) - self.temp).max()))
+        if worst > 2.51:   # half-degree grey steps are ~1.3 levels, so +-2 noise is up to ~2 C; the bug read 93 C
+            raise RuntimeError(f"palette inversion is ambiguous: {worst:.1f} C error under +-2 noise")
+        self.selfcheck_max_error_c = worst
 
     def __call__(self, rgb: np.ndarray) -> np.ndarray:
         r, g, b = (rgb[..., 0] >> 2, rgb[..., 1] >> 2, rgb[..., 2] >> 2)
@@ -236,6 +253,8 @@ def main(place, lon, limit, out, seed):
     out = out or Path("site/hrrr") / place
     out.mkdir(parents=True, exist_ok=True)
     pal = IRPalette(CMAP)
+    print(f"palette: {len(pal.temp)} colours kept, {int(pal.dropped.sum())} ambiguous cold greys dropped, "
+          f"worst inversion error under +-2 noise {pal.selfcheck_max_error_c:.2f} C")
     hr = Hrrr(Path("data/hrrr") / place, place)
     ir = {stamp(p): p for p in (Path("data/goes") / f"{place}_x3_ir").glob("*.jpg")}
     geo = {stamp(p): p for p in (Path("data/goes") / f"{place}_x3").glob("*.jpg")}
