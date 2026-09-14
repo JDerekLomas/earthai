@@ -28,8 +28,20 @@ in the existing GAN. He asked for this explicitly: "do it. may as well do the ac
 - **GPU box** (Scaleway `earthai-gpu`, `root@51.159.165.126`, L40S, EUR1.47/h): the from-scratch arm of the
   transfer-vs-scratch A/B is training (1000 kimg cap, early_stop armed, patience 4, min 400 kimg). The
   transfer arm finished: best **FID 7.72 at 200 kimg**, `runs/ab-transfer/*/network-snapshot-000200.pkl`.
-  idle_watch autostops the box after 45 idle minutes. Peer session **earth-96** is queued for the card
-  after the scratch arm — SendMessage it when the card frees. **The HRRR probe needs no GPU; don't use the box.**
+  idle_watch autostops the box after 45 idle minutes. **The HRRR probe needs no GPU; don't use the box.**
+- **The card is not contended.** The parallel landshapes session finished its collection (9,477 crops at
+  30 m/px) and is holding for Derek's decision on what to train, so nothing is queued behind the scratch arm.
+
+## Sibling session's handoff — read it before any training decision
+`/Users/dereklomas/earth/.claude/handoffs/2026-09-13-landshapes-curation.md` (210 lines, the `earth` repo,
+a different project on the same GPU box). It is the shared context for the two sessions' overlapping
+findings rather than the chat thread. Most relevant sections: **Scale** (its biggest correction: imagery at
+10 m/px yields texture and roads, 30-60 m/px yields landform — the same shape as our z8-vs-z9 result), a
+**silent data-loss bug** from filename collisions (ours was the benign variant: 14 identical tiles, nothing
+lost), and an explicit **do-not-pick-a-snapshot-by-FID** section carrying both runs' numbers. Its
+`scripts/snapshot_compare.py` is the fixed-seed instrument that overturned my "softer" claim; it now has a
+third column separating real detail from grain (its absolute values are implementation-specific — compare
+flatness across one run's snapshots, never its numbers against ours).
 
 ## Measured facts — do not re-derive
 - California infrared month: weather memory e-folds at **6 h**; advection beats persistence by only
