@@ -60,3 +60,7 @@ of done are live at https://earthai-scales.vercel.app/ : `/month/` (full clean m
   (nohup, 09:38Z) waits for the fetch, scores both, commits, deploys, writes `scratch/forecast_probe.DONE`.
   The probe page's "forecast hours" section fills itself when those JSON files exist.
 - Next: QC + month page + sky_memory for `conus` once the backfill lands (a regime comparison).
+- **Forecast-hour result (10:11Z):** cloud-mask r 0.36 (f00) -> 0.25 (f06) -> 0.23 (f12), all above the
+  24 h persistence bar 0.11 and floor 0.00. Infrared r RISES 0.45 -> 0.54 -> 0.52 and the +4.2 K warm
+  bias goes to 0: analysis-hour spin-up (too little upper cloud), as Otkin/DTC reported. => condition
+  on f06 fields, not f00, for anything beyond the next hour or two. Live at /hrrr/#fcst.
