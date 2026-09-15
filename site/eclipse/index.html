@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Moon's Shadow</title>
+<meta name="description" content="The total solar eclipse of 12 August 2026 seen from GOES-East: the Moon's shadow crossing Greenland, Iceland and the North Atlantic every ten minutes, with the clouds underneath unchanged.">
+<style>html{color-scheme:light dark} body{margin:0} img,video{max-width:100%} [hidden]{display:none!important}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#e9edf1; --surface:#ffffff; --sunk:#dfe5ea;
+    --ink:#13202e; --muted:#5b6b7d; --faint:#8493a4;
+    --line:#c7d1da; --hair:#dbe2e8;
+    --ochre:#b3652a; --cool:#37718f; --deep:#0f2233;
+    --ok:#2f7d5b; --no:#a33a2a;
+    --shadow:0 1px 2px rgba(15,34,51,.08), 0 8px 24px rgba(15,34,51,.06);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+      --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+      --line:#27394b; --hair:#1c2c3c;
+      --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+      --ok:#5cb98d; --no:#e0765f;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+    --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+    --line:#27394b; --hair:#1c2c3c;
+    --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+    --ok:#5cb98d; --no:#e0765f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+  *{box-sizing:border-box}
+  body{background:var(--ground); color:var(--ink);
+    font:400 16px/1.55 "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    padding-block:44px 72px; padding-left:20px; padding-right:20px; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1120px; margin:0 auto; display:flex; flex-direction:column; gap:52px}
+  h1,h2,h3{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif; text-wrap:balance; margin:0}
+  h1{font-size:clamp(30px,4.6vw,46px); font-weight:600; letter-spacing:-.015em; line-height:1.08}
+  h2{font-size:clamp(20px,2.6vw,26px); font-weight:600; letter-spacing:-.01em}
+  h3{font-size:16px; font-weight:600}
+  p{margin:0; max-width:66ch}
+  a{color:var(--cool)}
+  .lede{font-size:clamp(17px,2vw,19px); color:var(--muted); max-width:62ch}
+  .eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--faint)}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+  section{display:flex; flex-direction:column; gap:18px}
+  .head{display:flex; flex-direction:column; gap:8px}
+  header{display:flex; flex-direction:column; gap:16px}
+  .claim{font-family:"IBM Plex Sans Condensed",sans-serif; font-size:clamp(19px,2.4vw,23px); line-height:1.35;
+    max-width:34ch; border-left:3px solid var(--cool); padding-left:18px}
+  .claim b{color:var(--cool); font-weight:600}
+  .xl{font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.06em; text-decoration:none; color:var(--muted); border-bottom:1px solid var(--line); padding-bottom:2px}
+  .xl:hover{color:var(--cool); border-color:var(--cool)}
+  .links{display:flex; flex-wrap:wrap; gap:20px}
+  button{font:500 13px/1 "IBM Plex Sans",sans-serif; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:3px; padding:8px 12px; cursor:pointer}
+  button:hover{border-color:var(--cool); color:var(--cool)}
+  button[aria-pressed="true"]{background:var(--cool); border-color:var(--cool); color:#fff}
+  button:focus-visible{outline:2px solid var(--ochre); outline-offset:2px}
+  .seg{display:inline-flex; border:1px solid var(--line); border-radius:3px; overflow:hidden}
+  .seg button{border:0; border-radius:0; border-left:1px solid var(--line)}
+  .seg button:first-child{border-left:0}
+  .bar{display:flex; flex-wrap:wrap; gap:12px; align-items:center}
+
+  .stage{background:#000; border:1px solid var(--hair); border-radius:4px; overflow:hidden; box-shadow:var(--shadow); position:relative; aspect-ratio:2205/1705}
+  .stage video{display:block; width:100%; height:100%; object-fit:contain}
+  .clock{position:absolute; left:14px; bottom:12px; font:500 13px/1 "IBM Plex Mono",monospace; letter-spacing:.06em; color:#e4ecf4; background:rgba(6,17,28,.55); padding:7px 9px; border-radius:2px; backdrop-filter:blur(4px)}
+  .clock small{color:#9fb3c6; margin-left:8px; letter-spacing:.1em}
+  .scrub{width:100%; accent-color:var(--cool); margin:10px 0 0}
+
+  .chartbox{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:18px 16px 12px; box-shadow:var(--shadow)}
+  .chartbox svg{display:block; width:100%; height:auto; overflow:visible}
+  .key{display:flex; flex-wrap:wrap; gap:18px; margin-top:10px; font-size:13px; color:var(--muted)}
+  .key i{display:inline-block; width:20px; height:3px; border-radius:2px; margin-right:7px; vertical-align:middle}
+  .two{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:18px}
+  figure{margin:0; display:flex; flex-direction:column; gap:8px}
+  .plate{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:8px; box-shadow:var(--shadow); line-height:0}
+  .plate img{display:block; width:100%; border-radius:2px}
+  figcaption{font-size:13.5px; color:var(--muted); max-width:70ch; line-height:1.5}
+  .cols{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:18px}
+  .note{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:16px 18px; display:flex; flex-direction:column; gap:8px; box-shadow:var(--shadow)}
+  .note p{font-size:14px; color:var(--muted)}
+  .note.have{border-left:3px solid var(--ok)}
+  .note.maybe{border-left:3px solid var(--ochre)}
+  .note.gate{border-left:3px solid var(--no)}
+  .status{font:500 11px "IBM Plex Mono",monospace; letter-spacing:.08em; text-transform:uppercase}
+  .have .status{color:var(--ok)} .maybe .status{color:var(--ochre)} .gate .status{color:var(--no)}
+  .tw{overflow-x:auto; background:var(--surface); border:1px solid var(--hair); border-radius:4px; box-shadow:var(--shadow)}
+  table{border-collapse:collapse; width:100%; font-size:13.5px; min-width:480px}
+  th,td{text-align:right; padding:9px 14px; border-top:1px solid var(--hair); white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  thead th{border-top:0; font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); padding-top:13px; padding-bottom:11px}
+  td.n{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums}
+  footer{border-top:1px solid var(--line); padding-top:22px; font-size:13px; color:var(--faint)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">earthai · one afternoon · GOES-East every ten minutes · 12 August 2026</div>
+  <h1>The Moon's shadow</h1>
+  <p class="claim">The total solar eclipse of 12 August 2026, seen from 36,000 km above the equator: <b>the shadow sweeps from Greenland across Iceland to Spain in about two hours</b>, and the clouds under it do not move.</p>
+  <p class="lede">GOES-East photographs its whole side of the planet every ten minutes. On the afternoon of 12 August the Moon's shadow crossed the top of its picture. This page is that afternoon, 14:00 to 20:30 UTC, in true colour, with the daily rise and fall of the sun taken out so that the only thing that darkens is the eclipse.</p>
+  <div class="links">
+    <a class="xl" href="../">home &rarr;</a>
+    <a class="xl" href="../earth/">the whole Earth &rarr;</a>
+    <a class="xl" href="../month/">the California deck &rarr;</a>
+    <a class="xl" href="../conus/">the lower 48 &rarr;</a>
+  </div>
+</header>
+
+<section>
+  <div class="head">
+    <h2>Watch it cross</h2>
+    <p>Forty frames, one every ten minutes, six a second: the whole afternoon in under seven seconds. Greenland is top left, Iceland top centre, Spain bottom right against the black where the satellite's view of the Earth ends. The shadow arrives from the top at about 16:40 UTC, is darkest over Greenland at 17:30, over Iceland at 17:50 and over Spain at 18:30, and is gone by 19:00. The <em>smooth</em> version adds three learned in-between frames per real pair (RIFE); <em>as seen</em> is the raw picture, in which the east also darkens simply because evening is coming.</p>
+  </div>
+  <div class="bar">
+    <div class="seg" role="group" aria-label="version">
+      <button data-src="eclipse.mp4" aria-pressed="true" title="sun height normalised, 6 real frames a second">Normalised</button>
+      <button data-src="eclipse_smooth.mp4" aria-pressed="false" title="normalised, three learned in-between frames per real pair, 24 fps">Smooth</button>
+      <button data-src="eclipse_raw.mp4" aria-pressed="false" title="the raw true-colour frames, no normalisation">As seen</button>
+    </div>
+    <span class="mono" id="summary" style="font-size:12px;color:var(--muted)">40 frames · 14:00–20:30 UTC · GOES-19 ABI bands 1, 2, 3 · 3 km per pixel</span>
+  </div>
+  <div>
+    <div class="stage">
+      <video id="v" playsinline muted loop autoplay preload="auto" poster="poster.jpg" src="eclipse.mp4"></video>
+      <div class="clock"><span id="clock">14:00</span> UTC<small>12 AUG 2026</small></div>
+    </div>
+    <input class="scrub" id="scrub" type="range" min="0" max="1000" value="0" aria-label="scrub through the afternoon">
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>The same minute, in light and in heat</h2>
+    <p>Band 13 is the satellite's thermal channel: it measures the temperature of whatever it looks at, cloud top or sea surface, and does not care whether the sun is shining. If the darkening were weather, a front rolling in, it would show here too. It does not.</p>
+  </div>
+  <figure>
+    <div class="plate"><img src="pair_1730.jpg" alt="Two views of the North Atlantic at 17:30 UTC: true colour on the left with a dark shadow over Greenland and Iceland, thermal infrared on the right with the same cloud pattern and no shadow" loading="lazy"></div>
+    <figcaption>17:30 UTC, the minute of deepest shadow over Greenland. Left, true colour with the sun's height normalised out; right, band 13 thermal infrared, colder is whiter. The cloud field is identical. Only the light changed. Over the Greenland box the mean cloud-top temperature moved by less than two kelvin across the whole afternoon.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="head">
+    <h2>How dark it got</h2>
+    <p>Mean brightness of the red band inside five boxes, each frame, after dividing by the cosine of the sun's zenith angle. Without that division the curve would fall all afternoon everywhere, because the sun does; with it, a flat line means an ordinary afternoon, and a dip means something got between the Earth and the sun. The southern control box, off the Bahamas, is there to show what flat looks like.</p>
+  </div>
+  <div class="chartbox">
+    <svg id="chart" viewBox="0 0 900 360" role="img" aria-label="Normalised brightness against UTC time for five regions on 12 August 2026"></svg>
+    <div class="key" id="key"></div>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>box</th><th>morning level</th><th>darkest</th><th>at (UTC)</th><th>fraction left</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table></div>
+  <p>Greenland kept a tenth of its light, Iceland a thirtieth: the umbra, the Moon's full shadow, is only about 250 km across, but the ten-minute frames catch it squarely over both. Spain's number is less clean. It sits on the very edge of the disk, where the satellite looks through hundreds of kilometres of air, and by 19:30 UTC its sun is setting anyway; the eclipse dip at 18:30 is real, the slide to zero after it is night.</p>
+</section>
+
+<section>
+  <div class="head">
+    <h2>The umbra over Greenland</h2>
+  </div>
+  <div class="two">
+    <figure>
+      <div class="plate"><img src="greenland_1630.jpg" alt="Greenland and the Denmark Strait in true colour at 16:30 UTC, fully lit" loading="lazy"></div>
+      <figcaption>16:30 UTC. Greenland's ice, its east-coast fjords and the sea ice off the Denmark Strait, an hour before the shadow.</figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="greenland_1730.jpg" alt="The same view of Greenland at 17:30 UTC with the dark umbra covering the centre of the island" loading="lazy"></div>
+      <figcaption>17:30 UTC. The same crop, same normalisation. The full shadow lies over the centre of the island; the penumbra greys everything for a thousand kilometres around it.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>From the satellite's own seat</h2>
+    <p>The same afternoon with nothing reprojected: the top right of GOES-East's full-disk picture, the curve being the edge of the Earth as seen from over the equator. The path of totality runs along that edge, which is why the shadow looks like a faint bruise on the horizon here and like a hole in the map above. Both are the same shadow; a map straightens the view, the satellite does not.</p>
+  </div>
+  <div class="stage" style="aspect-ratio:2430/1250">
+    <video playsinline muted loop autoplay preload="metadata" poster="native_poster.jpg" src="eclipse_native.mp4"></video>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>Where this comes from, and what it cannot show</h2>
+  </div>
+  <div class="cols">
+    <div class="note have">
+      <span class="status">the source</span>
+      <h3>GOES-19, NOAA's archive on AWS</h3>
+      <p>The Level-2 cloud and moisture imagery files (ABI-L2-MCMIPF), all sixteen bands at 2 km, one 370 MB file per ten minutes, read straight from the <span class="mono">noaa-goes19</span> Open Data bucket. NASA's rendered tiles, which the other pages here use, only keep about a month and had already dropped 12 August. The raw archive keeps everything.</p>
+    </div>
+    <div class="note have">
+      <span class="status">the picture</span>
+      <h3>Reprojected, not retouched</h3>
+      <p>The satellite's own view is a perspective from 75.2° W over the equator. Each frame is resampled onto an equal-area map centred on the North Atlantic. True colour is the standard GOES recipe: red is band 2, blue is band 1, green is synthesised from both plus a tenth of the vegetation band, because the instrument has no green channel. No haze correction, no contrast stretch.</p>
+    </div>
+    <div class="note maybe">
+      <span class="status">the normalisation</span>
+      <h3>Divided by the height of the sun</h3>
+      <p>Every reflectance is divided by the cosine of the solar zenith angle at that pixel and minute, capped at five times, and faded to black where the sun is under six degrees. This removes the ordinary afternoon and leaves the anomaly. It over-brightens the far edge of the disk a little, where the sun is low and the air is thick; that is why the east of the normalised picture is hazier than the west.</p>
+    </div>
+    <div class="note gate">
+      <span class="status">the limit</span>
+      <h3>Europe is at the edge</h3>
+      <p>Spain, France and the path's end over the Mediterranean are on the limb of GOES-East's disk, seen at a grazing angle and stretched. Iceland and Greenland are fine. The right satellite for Europe is Meteosat, which EUMETSAT serves openly through its EUMETView service and which a later page could use; this page is the eclipse as America&#39;s weather satellite saw it, and stops where its view does.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div>Frames are the scan start times; each full-disk scan takes about nine and a half minutes, sweeping north to south, so the top of a frame is a few minutes older than the bottom. Fetch and reprojection: <span class="mono">scripts/fetch_goes_aws.py</span>. Other pages: <a href="../">home</a>, <a href="../earth/">the whole Earth</a>, <a href="../month/">the California deck</a>, <a href="../conus/">the lower 48</a>, <a href="../hrrr/">HRRR against the satellite</a>.</div>
+</footer>
+
+</div>
+<script>
+(() => {
+  const v = document.getElementById('v'), scrub = document.getElementById('scrub'), clock = document.getElementById('clock');
+  const T0 = 14 * 60, SPAN = 390;  // minutes: 14:00 -> 20:30
+  const fmt = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+  let dragging = false;
+  v.addEventListener('timeupdate', () => {
+    if (!v.duration) return;
+    const f = v.currentTime / v.duration;
+    if (!dragging) scrub.value = Math.round(f * 1000);
+    clock.textContent = fmt(T0 + Math.round(f * SPAN / 10) * 10);
+  });
+  scrub.addEventListener('input', () => { dragging = true; if (v.duration) { v.pause(); v.currentTime = scrub.value / 1000 * v.duration; } });
+  scrub.addEventListener('change', () => { dragging = false; v.play(); });
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', x === b));
+    const f = v.duration ? v.currentTime / v.duration : 0;
+    v.src = b.dataset.src; v.load();
+    v.addEventListener('loadedmetadata', () => { v.currentTime = f * v.duration; v.play(); }, { once: true });
+  }));
+
+  const NAMES = { greenland: 'Greenland', iceland: 'Iceland', labrador_sea: 'Labrador Sea', iberia: 'Spain and Portugal', control_sargasso: 'control, off the Bahamas' };
+  const COL = { greenland: '#37718f', iceland: '#b3652a', labrador_sea: '#6aa9c9', iberia: '#8a6a9f', control_sargasso: '#8493a4' };
+  fetch('curves.json').then(r => r.json()).then(d => {
+    const svg = document.getElementById('chart'), W = 900, H = 360, L = 48, R = 12, T = 14, B = 40;
+    const xs = d.times.map(t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; });
+    const x = m => L + (m - T0) / SPAN * (W - L - R);
+    const y = vv => T + (1 - vv / 0.8) * (H - T - B);
+    let s = '';
+    for (let g = 0; g <= 0.8; g += 0.2) s += `<line x1="${L}" x2="${W - R}" y1="${y(g)}" y2="${y(g)}" stroke="var(--hair)"/><text x="${L - 8}" y="${y(g) + 4}" text-anchor="end" font-size="11" font-family="IBM Plex Mono" fill="var(--faint)">${g.toFixed(1)}</text>`;
+    for (let h = 14; h <= 20; h++) s += `<text x="${x(h * 60)}" y="${H - 14}" text-anchor="middle" font-size="11" font-family="IBM Plex Mono" fill="var(--faint)">${h}:00</text>`;
+    for (const k of Object.keys(d.boxes)) {
+      const pts = d.boxes[k].norm.map((vv, i) => vv == null ? null : `${x(xs[i]).toFixed(1)},${y(vv).toFixed(1)}`).filter(Boolean).join(' ');
+      s += `<polyline points="${pts}" fill="none" stroke="${COL[k]}" stroke-width="${k === 'control_sargasso' ? 1.5 : 2.2}" stroke-dasharray="${k === 'control_sargasso' ? '4 4' : ''}" stroke-linejoin="round"/>`;
+    }
+    svg.innerHTML = s;
+    document.getElementById('key').innerHTML = Object.keys(d.boxes).map(k => `<span><i style="background:${COL[k]}"></i>${NAMES[k]}</span>`).join('');
+    const tb = document.getElementById('tbody');
+    tb.innerHTML = Object.keys(d.boxes).map(k => {
+      const n = d.boxes[k].norm, base = Math.max(...n.slice(0, 12)), lim = k === 'iberia' ? 30 : n.length;
+      let i = 0; for (let j = 0; j < lim; j++) if (n[j] < n[i]) i = j;
+      return `<tr><td>${NAMES[k]}</td><td class="n">${base.toFixed(2)}</td><td class="n">${n[i].toFixed(3)}</td><td class="n">${d.times[i]}</td><td class="n">${(n[i] / base * 100).toFixed(0)}%</td></tr>`;
+    }).join('');
+  });
+})();
+</script>
+</body>
+</html>
