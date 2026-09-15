@@ -247,6 +247,7 @@ class Earth:
             cm.write_text(requests.get(CMAP, headers=UA, timeout=60).text)
         self.pal = IRPalette(cm.read_text())
         self.last = {}          # sat -> (t, rgb, weight) of its most recent good picture
+        self.timing = {}
 
     def _static(self, layer, tms, ext, name) -> np.ndarray:
         p = self.out / name
@@ -258,6 +259,10 @@ class Earth:
 
     # -- one satellite at one instant -> (rgb float32 HxWx3, weight HxW) or None
     def source(self, k: str, t: datetime):
+        t0 = time.time(); r = self._source(k, t); self.timing[k] = round(time.time() - t0, 1)
+        return r
+
+    def _source(self, k: str, t: datetime):
         s = SATS[k]
         if s["src"] == "gibs":
             ts = t.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -281,6 +286,13 @@ class Earth:
         alpha = a[..., 3].astype(np.float32) / 255
         rgb = a[..., :3].astype(np.float32)
         if s["kind"] == "geocolor":
+            # GeoColor's night side is black ocean under grey cloud (GOES) or navy (MTG); the
+            # painted zones are navy with the basemap faintly through. Lift the GeoColor night
+            # floor to the same navy so the seams do not step in brightness after dark. Scaled
+            # by darkness so clouds and city lights are untouched.
+            _, f = self.ground(t)
+            dark = np.clip(1 - rgb.max(-1, keepdims=True) / 90, 0, 1)
+            rgb = rgb + (1 - f) * dark * (self.base * 0.08 + NIGHT_TINT)
             return rgb, self.w[k] * alpha
         if s["kind"] == "ir_palette":
             temp = fill_holes(self.pal(a[..., :3]))
@@ -299,7 +311,7 @@ class Earth:
         T_OPAQUE; past that the cloud keeps getting brighter to T_BRIGHT, so cold anvils keep
         their texture instead of clipping to one flat grey."""
         g, f = self.ground(t)
-        c = np.clip((T_WARM - temp) / (T_WARM - T_OPAQUE), 0, 1)[..., None]
+        c = (np.clip((T_WARM - temp) / (T_WARM - T_OPAQUE), 0, 1) ** 2)[..., None]   # squared: a warm sea a few degrees under T_WARM is haze, not cloud
         b = (0.78 + 0.22 * np.clip((T_OPAQUE - temp) / (T_OPAQUE - T_BRIGHT), 0, 1))[..., None]
         col = (f * CLOUD_DAY + (1 - f) * CLOUD_NIGHT) * b
         return g * (1 - c) + col * c
@@ -332,7 +344,7 @@ class Earth:
                 Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8)).resize((self.W // 4, self.H // 4)).save(debug / f"{k}.jpg", quality=85)
         g, _ = self.ground(t)
         gap = np.clip(1 - wsum, 0, 1)[..., None]                    # fades in where coverage runs out
-        out = (acc + g * 0.55 * gap) / np.maximum(wsum, 1)[..., None]
+        out = (acc + g * 0.45 * gap) / np.maximum(wsum, 1)[..., None]
         return np.clip(out, 0, 255).astype(np.uint8), cover, held, time.time() - t0
 
     def seams(self, path: Path, W: int = 2048):
@@ -435,7 +447,7 @@ def main(at, start, days, stride, out, width, workers, debug, seams, encode_dir,
         log.write(json.dumps(row) + "\n"); log.flush()
         done += 1
         click.echo(f"{stamp(t)}  {secs:5.1f}s  {p.stat().st_size / 1e6:.2f} MB  " + " ".join(f"{k}={v:.2f}" for k, v in cover.items())
-                   + (f"  held: {','.join(held)}" if held else ""))
+                   + (f"  held: {','.join(held)}" if held else "") + "  fetch " + " ".join(f"{k[:3]}={v}" for k, v in earth.timing.items()))
     click.echo(f"{done} new mosaics in {out}")
 
 
