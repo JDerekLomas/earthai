@@ -46,3 +46,10 @@ plain paragraph on what is different. He is a designer, not a meteorologist.
 - EUMETSAT imagery credit line on the page: "EUMETSAT" (their open data terms; state it).
 - Report back: append a 5-line summary to this file, commit, SendMessage the session named
   "physics-clouds" if it exists (one line, DONE + URL).
+
+## Result (15 Sep 2026, evening session)
+1. DONE and live: https://earthai-scales.vercel.app/eclipse/ opens with "From Meteosat, under the path" -- a 31 s RIFE x8 true-colour clip (plus real frames and a "plain light" 0.6 um clip), the umbra as a black oval over Iceland at 17:40, the 17:30 light/heat pair, five-box curves with table, one comparison paragraph, a GeoColour curiosity; EUMETSAT credited in the section and footer.
+2. `scripts/fetch_eclipse_meteosat.py fetch|encode`: 160 frames in `data/eclipse_mtg/` (truecolour, vis06, ir105 grey, geocolour; 2000x1100 at 0.05 deg) plus a 0.02-deg stills window; EUMETView served every slot, three transient 500s retried.
+3. Measured: EUMETSAT's true colour is already sun-normalised and paints the umbra sunset-red (its haze/blue correction assumes full sun); vis06 as served is raw (grey ~ mu^0.79 over the Sahara) and fades out below ~13 deg sun -- the Sahara control measures that fade and the curves are divided by it. Greenland 13% left at 17:20, Iceland 6% at 17:40, Britain 23% at 18:00, Spain 17% at 18:20 (FCI scans S->N, so its 17:20 frame's Greenland pixels are ~17:30, agreeing with GOES).
+4. Angles: Spain 49 deg from Meteosat vs 85 from GOES-East, Iceland 74 vs 85, Greenland ~83 from both; the page says so rather than the brief's "much better angle" for the whole path.
+5. Found and fixed on the live host: five autoplaying clips starved the charts/stills/fonts for 30 s+, so only the on-screen clip streams now (IntersectionObserver) and the curves files are preloaded; deployed from an APFS clone of site/ with the other session's uncommitted site/earth/index.html reset to HEAD (mp4s are gitignored, so a git worktree could not deploy). Checked with headless Chrome (puppeteer-core); lessons in auto-memory `earthai-browser-check-video-pages`.
