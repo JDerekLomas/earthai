@@ -156,7 +156,7 @@
   <div class="eyebrow">earthai · the whole Earth · five satellites every ten minutes</div>
   <h1>The whole Earth, every ten minutes</h1>
   <p class="claim"><b id="daysclaim">Three days</b> of the real atmosphere, all of it at once, from the five satellites that hang over the equator.</p>
-  <p class="lede">Five geostationary satellites each photograph their own side of the planet every ten minutes, day and night. This page stitches those pictures onto one globe and plays them back at four hours a second. Drag to turn it, or just watch. Switch to <em>sun-fixed</em> and the daylight stands still while the Earth turns underneath it.</p>
+  <p class="lede">Five geostationary satellites each photograph their own side of the planet every ten minutes, day and night. This page stitches those pictures onto one globe and plays them back at four hours a second. Drag to turn it, or just watch. Switch to <em>sun-fixed</em> and the daylight stands still while the Earth turns underneath it, once every six seconds at full speed, so quarter speed is the one to watch.</p>
   <div class="links">
     <a class="xl" href="../goes/">ten minutes apart &rarr;</a>
     <a class="xl" href="../month/">one place, one month &rarr;</a>
@@ -273,9 +273,8 @@
   document.querySelectorAll('[data-rate]').forEach(b=>b.addEventListener('click', ()=>{ vid.playbackRate=+b.dataset.rate; document.querySelectorAll('[data-rate]').forEach(x=>x.setAttribute('aria-pressed', x===b)); }));
   document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click', ()=>{
     const m=b.dataset.mode;
-    if(m!==mode){ // keep the globe where it is on the switch: solve the other frame's offset for the current rotation
-      const cur=globe.rotation.y;
-      if(m==='sun'){ offset=cur-(-Math.PI/2-sunLon(frame())*DEG); } else { spin=cur; }
+    if(m!==mode){ // sun-fixed snaps noon to the centre; going back to Earth-fixed keeps the globe where it is
+      if(m==='sun'){ offset=0; } else { spin=globe.rotation.y; }
       mode=m; vSpin=0;
     }
     document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed', x===b));
