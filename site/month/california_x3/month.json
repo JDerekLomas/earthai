@@ -871,5 +871,18 @@
   "kb": 33461,
   "note": "2026-08-20 + 3 days, RIFE v4.6 x8, 24 fps"
  },
- "smooth_factor": 4
+ "smooth_factor": 4,
+ "smooth_month": {
+  "file": "smooth_month.mp4",
+  "frames": 21641,
+  "real_frames": 5411,
+  "factor": 4,
+  "fps": 48,
+  "start": "2026-08-05T00:10:00Z",
+  "end": "2026-09-14T23:50:00Z",
+  "span_min": 59020,
+  "seconds": 450.9,
+  "kb": 45979,
+  "note": "2026-08-05 + 41 days, RIFE v4.6 x4, 48 fps"
+ }
 }
