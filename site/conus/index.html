@@ -180,9 +180,9 @@ const cache={}; let layer="conus", current=null;
 function load(l){
   layer=l;
   for (const b of document.querySelectorAll("[data-layer]")) b.setAttribute("aria-pressed", String(b.dataset.layer===l));
-  const got = cache[l] ? Promise.resolve(cache[l]) : fetch(`${l}/month.json`).then(r=>r.ok?r.json():Promise.reject(r.status)).then(j=>cache[l]=j);
+  const got = cache[l] ? Promise.resolve(cache[l]) : fetch(`../month/${l}/month.json`).then(r=>r.ok?r.json():Promise.reject(r.status)).then(j=>cache[l]=j);
   got.then(m=>{
-    CAL.src=`${l}/${m.calendar}`;
+    CAL.src=`../month/${l}/${m.calendar}`;
     SUM.textContent=`${m.frames.toLocaleString()} frames · ${m.days} days · ${m.first.slice(0,10)} to ${m.last.slice(0,10)}`;
     DAYS.innerHTML="";
     for (const c of m.clips.slice().reverse()){
@@ -195,7 +195,7 @@ function load(l){
   }).catch(e=>{ EMPTY.hidden=false; EMPTY.textContent=`this layer is not built yet (${e})`; SUM.textContent=""; });
 }
 function play(c){
-  current=c; EMPTY.hidden=true; V.src=`${layer}/${c.file}`; V.play().catch(()=>{});
+  current=c; EMPTY.hidden=true; V.src=`../month/${layer}/${c.file}`; V.play().catch(()=>{});
   for (const b of DAYS.children) b.setAttribute("aria-pressed", String(b.dataset.file===c.file));
   INFO.innerHTML=`<b>${c.date || "noon flipbook"}</b> · ${c.frames} frames · ${c.seconds}s` + (c.span_min ? ` · covers ${Math.round(c.span_min/60)} h` : "");
 }
