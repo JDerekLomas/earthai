@@ -474,7 +474,12 @@ def encode(src: Path, dest: Path, width: int, fps: int, crf: int):
     holds = {f.stem: rows[f.stem].get("held", []) for f in frames if f.stem in rows and rows[f.stem].get("held")}
     misses = {f.stem: [k for k, v in rows[f.stem]["cover"].items() if v == 0] for f in frames if f.stem in rows}
     misses = {k: v for k, v in misses.items() if v}
-    man = dict(holds=holds, misses=misses,fps=fps, width=width, height=width // 2, frames=len(frames), crf=crf,
+    filled = {f.stem: rows[f.stem]["filled"] for f in frames if f.stem in rows and any(v >= 0.05 for v in rows[f.stem].get("filled", {}).values())}
+    removed = {}
+    if (src / "_qc_rejected" / "qc.jsonl").exists():          # frames earth_qc.py quarantined; the clip steps over them
+        for line in (src / "_qc_rejected" / "qc.jsonl").read_text().splitlines():
+            r = json.loads(line); removed[r["file"][:-4]] = r["reason"]
+    man = dict(holds=holds, misses=misses, filled=filled, removed=removed, fps=fps, width=width, height=width // 2, frames=len(frames), crf=crf,
                start=times[0].strftime("%Y-%m-%dT%H:%MZ"), end=times[-1].strftime("%Y-%m-%dT%H:%MZ"),
                bytes=mp4.stat().st_size,
                sources=[dict(id=k, label=s["label"], lon=s["lon"], kind=s["kind"]) for k, s in SATS.items()],

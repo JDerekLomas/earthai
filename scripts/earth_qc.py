@@ -9,10 +9,11 @@ reuses goes_qc's flash rule per zone and adds the coverage, seam and white-wedge
     python scripts/earth_qc.py --dir data/earth --apply      # move flagged frames to _qc_rejected/
 
 Rules (every one is a measured threshold, no hand-picked frames):
-  drop   a satellite's zone carried less of its usual data than its neighbours in time: cover
-         (from earth.jsonl) below both neighbours by more than DROP_SHARE. A dropped GIBS tile
-         block or a partly transparent WMS answer -- the blend falls back to the dimmed basemap
-         there, so it reads as a dark rectangle or a bright/dark streak for one or two frames.
+  drop   a satellite's zone carried less of its usual data than its neighbours in time: the
+         effective cover (earth.jsonl's `cover` plus what fetch_earth filled from the previous
+         picture) below both neighbours by more than DROP_SHARE. A dropped GIBS tile block or
+         a partly transparent WMS answer that nothing filled -- the blend falls back to the
+         dimmed basemap there, so it reads as a dark rectangle or a streak for a frame or two.
   flash  per zone: mean brightness jumps > FLASH_JUMP grey levels away from BOTH neighbours in
          the same direction while the neighbours agree within FLASH_AGREE (goes_qc's rule).
   white  a 64-px tile of the 1024x512 thumbnail, inside the satellite-covered area, more than
@@ -131,8 +132,10 @@ def run(src: Path) -> tuple[list[Path], dict[Path, list[str]], dict]:
         r = rows.get(p.stem)
         if not r:
             continue
-        for k, v in r["cover"].items():
-            nb = [rows[q.stem]["cover"].get(k, 0) for q in (frames[i - 1:i] + frames[i + 1:i + 2]) if q.stem in rows]
+        eff = lambda row, k: min(1.0, row["cover"].get(k, 0) + row.get("filled", {}).get(k, 0))
+        for k in r["cover"]:
+            v = eff(r, k)
+            nb = [eff(rows[q.stem], k) for q in (frames[i - 1:i] + frames[i + 1:i + 2]) if q.stem in rows]
             usual = max(nb) if nb else 1.0
             if v < usual - DROP_SHARE:
                 why[p].append(f"drop: {k} cover {v:.3f} vs {usual:.3f}")

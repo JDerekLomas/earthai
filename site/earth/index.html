@@ -141,6 +141,7 @@
         </div>
         <button id="seams" aria-pressed="false">Seams</button>
         <button id="flat" aria-pressed="false">Flat map</button>
+        <button id="smooth" aria-pressed="false" hidden title="four learned frames between each real pair">Smooth</button>
       </div>
     </div>
   </div>
@@ -193,9 +194,10 @@
   <div class="cols">
     <div class="note gate"><span class="status">the poles</span><h3>Nothing looks down on the poles</h3><p>Every one of these satellites is over the equator. Poleward of about 60° they see the Earth edge-on, and past 70° off nadir their picture is not used. The polar caps and the top and bottom of the flat map are the basemap, dimmed and standing still: there is no weather there on this page. A polar-orbiting satellite would fill it, at twice a day rather than every ten minutes.</p></div>
     <div class="note maybe"><span class="status">two kinds of picture</span><h3>Real colour and painted cloud</h3><p>GOES-East, GOES-West and MTG deliver a finished colour picture. Himawari and Meteosat-9 are used here through their infrared channel alone, which measures cloud-top temperature. Cold is turned into an opaque white cloud and laid over the basemap. That rendering cannot see warm low cloud, fog or marine stratocumulus, and it paints very cold ground, the Tibetan plateau or Antarctic air over Australia in winter, as if it were cloud. The seam between the two kinds runs down the Indian Ocean and across the western Pacific.</p></div>
-    <div class="note maybe"><span class="status">the overlaps</span><h3>Blended, not cut</h3><p>Where two satellites see the same place at a slant, their pictures are averaged. Colour balance differs a little between agencies and the horizon of each disk is hazy, so the mid-Atlantic and the central Pacific are slightly softer than the middle of a disk. Time is exact to the minute for four satellites; Meteosat-9 runs every fifteen minutes and the nearest picture is used, so its clouds step a little.</p></div>
+    <div class="note maybe"><span class="status">the overlaps</span><h3>Blended, not cut</h3><p>Where two satellites see the same place at a slant, their pictures are averaged. Colour balance differs a little between agencies and the horizon of each disk is hazy, so the mid-Atlantic and the central Pacific are slightly softer than the middle of a disk. Time is exact to the minute for four satellites; Meteosat-9 runs every fifteen minutes, so each of its frames here is a blend of its two nearest pictures, weighted by how close in time they are.</p></div>
     <div class="note have"><span class="status">the cadence</span><h3>Every ten minutes, all of it</h3><p id="cadence">One frame every ten minutes, 24 frames a second: four hours of weather a second, a day in six seconds. The archive on this page is three days; NASA GIBS keeps about thirty-five and EUMETSAT keeps years, so the same page can hold a month once it is worth the download.</p></div>
   </div>
+  <div class="note have" style="max-width:none"><span class="status">cleaned up · 15 sep</span><h3>What was removed, and what is invented</h3><p id="cleanup">The first render of these three days had artifacts a viewer could see, so a measured pass was written (<span class="mono">scripts/earth_qc.py</span>) rather than a hand-picked list. It flagged 30 of the 432 mosaics: 27 where a satellite's zone lost part of its picture for a frame or two, a GIBS tile that never arrived or a Meteosat-9 slot that came back with transparent rows, and read as a dark rectangle or a streak; 11 where a seam jumped; and 11 where a block of the picture flashed, which turned out to be render wedges: GOES tiles with a swath filled flat sky-blue, and Himawari Band 13 tiles with a swath of pure white, which the palette reads as −92 °C and paints as the brightest cloud. Every class was fixed at the source and the three days re-rendered: wedge pixels are masked, and any pixel a satellite is missing is filled from that satellite's previous picture for up to forty minutes (13 frames were filled that way, 8 of them a whole picture); Meteosat-9 is interpolated between its fifteen-minute slots instead of stepping. One frame, 14 September 15:00 UTC, came back from GIBS as a grey smear across the Caribbean that no rule can repair; it was removed and the clip steps over it, so 431 frames remain. The <em>Smooth</em> button plays a version with four frames morphed between each real pair by RIFE 4.6, a learned interpolator. Those in-between frames are inferred, not observed: they look like weather, and they can put motion where none was measured.</p></div>
 </section>
 
 <section>
@@ -216,8 +218,10 @@
 (function(){
   const stage=document.getElementById('stage'), load=document.getElementById('load'), clock=document.getElementById('clock');
   const vid=document.getElementById('vid'), scrub=document.getElementById('scrub'), playBtn=document.getElementById('play');
-  const seamsBtn=document.getElementById('seams'), flatBtn=document.getElementById('flat'), flatwrap=document.getElementById('flatwrap');
+  const seamsBtn=document.getElementById('seams'), flatBtn=document.getElementById('flat'), flatwrap=document.getElementById('flatwrap'), smoothBtn=document.getElementById('smooth');
   let man=null, mode='earth', spin=0, tilt=0.25, offset=0, vSpin=0, vTilt=0, dragging=false, lastFrame=-1, dist=4.3;
+  // the two clips share one timeline of real frames; the smooth one has `factor` video frames per real frame
+  let clip={file:'earth.mp4', fps:24, factor:1};
   const DEG=Math.PI/180;
   document.getElementById('threev').textContent='r'+THREE.REVISION;
 
@@ -248,15 +252,30 @@
   fetch('earth.json').then(r=>r.json()).then(m=>{
     man=m; scrub.max=m.frames-1;
     const d=m.frames>=144 ? `${Math.round(m.frames/144)} days` : `${Math.round(m.frames/6)} hours`;   // one frame per ten minutes
-    document.getElementById('man').textContent=`${m.frames} frames, ${m.start.replace('T',' ')} to ${m.end.replace('T',' ')}, ${(m.bytes/1e6).toFixed(0)} MB`;
+    clip={file:'earth.mp4', fps:m.fps, factor:1};
+    document.getElementById('man').textContent=`${m.frames} frames, ${m.start.replace('T',' ')} to ${m.end.replace('T',' ')}, ${(m.bytes/1e6).toFixed(0)} MB`+(m.smooth?` (smooth: ${m.smooth.frames} frames, ${(m.smooth.bytes/1e6).toFixed(0)} MB)`:'');
     document.getElementById('daysclaim').textContent=d; load.textContent=`loading ${d} of Earth, ${(m.bytes/1e6).toFixed(0)} MB…`;
+    if(m.smooth) smoothBtn.hidden=false;
     vid.src='earth.mp4'; vid.load(); vid.play().catch(()=>{});
   });
+  // real-frame position, fractional: the same number whichever clip is playing
+  function pos(){ return vid.currentTime*clip.fps/clip.factor; }
+  function seek(x){ vid.currentTime=x*clip.factor/clip.fps; }
+  function setClip(c){
+    const x=pos(), paused=vid.paused, rate=vid.playbackRate;
+    clip=c; load.hidden=false; load.textContent=`loading ${c.factor>1?'the smooth clip':'the real frames'}…`;
+    vid.src=c.file; vid.load();
+    vid.addEventListener('loadedmetadata', ()=>{ seek(x); vid.playbackRate=rate; load.hidden=true; if(!paused) vid.play().catch(()=>{}); }, {once:true});
+  }
   vid.addEventListener('canplay', ()=>{ load.hidden=true; }, {once:true});
   vid.addEventListener('error', ()=>{ load.textContent='the video failed to load'; });
 
-  function frame(){ if(!man) return 0; return Math.min(man.frames-1, Math.floor(vid.currentTime*man.fps+1e-4)); }
-  function sunLon(i){ return man ? man.t[i].sun : 0; }
+  function frame(){ if(!man) return 0; return Math.max(0, Math.min(man.frames-1, Math.floor(pos()+1e-4))); }
+  function sunLon(){ // interpolated between real frames so the smooth clip does not step in sun-fixed mode
+    if(!man) return 0; const x=Math.max(0, Math.min(man.frames-1, pos())), i=Math.floor(x), f=x-i;
+    const a=man.t[i].sun, b=man.t[Math.min(man.frames-1, i+1)].sun; let d=b-a; if(d>180) d-=360; if(d<-180) d+=360;
+    return a+d*f;
+  }
   function showClock(i){
     if(!man) return;
     const t=man.t[i].t; const d=new Date(t.replace('Z',':00Z'));
@@ -267,7 +286,7 @@
 
   // ---- interaction
   let scrubbing=false;
-  scrub.addEventListener('input', ()=>{ scrubbing=true; if(man) vid.currentTime=scrub.value/man.fps; });
+  scrub.addEventListener('input', ()=>{ scrubbing=true; if(man) seek(+scrub.value); });
   scrub.addEventListener('change', ()=>{ scrubbing=false; });
   playBtn.addEventListener('click', ()=>{ if(vid.paused){ vid.play(); playBtn.textContent='Pause'; playBtn.setAttribute('aria-pressed','true'); } else { vid.pause(); playBtn.textContent='Play'; playBtn.setAttribute('aria-pressed','false'); } });
   document.querySelectorAll('[data-rate]').forEach(b=>b.addEventListener('click', ()=>{ vid.playbackRate=+b.dataset.rate; document.querySelectorAll('[data-rate]').forEach(x=>x.setAttribute('aria-pressed', x===b)); }));
@@ -281,6 +300,11 @@
   }));
   seamsBtn.addEventListener('click', ()=>{ seams.visible=!seams.visible; seamsBtn.setAttribute('aria-pressed', seams.visible); });
   flatBtn.addEventListener('click', ()=>{ const on=flatwrap.classList.toggle('hide'); flatBtn.setAttribute('aria-pressed', !on); });
+  smoothBtn.addEventListener('click', ()=>{
+    const on=clip.factor===1;
+    setClip(on ? {file:man.smooth.file, fps:man.smooth.fps, factor:man.smooth.factor} : {file:'earth.mp4', fps:man.fps, factor:1});
+    smoothBtn.setAttribute('aria-pressed', on);
+  });
 
   const cv=renderer.domElement; let px=0, py=0, moved=0;
   cv.addEventListener('pointerdown', e=>{ dragging=true; moved=0; px=e.clientX; py=e.clientY; vSpin=vTilt=0; cv.setPointerCapture(e.pointerId); cv.classList.add('drag'); });
@@ -297,7 +321,7 @@
     if(i!==lastFrame){ lastFrame=i; showClock(i); }
     if(!dragging){ vSpin*=0.94; vTilt*=0.94; if(Math.abs(vSpin)>1e-4){ if(mode==='earth') spin+=vSpin; else offset+=vSpin; } if(Math.abs(vTilt)>1e-4) tilt=Math.max(-1.25, Math.min(1.25, tilt+vTilt)); }
     if(mode==='earth'){ if(!dragging && !vid.paused) spin+=0.0007; globe.rotation.y=spin; }
-    else { globe.rotation.y=-Math.PI/2 - sunLon(i)*DEG + offset; }
+    else { globe.rotation.y=-Math.PI/2 - sunLon()*DEG + offset; }
     seams.rotation.y=globe.rotation.y;
     tiltG.rotation.x=tilt;
     renderer.render(scene, cam);
