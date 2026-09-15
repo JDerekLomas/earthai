@@ -8,6 +8,7 @@ to a globe, or blends overlaps -- this does, on GIBS's epsg4326 grid plus EUMETS
     python scripts/fetch_earth.py --start 2026-09-12T00:00Z --days 3      # 432 mosaics into data/earth
     python scripts/fetch_earth.py --seams site/earth/seams.png            # static zone map
     python scripts/fetch_earth.py --encode site/earth --width 2048        # mp4 + manifest for the page
+    python scripts/fetch_earth.py --smooth site/earth --width 3072 --fps 48 --crf 28   # RIFE 4x version + manifest entry
 
 Sources, all free and keyless (measured 15 Sep 2026):
   GOES-East  75.2W   GeoColor      NASA GIBS, epsg4326, 10-min, day and night     goes_east
@@ -30,13 +31,23 @@ weighs 1, at 70 degrees off nadir 0. The mosaic is the weighted mean. Where no s
 weighs anything (poleward of about 62 degrees at the sub-satellite longitude, more in the
 gaps between disks) the basemap shows through, dimmed, and the page says so.
 
-Broken renders: GIBS answers 200 with a straight-edged wedge of pure white for a failed
-GeoColor tile (scripts/goes_qc.py). Any GeoColor tile > 5% pure white is dropped and its
-area falls back to the other satellites or the basemap. Infrared tiles are exempt: the
-coldest palette entry (-92 C) IS white.
+Broken renders: GIBS answers 200 for a partly failed tile with the missing swath filled
+flat: pure white (scripts/goes_qc.py) or, in GeoColor, exactly RGB (140,191,250); a Band 13
+tile's wedge is pure white, which the palette reads as -92 C and paints as the brightest
+cloud. Measured 2026-09-15 over whole disks: no clean GeoColor tile has any bright colour on
+more than 1.2% of its pixels and no clean Band 13 tile has ANY pure white, while the bad
+tiles read 5-70%. So any such colour covering more than WEDGE_SHARE of a tile's used area
+is masked out pixel by pixel (dilated 2 px for the antialiased edge) rather than the tile
+dropped whole. Whatever a satellite is missing at an instant -- a masked wedge, a tile GIBS
+did not answer, a WMS slot with transparent rows, a whole housekeeping gap -- is filled
+from that satellite's previous picture for up to HOLD_MIN, so a miss reads as ten minutes
+of stale cloud in one place, not a dark rectangle. Meteosat-9's 15-minute slots are
+time-interpolated (in grey, before painting) so its zone moves every ten minutes like the
+others. earth_qc.py measures what is left.
 
 Writes data/earth/<UTC>.jpg (4096x2048, ~1 MB) and earth.jsonl, one row per mosaic with the
-share of each satellite's zone that actually carried data.
+share of each satellite's zone that actually carried data (`cover`), the share filled from
+its previous picture (`filled`), and the satellites whose whole picture was reused (`held`).
 """
 from __future__ import annotations
 
@@ -83,6 +94,9 @@ TINT = {"goes_west": (55, 120, 200), "goes_east": (220, 140, 50), "mtg": (70, 17
 T_WARM, T_OPAQUE, T_BRIGHT = 15.0, -25.0, -80.0     # opacity 0 -> 1 over WARM..OPAQUE; brightness keeps rising to BRIGHT
 L_TO_T = (18.3, -0.234)                                  # Meteosat-9 grey -> degrees C, from the overlap fit
 HOLD_MIN = 40   # a satellite that misses a slot keeps its previous picture for up to this long (Himawari skips 02:40Z daily for housekeeping)
+FILL_RGB = (140, 191, 250)   # GIBS's flat fill for an unrendered swath of a GeoColor tile (2026-09-13 09:30Z GOES-West (2,1): 21% of the tile, this exact colour)
+WEDGE_SHARE = 0.02           # a fill colour on more than this share of a tile's used area is a wedge (clean tiles: <= 1.2% GeoColor, 0.0 Band 13)
+FULL_SHARE = 0.97            # a source whose raw picture covers at least this much of its zone counts as complete (resets the hold clock)
 HOLE_PX = 30    # palette collision: -80..-70 C tops decode as warm ground; enclosed warm specks up to this many px inside cold cloud are refilled
 CLOUD_DAY = np.array([240, 242, 246], np.float32)
 CLOUD_NIGHT = np.array([132, 142, 160], np.float32)
@@ -139,12 +153,36 @@ def get(url: str, timeout=60, tries=2):
     return None
 
 
-def gibs_tiles(layer: str, tms: str, t: str, tiles, ext="png", judge=None, workers=16) -> Image.Image:
+def wedge_mask(a: np.ndarray, used: np.ndarray, kind: str) -> np.ndarray | None:
+    """Pixels of a tile that are a render wedge: a flat fill colour covering more than
+    WEDGE_SHARE of the tile's used area. GeoColor wedges are pure white or FILL_RGB; Band 13
+    wedges are pure white (its real -92 C white never occurs: 0.0 in every clean tile
+    measured). Judged only where the blend uses the tile: the limb of a GeoColor disk
+    saturates to white legitimately, and GOES-West's (0, 4) tile at 18:00Z reads 17% white,
+    all of it past the 70-degree cut. Dilated 2 px for the antialiased edge."""
+    from scipy.ndimage import binary_dilation
+    vis = a[..., 3] > 0
+    n = float((used & vis).sum())
+    if n < 2000:
+        return None
+    cands = [a[..., :3].min(-1) >= 253]
+    if kind == "geocolor":
+        cands.append((a[..., 0] == FILL_RGB[0]) & (a[..., 1] == FILL_RGB[1]) & (a[..., 2] == FILL_RGB[2]))
+    bad = None
+    for c in cands:
+        c = c & vis
+        if float((c & used).sum()) / n > WEDGE_SHARE:
+            bad = c if bad is None else (bad | c)
+    if bad is None:
+        return None
+    return binary_dilation(bad, iterations=2)
+
+
+def gibs_tiles(layer: str, tms: str, t: str, tiles, ext="png", judge=None, kind="geocolor", workers=16) -> Image.Image:
     """A 5120x2560 RGBA canvas with the requested (x, y) tiles pasted; the rest transparent.
-    judge: {(x, y): bool 512x512} -- the pixels of each tile the blend will actually use. A
-    GeoColor tile more than 5% pure white THERE is a broken render and is dropped. The limb of
-    a GeoColor disk saturates to white legitimately, which is why the test is not tile-wide:
-    GOES-West's (0, 4) tile at 18:00Z reads 17% white, all of it past the 70-degree cut."""
+    judge: {(x, y): bool 512x512} -- the pixels of each tile the blend will actually use;
+    render wedges there (wedge_mask) are made transparent so the mosaic fills them from the
+    satellite's previous picture instead of showing a flat blue or white block."""
     def one(xy):
         x, y = xy
         raw = get(GIBS.format(layer=layer, tms=tms, t=t, y=y, x=x, ext=ext))
@@ -152,10 +190,11 @@ def gibs_tiles(layer: str, tms: str, t: str, tiles, ext="png", judge=None, worke
             return xy, None
         im = Image.open(io.BytesIO(raw)).convert("RGBA")
         if judge is not None:
-            a = np.asarray(im); m = judge[xy]
-            pure = (a[..., :3].min(-1) >= 253) & (a[..., 3] > 0) & m
-            if m.sum() > 2000 and float(pure.sum() / m.sum()) > 0.05:
-                return xy, None                       # a broken render, not a bright cloud
+            a = np.asarray(im)
+            bad = wedge_mask(a, judge[xy], kind)
+            if bad is not None:
+                a = a.copy(); a[bad, 3] = 0
+                im = Image.fromarray(a)
         return xy, im
     canvas = Image.new("RGBA", (TILE * COLS, TILE * ROWS), (0, 0, 0, 0))
     with ThreadPoolExecutor(workers) as ex:
@@ -246,7 +285,8 @@ class Earth:
         if not cm.exists():
             cm.write_text(requests.get(CMAP, headers=UA, timeout=60).text)
         self.pal = IRPalette(cm.read_text())
-        self.last = {}          # sat -> (t, rgb, weight) of its most recent good picture
+        self.last = {}          # sat -> (t_full, rgb, weight): its most recent picture, merged; t_full = when it was last complete
+        self.slots = {}         # (sat, slot time) -> WMS canvas, for the 15-minute interpolation
         self.timing = {}
 
     def _static(self, layer, tms, ext, name) -> np.ndarray:
@@ -266,25 +306,30 @@ class Earth:
         s = SATS[k]
         if s["src"] == "gibs":
             ts = t.strftime("%Y-%m-%dT%H:%M:%SZ")
-            judge = self.judge[k] if s["kind"] == "geocolor" else None
-            im = gibs_tiles(s["layer"], s["tms"], ts, self.tiles[k], judge=judge, workers=self.workers)
+            im = gibs_tiles(s["layer"], s["tms"], ts, self.tiles[k], judge=self.judge[k], kind=s["kind"], workers=self.workers)
             im = im.resize((self.W, self.H), Image.BILINEAR)
             a = np.asarray(im)
+            alpha = a[..., 3].astype(np.float32) / 255
+            rgb = a[..., :3].astype(np.float32)
         else:
             step = s["step"]
-            tt = t + timedelta(minutes=(round(t.minute / step) * step - t.minute))
-            ts = tt.strftime("%Y-%m-%dT%H:%M:%SZ")
-            w, e = s["lon"] - CUT_DEG, s["lon"] + CUT_DEG           # generous: weight is 0 outside anyway
-            x0, x1 = int((w + 180) / 360 * self.W), int((e + 180) / 360 * self.W)
-            y0, y1 = int((90 - CUT_DEG) / 180 * self.H), int((90 + CUT_DEG) / 180 * self.H)
-            fmt = "image/jpeg" if s["kind"] == "geocolor" else "image/png"
-            im = wms_image(s["layer"], ts, (-CUT_DEG, w, CUT_DEG, e), (x1 - x0, y1 - y0), fmt)
-            if im is None:
+            t0 = t - timedelta(minutes=t.minute % step, seconds=t.second)
+            f = (t - t0).total_seconds() / (step * 60)
+            slots = [(t0, 1 - f)] + ([(t0 + timedelta(minutes=step), f)] if f > 1e-6 else [])
+            got = [(self.wms_slot(k, tt), wt) for tt, wt in slots]
+            share = [float((a[..., 3] > 0).mean()) if a is not None else 0.0 for a, _ in got]
+            # a slot that came back with transparent rows (2026-09-13 08:45Z: 24% missing) is
+            # dropped when its partner is whole: blending it in leaves its ragged edge as a
+            # dotted line across the zone, and the previous picture fills the rest
+            got = [(a, wt) for (a, wt), sh in zip(got, share) if a is not None and sh >= FULL_SHARE * max(share)]
+            acc = np.zeros((self.H, self.W, 3), np.float32); wa = np.zeros((self.H, self.W), np.float32)
+            for a, wt in got:
+                al = (a[..., 3].astype(np.float32) / 255) * wt
+                acc += a[..., :3].astype(np.float32) * al[..., None]; wa += al
+            if not wa.any():
                 return None
-            a = np.zeros((self.H, self.W, 4), np.uint8)
-            a[y0:y1, x0:x1] = np.asarray(im)
-        alpha = a[..., 3].astype(np.float32) / 255
-        rgb = a[..., :3].astype(np.float32)
+            rgb = acc / np.maximum(wa, 1e-6)[..., None]
+            alpha = (wa > 0).astype(np.float32)
         if s["kind"] == "geocolor":
             # GeoColor's night side is black ocean under grey cloud (GOES) or navy (MTG); the
             # painted zones are navy with the basemap faintly through. Lift the GeoColor night
@@ -299,6 +344,28 @@ class Earth:
         else:
             temp = L_TO_T[0] + L_TO_T[1] * rgb.mean(-1)
         return self.paint(temp, t), self.w[k] * alpha
+
+    def wms_slot(self, k: str, tt: datetime):
+        """One WMS slot as an HxWx4 uint8 canvas, cached (a 15-minute Meteosat-9 slot serves
+        two or three mosaics; the cache keeps the last few)."""
+        s = SATS[k]
+        key = (k, tt)
+        if key in self.slots:
+            return self.slots[key]
+        ts = tt.strftime("%Y-%m-%dT%H:%M:%SZ")
+        w, e = s["lon"] - CUT_DEG, s["lon"] + CUT_DEG           # generous: weight is 0 outside anyway
+        x0, x1 = int((w + 180) / 360 * self.W), int((e + 180) / 360 * self.W)
+        y0, y1 = int((90 - CUT_DEG) / 180 * self.H), int((90 + CUT_DEG) / 180 * self.H)
+        fmt = "image/jpeg" if s["kind"] == "geocolor" else "image/png"
+        im = wms_image(s["layer"], ts, (-CUT_DEG, w, CUT_DEG, e), (x1 - x0, y1 - y0), fmt)
+        a = None
+        if im is not None:
+            a = np.zeros((self.H, self.W, 4), np.uint8)
+            a[y0:y1, x0:x1] = np.asarray(im)
+        self.slots[key] = a
+        for old in list(self.slots)[:-6]:
+            del self.slots[old]
+        return a
 
     def ground(self, t: datetime):
         """Basemap lit by the computed sun: Blue Marble by day, a dark navy with city lights by night."""
@@ -322,22 +389,33 @@ class Earth:
             got = dict(zip(SATS, ex.map(lambda k: self.source(k, t), SATS)))
         acc = np.zeros((self.H, self.W, 3), np.float32)
         wsum = np.zeros((self.H, self.W), np.float32)
-        cover, held = {}, []
+        cover, filled, held = {}, {}, []
         for k, r in got.items():
             zone = self.w[k] > 0
-            # a slot with less than half the zone is a miss (an empty answer, a dropped tile block,
-            # a satellite's housekeeping gap): hold the previous picture rather than open a hole
-            if r is None or float((r[1][zone] > 0).mean()) < 0.5:
-                prev = self.last.get(k)
-                if prev and abs((t - prev[0]).total_seconds()) <= HOLD_MIN * 60:
-                    r = prev[1:]; held.append(k)
-                else:
-                    cover[k] = 0.0
-                    continue
+            if r is None:
+                rgb, w = np.zeros((self.H, self.W, 3), np.float32), np.zeros((self.H, self.W), np.float32)
             else:
-                self.last[k] = (t, r[0], r[1])
-            rgb, w = r
-            cover[k] = round(float((w[zone] > 0).mean()), 3)
+                rgb, w = r
+            raw = float((w[zone] > 0).mean())
+            cover[k] = round(raw, 3)
+            # whatever this picture lacks in its zone -- a masked wedge, an unanswered tile, a
+            # transparent WMS row, a whole missed slot -- comes from the previous picture while
+            # that is recent enough; a miss then reads as stale cloud, not a dark rectangle
+            prev = self.last.get(k)
+            if prev and (t - prev[0]).total_seconds() <= HOLD_MIN * 60 and raw < 1:
+                gap = (w == 0) & (prev[2] > 0)
+                if gap.any():
+                    rgb = np.where(gap[..., None], prev[1], rgb); w = np.where(gap, prev[2], w)
+                    filled[k] = round(float(gap[zone].mean()), 3)
+            if raw < 0.5:
+                held.append(k)
+            t_full = t if raw >= FULL_SHARE else (prev[0] if prev else None)
+            if t_full is not None:
+                self.last[k] = (t_full, rgb, w)
+            elif prev:
+                self.last[k] = prev
+            if not (w > 0).any():
+                continue
             acc += rgb * w[..., None]
             wsum += w
             if debug:
@@ -345,7 +423,7 @@ class Earth:
         g, _ = self.ground(t)
         gap = np.clip(1 - wsum, 0, 1)[..., None]                    # fades in where coverage runs out
         out = (acc + g * 0.45 * gap) / np.maximum(wsum, 1)[..., None]
-        return np.clip(out, 0, 255).astype(np.uint8), cover, held, time.time() - t0
+        return np.clip(out, 0, 255).astype(np.uint8), cover, filled, held, time.time() - t0
 
     def seams(self, path: Path, W: int = 2048):
         H = W // 2
@@ -405,6 +483,42 @@ def encode(src: Path, dest: Path, width: int, fps: int, crf: int):
     click.echo(f"{mp4}: {len(frames)} frames, {mp4.stat().st_size / 1e6:.1f} MB, {times[0]:%Y-%m-%d %H:%M} -> {times[-1]:%Y-%m-%d %H:%M}")
 
 
+def smooth(src: Path, dest: Path, width: int, fps: int, crf: int, factor: int = 4):
+    """The same mosaics with RIFE 4.6 morphing `factor` frames between each real pair (through
+    scripts/interpolate.py's chunked rife_encode), as <dest>/earth_smooth.mp4, recorded in
+    earth.json under `smooth`. The in-between frames are learned, not observed. Frames are
+    scaled to `width` first: RIFE at the mosaic's own 4096 px is slower and gains nothing the
+    encode keeps. Measured 2026-09-15: 1.3 frames/s at 3072x1536 on the Mac's GPU."""
+    import sys
+    import tempfile
+    from concurrent.futures import ThreadPoolExecutor
+    sys.path.insert(0, str(Path(__file__).parent))
+    from interpolate import rife_encode
+    frames = sorted(src.glob("????-??-??T????Z.jpg"))
+    if len(frames) < 2:
+        raise SystemExit(f"no mosaics in {src}")
+    dest.mkdir(parents=True, exist_ok=True)
+    mp4 = dest / "earth_smooth.mp4"
+    t0 = time.time()
+    with tempfile.TemporaryDirectory(dir=dest) as td:
+        def scale(f):
+            q = Path(td) / (f.stem[:-1] + "00Z.jpg")        # rife_encode's stamp wants seconds
+            Image.open(f).resize((width, width // 2), Image.LANCZOS).save(q, quality=94)
+            return q
+        with ThreadPoolExecutor(8) as ex:
+            small = list(ex.map(scale, frames))
+        click.echo(f"scaled {len(small)} frames to {width} in {time.time() - t0:.0f} s; running RIFE x{factor}")
+        r = rife_encode(small, mp4, factor, fps, width, crf)
+    if not r:
+        raise SystemExit("RIFE failed")
+    man_p = dest / "earth.json"
+    man = json.loads(man_p.read_text()) if man_p.exists() else {}
+    man["smooth"] = dict(file=mp4.name, fps=fps, factor=factor, frames=r["frames"], real_frames=r["real_frames"],
+                         width=width, height=width // 2, crf=crf, bytes=mp4.stat().st_size, model="rife-v4.6")
+    man_p.write_text(json.dumps(man, separators=(",", ":")))
+    click.echo(f"{mp4}: {r['real_frames']} real -> {r['frames']} frames, {mp4.stat().st_size / 1e6:.1f} MB, {time.time() - t0:.0f} s")
+
+
 @click.command()
 @click.option("--at", default=None, help="one instant, e.g. 2026-09-14T18:00Z")
 @click.option("--start", default=None, help="first instant of a run (UTC)")
@@ -413,14 +527,18 @@ def encode(src: Path, dest: Path, width: int, fps: int, crf: int):
 @click.option("--out", default="data/earth", type=click.Path(path_type=Path))
 @click.option("--width", default=4096, type=int, help="mosaic width; height is half")
 @click.option("--workers", default=16, type=int)
+@click.option("--warm", default=0, type=int, help="fetch this many frames before --start first (not written) so the first frames can fill gaps from a previous picture")
 @click.option("--debug", is_flag=True, help="also write each satellite's own contribution")
 @click.option("--seams", default=None, type=click.Path(path_type=Path), help="write the static zone map here and stop")
 @click.option("--encode", "encode_dir", default=None, type=click.Path(path_type=Path), help="encode data/earth into <dir>/earth.mp4 + earth.json and stop")
+@click.option("--smooth", "smooth_dir", default=None, type=click.Path(path_type=Path), help="RIFE-interpolate data/earth into <dir>/earth_smooth.mp4 and stop")
 @click.option("--fps", default=24, type=int)
 @click.option("--crf", default=30, type=int)
-def main(at, start, days, stride, out, width, workers, debug, seams, encode_dir, fps, crf):
+def main(at, start, days, stride, out, width, workers, warm, debug, seams, encode_dir, smooth_dir, fps, crf):
     if encode_dir:
         return encode(out, encode_dir, width, fps, crf)
+    if smooth_dir:
+        return smooth(out, smooth_dir, width, fps, crf)
     earth = Earth(out, width, workers)
     if seams:
         click.echo(f"wrote {earth.seams(seams)}")
@@ -437,16 +555,21 @@ def main(at, start, days, stride, out, width, workers, debug, seams, encode_dir,
         dbg = out / "debug"; dbg.mkdir(exist_ok=True)
     log = open(out / "earth.jsonl", "a")
     done = 0
+    for k in range(warm, 0, -1):
+        tw = times[0] - timedelta(minutes=stride * k)
+        earth.mosaic(tw)
+        click.echo(f"{stamp(tw)}  warmed")
     for t in times:
         p = out / f"{stamp(t)}.jpg"
         if p.exists():
             continue
-        img, cover, held, secs = earth.mosaic(t, dbg)
+        img, cover, filled, held, secs = earth.mosaic(t, dbg)
         Image.fromarray(img).save(p, quality=88, subsampling=0)
-        row = dict(id=stamp(t), t=t.strftime("%Y-%m-%dT%H:%MZ"), cover=cover, held=held, secs=round(secs, 1), bytes=p.stat().st_size)
+        row = dict(id=stamp(t), t=t.strftime("%Y-%m-%dT%H:%MZ"), cover=cover, filled=filled, held=held, secs=round(secs, 1), bytes=p.stat().st_size)
         log.write(json.dumps(row) + "\n"); log.flush()
         done += 1
         click.echo(f"{stamp(t)}  {secs:5.1f}s  {p.stat().st_size / 1e6:.2f} MB  " + " ".join(f"{k}={v:.2f}" for k, v in cover.items())
+                   + (f"  filled: " + ",".join(f"{k}={v:.2f}" for k, v in filled.items()) if filled else "")
                    + (f"  held: {','.join(held)}" if held else "") + "  fetch " + " ".join(f"{k[:3]}={v}" for k, v in earth.timing.items()))
     click.echo(f"{done} new mosaics in {out}")
 
