@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The California Deck</title>
-<meta name="description" content="Forty days of the California stratocumulus deck from GOES-West every ten minutes, and what a month like this can and cannot teach a temporal model.">
+<title>The Lower 48, Every Ten Minutes</title>
+<meta name="description" content="The whole continental United States from GOES-East every ten minutes, day and night, for as long as NASA keeps the frames: one continuous clip, a day at a time, or the same hour every day.">
 <style>html{color-scheme:light dark} body{margin:0} img,video{max-width:100%}</style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -69,9 +69,9 @@
   .seg button:first-child{border-left:0}
   .bar{display:flex; flex-wrap:wrap; gap:12px; align-items:center}
 
-  .player{display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:22px; align-items:start}
+  .player{display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:22px; align-items:start}
   @media (max-width:860px){ .player{grid-template-columns:minmax(0,1fr)} }
-  .stage{background:#06111c; border:1px solid var(--hair); border-radius:4px; overflow:hidden; box-shadow:var(--shadow); aspect-ratio:1/1; position:relative}
+  .stage{background:#06111c; border:1px solid var(--hair); border-radius:4px; overflow:hidden; box-shadow:var(--shadow); aspect-ratio:7/4; position:relative}
   .stage video{display:block; width:100%; height:100%; object-fit:contain}
   .stage .empty{position:absolute; inset:0; display:grid; place-items:center; color:#7d93a8; font:13px "IBM Plex Mono",monospace; padding:20px; text-align:center}
   .scrub{width:100%; accent-color:var(--cool); margin:10px 0 0}
@@ -116,32 +116,28 @@
 <div class="wrap">
 
 <header>
-  <div class="eyebrow">earthai · one place, one month · GOES-West every ten minutes</div>
-  <h1>The California deck</h1>
-  <p class="claim">About forty days of the marine stratocumulus off California, <b>every ten minutes, day and night</b>, the whole record NASA still holds.</p>
-  <p class="lede">The deck is the most persistent large cloud feature in the northern hemisphere summer: it forms over cold upwelling water, burns back from the coast each afternoon and rolls in again at night. This page is for looking at it, and for working out what a month of it is worth to a model that learns how skies change.</p>
+  <div class="eyebrow">earthai · one country, every ten minutes · GOES-East, day and night</div>
+  <h1>The lower 48</h1>
+  <p class="claim">The whole continental United States from the geostationary satellite, <b>every ten minutes, day and night</b>, growing by a day each night for as long as the archive allows.</p>
+  <p class="lede">Seven by four map tiles from GOES-East, about 3.5 km per pixel, which is the same spacing as the HRRR weather model that covers exactly this ground. Marine layers on both coasts, afternoon convection over the Plains and the Gulf, fronts crossing the continent, and the night side with its city lights. The archive began on 10 August 2026 and a nightly fetch keeps adding to it.</p>
   <div class="links">
-    <a class="xl" href="../goes/">all timelapses &rarr;</a>
-    <a class="xl" href="../review/">the network &rarr;</a>
-    <a class="xl" href="../sharp/">resolution &rarr;</a>
-    <a class="xl" href="../conus/">the lower 48 &rarr;</a>
+    <a class="xl" href="../month/">the California deck &rarr;</a>
     <a class="xl" href="../hrrr/">physics against the satellite &rarr;</a>
-    <a class="xl" href="../research/">what has been built &rarr;</a>
+    <a class="xl" href="../goes/">all timelapses &rarr;</a>
   </div>
 </header>
 
 <section>
   <div class="head">
     <h2>Watch a day</h2>
-    <p>The whole month runs as one continuous clip, four hours a second, nothing cut at midnight. The three-day sample is the same frames with motion-compensated interpolation, two synthetic frames blended between every real pair, to see whether that reads as smoother or as smeared. Or pick a day. Or hold the clock still: the same-hour flipbook shows one frame per day at a chosen local solar hour, so what moves is the weather, not the sun.</p>
+    <p>The whole archive runs as one continuous clip, four hours a second, nothing cut at midnight. Or pick a day. Or hold the clock still: the same-hour flipbook shows one frame per day at a chosen local solar hour (solar time for the centre of the country, 98&deg;W), so what moves is the weather, not the sun. GeoColor day clips run through daylight; infrared runs all 24 hours.</p>
   </div>
   <div class="bar">
     <div class="seg" role="group" aria-label="layer">
-      <button data-layer="california_x3" aria-pressed="true">GeoColor</button>
-      <button data-layer="california_x3_ir" aria-pressed="false">Infrared</button>
+      <button data-layer="conus" aria-pressed="true">GeoColor</button>
+      <button data-layer="conus_ir" aria-pressed="false">Infrared</button>
     </div>
     <button id="monthbtn">Whole month</button>
-    <button id="smoothbtn" title="20-22 August, with two synthetic frames blended between every pair of real ones">3 days, blended</button>
     <label class="mono" style="font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:8px">same hour, every day
       <select id="hoursel" aria-label="solar hour for the same-hour flipbook" style="font:500 13px 'IBM Plex Mono',monospace;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:3px;padding:7px 8px"></select>
     </label>
@@ -162,123 +158,24 @@
 <section>
   <div class="head">
     <h2>The month at a glance</h2>
-    <p>Rows are days, columns are local solar hours; the last column is 01:00, night. Read down a column to see the day-to-day weather; read across a row to see a single day burn off and return. Empty cells are frames the archive does not have. Scroll inside the frame.</p>
+    <p>Rows are days, columns are local solar hours at the centre of the country; the last column is 01:00, night. Read down a column for the day-to-day weather; read across a row for one day's convection building and collapsing. Empty cells are frames the archive does not have. Scroll inside the frame.</p>
   </div>
   <div class="calwrap"><img id="calendar" alt="A grid of satellite frames, one row per day and one column per hour, over forty days" loading="lazy"></div>
 </section>
 
-<section>
-  <div class="head">
-    <h2>How long a sky remembers itself</h2>
-    <p>Correlation between frames separated by a lag, after removing everything fixed in place — the coastline, and, for infrared, the daily heating of the land. What remains is weather. The control is the same clock time on different days.</p>
-  </div>
-  <div class="chartbox">
-    <svg id="lagchart" viewBox="0 0 900 320" role="img" aria-label="Correlation against time lag for GeoColor and infrared"></svg>
-    <div class="key">
-      <span><i style="background:#b3652a"></i>GeoColor, daylight only</span>
-      <span><i style="background:#37718f"></i>infrared, day and night</span>
-      <span style="color:var(--faint)">dashed: the 1/e line for infrared</span>
-    </div>
-  </div>
-  <p><b>Weather memory here lasts about a quarter of a day.</b> Ten minutes apart, frames are 86–96% the same picture. Infrared falls to 1/e of that at <span class="mono" id="efold">6 h</span>, and is essentially gone by two to three days. So a month holds roughly <b>two genuinely independent skies a day — sixty to eighty</b> — not the 5,760 frames the file count suggests. The frames are not wasted: every consecutive pair still shows how the clouds <em>moved</em>. But they show seventy-odd situations moving, not five thousand. (The full clean month; the first estimate, from a partial fetch, read 12 h and about thirty.)</p>
-</section>
-
-<section>
-  <div class="head">
-    <h2>Where the clouds sit</h2>
-    <p>Elevation and seafloor depth on exactly the same pixel grid as the frames, next to how often each pixel was cloudy at midday.</p>
-  </div>
-  <div class="two">
-    <figure><div class="plate"><img src="img/hillshade.jpg" alt="Shaded relief of California and the Pacific seafloor" loading="lazy"></div><figcaption>Terrain and bathymetry, AWS Open Data, supersampled onto the frame grid. The fracture zone running west from Cape Mendocino is on the seafloor, 4 km down.</figcaption></figure>
-    <figure><div class="plate"><img src="img/cloudfreq.jpg" alt="Map of how often each pixel is cloudy at midday" loading="lazy"></div><figcaption>Share of midday frames in which each pixel is cloud. White is always, dark is never. The coastline is traced from the terrain.</figcaption></figure>
-  </div>
-  <div class="tw">
-    <table>
-      <thead><tr><th>distance from the coast</th><th>cloudy at midday</th></tr></thead>
-      <tbody id="coasttable"></tbody>
-    </table>
-  </div>
-  <p>A fixed map of where cloud usually is explains <b>23.9%</b> of all the variation in cloud cover. The deck thickens with distance offshore and burns off over land, which is the physics you would expect. The consequence for adding terrain as an input is narrower than it looks: a model trained on this one place learns that quarter from <em>position</em> alone, without being told the terrain. Elevation earns its place as a channel when one model is trained across many places and has to know which is sea.</p>
-</section>
-
-<section>
-  <div class="head">
-    <h2>What else could go in</h2>
-  </div>
-  <div class="cols">
-    <div class="note have"><span class="status">have it</span><h3>Infrared temperature</h3><p>Band 13, cloud-top temperature, same grid and cadence as GeoColor, day and night. The obvious second channel, and the only one that removes the night gap — but it sees only about 71% of the deck: the low cloud sits within a few degrees of the sea, and 28.7% of visibly cloudy pixels are indistinguishable from clear ocean in infrared.</p></div>
-    <div class="note have"><span class="status">have it</span><h3>Terrain and seafloor</h3><p>Fetched for California. Worth a quarter of the cloud-cover signal at one place, and more across places. Static, so it costs one download per place.</p></div>
-    <div class="note maybe"><span class="status">candidate</span><h3>Sea surface temperature</h3><p>The deck exists because the water is cold. Daily SST is on GIBS. It changes slowly, so it would condition the season rather than the hour. Not fetched.</p></div>
-    <div class="note gate"><span class="status">dropped</span><h3>Air Mass</h3><p>Fetched for the comparison clips and dropped: a static no-data mask covers the southern third of every scene here.</p></div>
-  </div>
-</section>
-
-<section>
-  <div class="head">
-    <h2>How much data a temporal model needs</h2>
-    <p>Reasoned from the memory measurement above, not measured on a trained model. It depends on the kind of model.</p>
-  </div>
-  <div class="tw">
-    <table>
-      <thead><tr><th>approach</th><th>learns from</th><th>rough need</th><th>where it comes from</th></tr></thead>
-      <tbody>
-        <tr><td>a time direction inside the existing network</td><td>consecutive pairs</td><td class="n">thousands of pairs,<br>a few hundred situations</td><td>this month &times; ~10 places, free, now</td></tr>
-        <tr><td>a next-frame model conditioned on the last few</td><td>short sequences</td><td class="n">~1,000 independent days</td><td>about 3 years at one place</td></tr>
-        <tr><td>a full video generator</td><td>whole sequences</td><td class="n">several thousand sequences</td><td>the 2017-to-now NOAA archive</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <p>The first row is cheap and available tonight, and it inherits the 7.72 network's image quality. It has one untested dependency that decides whether it works at all: <b>inversion</b> — whether a real satellite frame can be mapped back into the network's latent space faithfully enough that the difference between two frames ten minutes apart is weather rather than reconstruction error. That is worth measuring on a few dozen frames, for about a euro of GPU, before fetching anything more. GIBS keeps only about forty days, so the other nine places should be pulled soon if that test passes; the longer rows need the NOAA archive, which is radiance data rather than pictures and a real engineering step.</p>
-</section>
-
 <footer>
-  GOES-West ABI GeoColor and Band 13 via NASA GIBS · terrain from AWS Open Data elevation tiles ·
+  GOES-East ABI GeoColor and Band 13 via NASA GIBS · fetched nightly by <span class="mono">scripts/ops/rolling_fetch.sh</span> ·
   frames checked for broken renders with <span class="mono">scripts/goes_qc.py</span> ·
   calendar and clips by <span class="mono">scripts/month_sheet.py</span> · <span id="qcnote"></span>
 </footer>
 </div>
 
 <script>
-// ---- measured lag correlations (GeoColor: daylight anomaly; IR: diurnal-cycle removed)
-const LAG = {
-  geo: [[10,.955],[20,.905],[30,.865],[60,.776],[90,.708],[120,.656],[180,.571],[240,.518],[360,.430]],
-  ir:  [[10,.857],[30,.672],[60,.568],[180,.377],[360,.282],[720,.168],[1080,.177],[1440,.158],[2160,.054],[2880,.055],[4320,.036]],
-};
-// ---- cloud frequency by distance from the coast (midday frames; + offshore, - inland)
-const COAST = [["300-100 km inland",.247],["100-20 km inland",.157],["within 20 km inland",.238],
-  ["0-50 km offshore",.455],["50-150 km offshore",.562],["150-400 km offshore",.665],["400-900 km offshore",.752]];
-
-(function chart(){
-  const W=900,H=320,L=50,R=14,T=12,B=40;
-  const lx = m => L + Math.log10(m/10)/Math.log10(4320/10)*(W-L-R);
-  const ly = c => T + (1-c)*(H-T-B);
-  let s="";
-  for (const c of [0,.25,.5,.75,1]){
-    s+=`<line x1="${L}" y1="${ly(c)}" x2="${W-R}" y2="${ly(c)}" stroke="var(--hair)"/>`;
-    s+=`<text x="${L-8}" y="${ly(c)+4}" text-anchor="end" font-size="11" font-family="IBM Plex Mono,monospace" fill="var(--faint)">${c.toFixed(2)}</text>`;
-  }
-  for (const [m,lab] of [[10,"10 min"],[60,"1 h"],[360,"6 h"],[1440,"1 day"],[4320,"3 days"]]){
-    s+=`<line x1="${lx(m)}" y1="${T}" x2="${lx(m)}" y2="${H-B}" stroke="var(--hair)" stroke-dasharray="2 4"/>`;
-    s+=`<text x="${lx(m)}" y="${H-B+17}" text-anchor="middle" font-size="11" font-family="IBM Plex Mono,monospace" fill="var(--faint)">${lab}</text>`;
-  }
-  s+=`<text x="${L}" y="${H-4}" font-size="11" font-family="IBM Plex Mono,monospace" fill="var(--faint)">time between frames (log scale)</text>`;
-  const e = LAG.ir[0][1]/Math.E;
-  s+=`<line x1="${L}" y1="${ly(e)}" x2="${W-R}" y2="${ly(e)}" stroke="#37718f" stroke-dasharray="6 5" opacity=".6"/>`;
-  for (const [key,color] of [["geo","#b3652a"],["ir","#37718f"]]){
-    s+=`<polyline fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" points="${LAG[key].map(p=>`${lx(p[0])},${ly(p[1])}`).join(" ")}"/>`;
-    for (const p of LAG[key]) s+=`<circle cx="${lx(p[0])}" cy="${ly(p[1])}" r="3" fill="${color}"/>`;
-  }
-  document.getElementById("lagchart").innerHTML=s;
-  const max = Math.max(...COAST.map(r=>r[1]));
-  document.getElementById("coasttable").innerHTML = COAST.map(([k,v]) =>
-    `<tr><td>${k}</td><td class="n">${(v*100).toFixed(0)}%<span class="barcell" style="width:${Math.round(v/max*160)}px"></span></td></tr>`).join("");
-})();
-
 // ---- the month player, fed by each layer's month.json
 const V=document.getElementById("v"), EMPTY=document.getElementById("empty"), DAYS=document.getElementById("days");
 const INFO=document.getElementById("info"), SUM=document.getElementById("summary"), CAL=document.getElementById("calendar");
 const SCRUB=document.getElementById("scrub");
-const cache={}; let layer="california_x3", current=null;
+const cache={}; let layer="conus", current=null;
 
 function load(l){
   layer=l;
@@ -305,10 +202,6 @@ function play(c){
 document.getElementById("monthbtn").onclick=()=>{
   const m=cache[layer]; if (!m || !m.month) return;
   play(Object.assign({}, m.month, {date:`the whole month, ${m.days} days, four hours a second`}));
-};
-document.getElementById("smoothbtn").onclick=()=>{
-  const m=cache[layer]; if (!m || !m.smooth3) return;
-  play(Object.assign({}, m.smooth3, {date:"20-22 Aug, motion-blended: two synthetic frames between each real pair"}));
 };
 const HSEL=document.getElementById("hoursel");
 for (let h=0; h<24; h++){ const o=document.createElement("option"); o.value=h; o.textContent=`${String(h).padStart(2,"0")}:00 solar`+(h===12?" (noon)":""); if (h===12) o.selected=true; HSEL.appendChild(o); }

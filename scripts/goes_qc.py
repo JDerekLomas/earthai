@@ -46,12 +46,13 @@ def stamp(p: Path) -> datetime:
     return datetime.strptime(p.stem, "%Y-%m-%dT%H%M%SZ")
 
 
-def inspect(p: Path, span: int = 3) -> dict:
+def inspect(p: Path, side: int = 256) -> dict:
+    """Judged per 256-px GIBS tile, whatever the frame's shape (California is 3x3 tiles, the
+    CONUS frame 7x4); a broken render is a broken TILE, so that is the unit."""
     a = np.asarray(Image.open(p).convert("RGB"))
     pure = a.min(-1) >= 253
-    side = a.shape[0] // span
     tiles = [float(pure[y * side:(y + 1) * side, x * side:(x + 1) * side].mean())
-             for y in range(span) for x in range(span)]
+             for y in range(a.shape[0] // side) for x in range(a.shape[1] // side)]
     # a content hash on a coarse, quantised thumbnail: JPEG re-encodes can differ in bytes for
     # the same picture, so hash what the picture IS rather than the file
     thumb = np.asarray(Image.fromarray(a).convert("L").resize((64, 64), Image.BOX)) // 4
@@ -99,7 +100,7 @@ def main(src, apply, span, st):
     flagged, prev = [], None
     with click.progressbar(frames, label="inspecting") as it:
         for p in it:
-            r = inspect(p, span)
+            r = inspect(p)
             why = None
             if r["white_tile_max"] > WHITE_TILE_MAX:
                 why = f"white wedge: worst tile {r['white_tile_max']:.3f}"

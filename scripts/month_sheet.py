@@ -60,9 +60,10 @@ def nearest(frames: dict[datetime, Path], target: datetime, tol_min: int = 10):
 @click.option("--min-frames", default=60, type=int, help="skip days with fewer frames than this (a day is 144)")
 @click.option("--clip-width", default=512, type=int)
 @click.option("--crf", default=28, type=int)
+@click.option("--width", default=768, type=int, help="output width of the noon / same-hour flipbooks; the month clip uses 5/6 of it")
 @click.option("--daylight-clips", default="yes", type=click.Choice(["yes", "no"]),
               help="yes: day clips run 06-19 solar, which is what GeoColor is for; no: full 24 h (infrared)")
-def main(src, lon, out, hours, thumb, min_frames, clip_width, crf, daylight_clips):
+def main(src, lon, out, hours, thumb, min_frames, clip_width, crf, daylight_clips, width):
     out = out or Path("site/month") / src.name
     (out / "days").mkdir(parents=True, exist_ok=True)
     frames = {stamp(p): p for p in src.glob("*.jpg")}
@@ -80,8 +81,10 @@ def main(src, lon, out, hours, thumb, min_frames, clip_width, crf, daylight_clip
     # ---- calendar
     cols = [int(h) for h in hours.split(",")]
     HEAD, LEFT, GAP = 26, 118, 3
+    fw, fh = Image.open(next(iter(frames.values()))).size
+    thumb_h = max(1, round(thumb * fh / fw))            # keep the frame's aspect (CONUS is 7:4)
     W = LEFT + len(cols) * (thumb + GAP)
-    H = HEAD + len(days) * (thumb + GAP)
+    H = HEAD + len(days) * (thumb_h + GAP)
     sheet = Image.new("RGB", (W, H), "#0b1420")
     d = ImageDraw.Draw(sheet)
     for j, h in enumerate(cols):
@@ -89,7 +92,7 @@ def main(src, lon, out, hours, thumb, min_frames, clip_width, crf, daylight_clip
     cells = missing = 0
     noon = []
     for i, day in enumerate(days):
-        y = HEAD + i * (thumb + GAP)
+        y = HEAD + i * (thumb_h + GAP)
         base = datetime.strptime(day, "%Y-%m-%d")
         d.text((8, y + 6), base.strftime("%a %d %b"), fill="#e4ecf4")
         d.text((8, y + 22), f"{len(by_day[day])} frames", fill="#6c7f92")
@@ -101,12 +104,12 @@ def main(src, lon, out, hours, thumb, min_frames, clip_width, crf, daylight_clip
             x = LEFT + j * (thumb + GAP)
             if f is None:
                 missing += 1
-                d.rectangle([x, y, x + thumb, y + thumb], outline="#27394b")
+                d.rectangle([x, y, x + thumb, y + thumb_h], outline="#27394b")
                 # plain ASCII: PIL's default bitmap font has no em dash and draws a tofu box
-                d.text((x + thumb // 2 - 12, y + thumb // 2 - 6), "none", fill="#6c7f92")
+                d.text((x + thumb // 2 - 12, y + thumb_h // 2 - 6), "none", fill="#6c7f92")
                 continue
             cells += 1
-            sheet.paste(Image.open(f).convert("RGB").resize((thumb, thumb), Image.BOX), (x, y))
+            sheet.paste(Image.open(f).convert("RGB").resize((thumb, thumb_h), Image.BOX), (x, y))
         nf = nearest(frames, (base + timedelta(hours=12) - timedelta(hours=lon / 15)).replace(second=0, microsecond=0)
                      .replace(minute=((base + timedelta(hours=12) - timedelta(hours=lon / 15)).minute // 10) * 10), tol_min=20)
         if nf:
@@ -115,13 +118,13 @@ def main(src, lon, out, hours, thumb, min_frames, clip_width, crf, daylight_clip
     click.echo(f"calendar.jpg  {W}x{H}  {cells} cells filled, {missing} empty")
 
     # ---- noon flipbook: day-to-day change with the diurnal cycle held constant
-    noon_row = encode([f for _, f in noon], out / "noon.mp4", 2, None, 22, 768) if len(noon) > 2 else None
+    noon_row = encode([f for _, f in noon], out / "noon.mp4", 2, None, 22, width) if len(noon) > 2 else None
     if noon_row:
         click.echo(f"noon.mp4  {len(noon)} days  {noon_row['kb']} KB")
 
     # ---- the whole month as one continuous clip (the archive's own order; gaps simply jump)
     allts = sorted(frames)
-    month_row = encode([frames[t] for t in allts], out / "month.mp4", 24, None, 30, 640)   # 5,600 frames: 768/crf24 made a 180 MB file
+    month_row = encode([frames[t] for t in allts], out / "month.mp4", 24, None, 30, width * 5 // 6)   # 5,600 frames: 768/crf24 made a 180 MB file
     if month_row:
         month_row["file"] = "month.mp4"
         click.echo(f"month.mp4  {len(allts)} frames  {month_row['seconds']}s  {month_row['kb'] // 1024} MB")
@@ -139,7 +142,7 @@ def main(src, lon, out, hours, thumb, min_frames, clip_width, crf, daylight_clip
             if f:
                 picks.append(f)
         if len(picks) > 2:
-            r = encode(picks, out / "hours" / f"{h:02d}.mp4", 3, None, 22, 768)
+            r = encode(picks, out / "hours" / f"{h:02d}.mp4", 3, None, 22, width)
             if r:
                 r.update(hour=h, file=f"hours/{h:02d}.mp4", days=len(picks))
                 hour_rows.append(r)
