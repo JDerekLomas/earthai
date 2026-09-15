@@ -133,15 +133,18 @@
 <section>
   <div class="head">
     <h2>Watch a day</h2>
-    <p>The whole month runs as one continuous clip, four hours a second, nothing cut at midnight. The three-day sample is the same frames with motion-compensated interpolation, two synthetic frames blended between every real pair, to see whether that reads as smoother or as smeared. Or pick a day. Or hold the clock still: the same-hour flipbook shows one frame per day at a chosen local solar hour, so what moves is the weather, not the sun.</p>
+    <p>The whole month runs as one continuous clip, four hours a second, nothing cut at midnight. The <em>smooth</em> versions add learned in-between frames (RIFE, a frame-interpolation network run on this laptop's GPU): at 1.9 km a pixel the clouds move less than a pixel between real frames, so what it smooths is texture forming and dissolving, not motion. Toggle <em>Smooth days</em> and pick a day to compare real against smoothed. Or hold the clock still: the same-hour flipbook shows one frame per day at a chosen local solar hour, so what moves is the weather, not the sun. The third layer, <em>always day</em>, is the infrared record repainted as a noon sky so that night never falls; what it is and is not is explained <a href="#alwaysday">below</a>.</p>
   </div>
   <div class="bar">
     <div class="seg" role="group" aria-label="layer">
       <button data-layer="california_x3" aria-pressed="true">GeoColor</button>
       <button data-layer="california_x3_ir" aria-pressed="false">Infrared</button>
+      <button data-layer="california_x3_day" aria-pressed="false" title="the infrared frames rendered as a daytime sky, day and night">Always day</button>
     </div>
     <button id="monthbtn">Whole month</button>
-    <button id="smoothbtn" title="20-22 August, with two synthetic frames blended between every pair of real ones">3 days, blended</button>
+    <button id="smoothmonthbtn" title="every real frame plus three learned in-betweens, 48 fps">Whole month, smooth</button>
+    <button id="smoothbtn" title="20-22 August, seven learned in-between frames per real pair">3 days, smooth</button>
+    <button id="smoothtoggle" aria-pressed="false" title="day clips: play the version with three learned in-between frames per real frame">Smooth days</button>
     <label class="mono" style="font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:8px">same hour, every day
       <select id="hoursel" aria-label="solar hour for the same-hour flipbook" style="font:500 13px 'IBM Plex Mono',monospace;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:3px;padding:7px 8px"></select>
     </label>
@@ -157,6 +160,18 @@
       <div class="info" id="info">choose a day</div>
     </div>
   </div>
+</section>
+
+<section id="alwaysday">
+  <div class="head">
+    <h2>Always day</h2>
+    <p>GeoColor changes character twice a day: true colour while the sun is up, then a blue-grey infrared rendering over city lights until dawn. The infrared channel sees the same picture at noon and at two in the morning, but it is a temperature map, not a photograph. The <em>always day</em> layer repaints every infrared frame as a daytime scene, with no model involved: a cloud-free noon Earth is composited from the month's own GeoColor frames, and cloud is painted over it wherever the infrared reads colder than that pixel usually reads at that hour of the solar day. How much colder means how much cloud is not guessed but measured, from <span class="mono" id="ad-cal">sixty</span> daytime instants where both pictures exist.</p>
+  </div>
+  <figure>
+    <div class="plate"><img id="ad-strip" src="california_x3_day/control_strip.jpg" alt="Four pairs of frames: the real GeoColor image on the left, the always-day rendering of the same instant on the right" loading="lazy"></div>
+    <figcaption>Four daytime instants, chosen at random. Left of each pair is the real GeoColor frame; right is the always-day rendering built from the infrared frame of the same minute, which never saw any daylight.</figcaption>
+  </figure>
+  <p id="ad-numbers"><span id="ad-lead">Over <span class="mono" id="ad-n">twenty</span> random daytime instants, the two pictures agree on cloud or no cloud at <b><span class="mono" id="ad-agree">…</span> of pixels</b>. Of the pixels GeoColor shows as cloud, the always-day frame shows <span class="mono" id="ad-hit">…</span> as cloud too (<span class="mono" id="ad-hitsea">…</span> over the sea); of the pixels it paints as cloud, GeoColor confirms <span class="mono" id="ad-prec">…</span>.</span> The rest is the honest cost of the method: the lowest, thinnest part of the deck sits within a degree of the sea it floats on, and in infrared that is indistinguishable from clear water, so the deck reads thinner here than it really is, at night as much as by day. The other things to know when watching it: the ground is a fixed noon composite, so shadows never move and the land never warms or cools; and a night frame is not a prediction of what the night <em>looked</em> like, only of where the infrared says the cloud was.</p>
 </section>
 
 <section>
@@ -234,7 +249,7 @@
 <footer>
   GOES-West ABI GeoColor and Band 13 via NASA GIBS · terrain from AWS Open Data elevation tiles ·
   frames checked for broken renders with <span class="mono">scripts/goes_qc.py</span> ·
-  calendar and clips by <span class="mono">scripts/month_sheet.py</span> · <span id="qcnote"></span>
+  always-day frames by <span class="mono">scripts/always_day.py</span> · calendar and clips by <span class="mono">scripts/month_sheet.py</span> · <span id="qcnote"></span>
 </footer>
 </div>
 
@@ -298,17 +313,29 @@ function load(l){
   }).catch(e=>{ EMPTY.hidden=false; EMPTY.textContent=`this layer is not built yet (${e})`; SUM.textContent=""; });
 }
 function play(c){
-  current=c; EMPTY.hidden=true; V.src=`${layer}/${c.file}`; V.play().catch(()=>{});
+  current=c; EMPTY.hidden=true;
+  const useSmooth = smoothDays && c.smooth;
+  V.src=`${layer}/${useSmooth ? c.smooth : c.file}`; V.play().catch(()=>{});
   for (const b of DAYS.children) b.setAttribute("aria-pressed", String(b.dataset.file===c.file));
-  INFO.innerHTML=`<b>${c.date || "noon flipbook"}</b> · ${c.frames} frames · ${c.seconds}s` + (c.span_min ? ` · covers ${Math.round(c.span_min/60)} h` : "");
+  const fr = useSmooth ? c.smooth_frames : c.frames, sec = useSmooth ? c.smooth_seconds : c.seconds;
+  INFO.innerHTML=`<b>${c.date || "noon flipbook"}</b>${useSmooth ? " · <b>smooth</b>" : ""} · ${fr} frames · ${sec}s` + (c.span_min ? ` · covers ${Math.round(c.span_min/60)} h` : "");
 }
 document.getElementById("monthbtn").onclick=()=>{
   const m=cache[layer]; if (!m || !m.month) return;
   play(Object.assign({}, m.month, {date:`the whole month, ${m.days} days, four hours a second`}));
 };
+let smoothDays=false;
 document.getElementById("smoothbtn").onclick=()=>{
   const m=cache[layer]; if (!m || !m.smooth3) return;
-  play(Object.assign({}, m.smooth3, {date:"20-22 Aug, motion-blended: two synthetic frames between each real pair"}));
+  play(Object.assign({}, m.smooth3, {date:`20-22 Aug, smooth: ${m.smooth3.factor||8}x learned in-between frames`}));
+};
+document.getElementById("smoothmonthbtn").onclick=()=>{
+  const m=cache[layer]; if (!m || !m.smooth_month) { INFO.textContent="the smooth month is not built for this layer yet"; return; }
+  play(Object.assign({}, m.smooth_month, {date:`the whole month, smooth: ${m.smooth_month.factor||4}x learned in-between frames, ${m.smooth_month.fps} fps`}));
+};
+document.getElementById("smoothtoggle").onclick=(e)=>{
+  smoothDays=!smoothDays; e.currentTarget.setAttribute("aria-pressed", String(smoothDays));
+  if (current && current.date && current.smooth!==undefined) play(current);
 };
 const HSEL=document.getElementById("hoursel");
 for (let h=0; h<24; h++){ const o=document.createElement("option"); o.value=h; o.textContent=`${String(h).padStart(2,"0")}:00 solar`+(h===12?" (noon)":""); if (h===12) o.selected=true; HSEL.appendChild(o); }
@@ -322,6 +349,18 @@ V.addEventListener("timeupdate",()=>{ if (V.duration && document.activeElement!=
 SCRUB.addEventListener("input",()=>{ if (V.duration){ V.pause(); V.currentTime=V.duration*SCRUB.value/1000; } });
 V.addEventListener("error",()=>{ EMPTY.hidden=false; EMPTY.textContent="could not play this clip"; });
 load(layer);
+
+// ---- always-day control numbers, from what scripts/always_day.py measured
+fetch("california_x3_day/control.json").then(r=>r.ok?r.json():Promise.reject(r.status)).then(c=>{
+  const pc = v => (v*100).toFixed(0)+"%";
+  const s = c.summary;
+  document.getElementById("ad-n").textContent = s.n;
+  if (c.params && c.params.calibration_pairs) document.getElementById("ad-cal").textContent = c.params.calibration_pairs;
+  document.getElementById("ad-agree").textContent = pc(s.agree);
+  document.getElementById("ad-hit").textContent = pc(s.hit);
+  document.getElementById("ad-hitsea").textContent = pc(s.hit_sea);
+  document.getElementById("ad-prec").textContent = pc(s.precision);
+}).catch(()=>{ document.getElementById("ad-lead").textContent = "The control numbers are not built yet."; });
 </script>
 </body>
 </html>
