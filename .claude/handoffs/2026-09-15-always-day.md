@@ -59,3 +59,10 @@ a third layer button ("Always day") on /month/ and later /conus/.
 When done: write a 5-line summary at the end of this file (what shipped, the control numbers, what
 looked wrong), commit, and message the session named "physics-clouds" via SendMessage if it exists
 (one line: DONE + URL), else just finish.
+
+## Done (15 Sep 2026, evening)
+1. Shipped: `scripts/always_day.py` -> `data/goes/california_x3_day/` (5,816 frames, every IR stamp) -> `site/month/california_x3_day/` (calendar, month.mp4, hours/, days/, control.json, control_strip.jpg); third layer button "Always day" + section `#alwaysday` on https://earthai-scales.vercel.app/month/ (the page hunks were committed by the RIFE session in 975f31b, which swept the shared working file).
+2. Control, 20 random daytime pairs (calibration stamps excluded): pixel agreement 87.4% (sea 86.7%, land 89.4%); 90.1% of GeoColor's cloud pixels are cloud in always-day (93.0% over sea); 86.6% of painted cloud is confirmed by GeoColor. Cloud share 54.5% GeoColor vs 56.0% always-day.
+3. Two departures from the brief, both measured: the opacity ramp is not 12 K but a CURVE read off 60 daytime pairs (mean GeoColor luminance per 1 K of cold anomaly): over sea it saturates by 5 K (half at 2.2 K); the guessed 2+8 K ramp missed most of the deck (hit 56%). And the basemap is composited from the GeoColor month itself (land 10-30th percentile, sea 2-8th then 12 px smoothed), not GIBS/EOX, so the ground is the player's own colours.
+4. Trap: IRPalette's 6-bit colour cube quantises the grey ramp to ~1.5 K, which posterised the 5 K sea ramp into three flat tones; `FineGrey` interpolates the grey value inside the main ramp (only where IRPalette already says main ramp, so the cold-ramp trap stays handled), self-check 1.0 C.
+5. What looks wrong: the deck is flatter and whiter than GeoColor's (infrared carries no texture), thin cirrus renders as opaque as the deck, land is a fixed noon so nothing warms or shadows move, and the thinnest deck (within ~1 K of the sea) is simply absent, most visibly at night where nothing corrects it. CONUS not done (brief said later).
