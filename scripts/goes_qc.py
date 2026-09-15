@@ -18,6 +18,11 @@ Two defects, each with its own instrument:
   frozen frame a frame byte-identical in content to the one ten minutes before it. A stale
                repeat is not weather standing still, and it would quietly inflate every
                frame-to-frame persistence number computed from this archive.
+  flash        a frame whose mean brightness jumps away from BOTH neighbours by more than 6
+               grey levels in the same direction while the neighbours agree within 4: a single
+               frame rendered in the wrong mode (GeoColor's day/night switch misfiring). Found
+               16 in the California month (jumps up to 72 levels), none in infrared. They read
+               as a strobe in any clip, and a learned interpolator dutifully morphs into them.
 
 Without --apply it only reports. With --apply it MOVES flagged frames into <dir>/_qc_rejected/
 and appends the reason to <dir>/_qc_rejected/qc.jsonl. Nothing is deleted: a false positive is
@@ -39,6 +44,8 @@ import numpy as np
 from PIL import Image
 
 WHITE_TILE_MAX = 0.05     # a tile more than 5% pure white is a render artifact
+FLASH_JUMP = 6.0          # mean grey levels a flash frame differs from BOTH neighbours
+FLASH_AGREE = 4.0         # ... while the neighbours agree with each other within this
 KNOWN_BAD = "data/goes/california_x3/2026-09-11T230000Z.jpg"
 
 
@@ -55,8 +62,9 @@ def inspect(p: Path, side: int = 256) -> dict:
              for y in range(a.shape[0] // side) for x in range(a.shape[1] // side)]
     # a content hash on a coarse, quantised thumbnail: JPEG re-encodes can differ in bytes for
     # the same picture, so hash what the picture IS rather than the file
-    thumb = np.asarray(Image.fromarray(a).convert("L").resize((64, 64), Image.BOX)) // 4
-    return dict(white=float(pure.mean()), white_tile_max=max(tiles),
+    grey = np.asarray(Image.fromarray(a).convert("L").resize((64, 64), Image.BOX))
+    thumb = grey // 4
+    return dict(white=float(pure.mean()), white_tile_max=max(tiles), lum=float(grey.mean()),
                 digest=hashlib.sha1(thumb.tobytes()).hexdigest())
 
 
@@ -99,6 +107,7 @@ def main(src, apply, span, st):
     click.echo(f"{src}: {len(frames)} frames")
     flagged, prev = [], None
     with click.progressbar(frames, label="inspecting") as it:
+        lum = {}
         for p in it:
             r = inspect(p)
             why = None
@@ -109,6 +118,18 @@ def main(src, apply, span, st):
             if why:
                 flagged.append((p, why))
             prev = (p, r["digest"])
+            lum[p] = r["lum"]
+    # flash: needs the whole series. Only frames with both neighbours within 20 minutes qualify.
+    ordered = [p for p in frames if p in lum]
+    already = {p for p, _ in flagged}
+    for i in range(1, len(ordered) - 1):
+        a, b, c = ordered[i - 1], ordered[i], ordered[i + 1]
+        if b in already or stamp(b) - stamp(a) > timedelta(minutes=20) or stamp(c) - stamp(b) > timedelta(minutes=20):
+            continue
+        d1, d2 = lum[b] - lum[a], lum[b] - lum[c]
+        if min(abs(d1), abs(d2)) > FLASH_JUMP and (d1 > 0) == (d2 > 0) and abs(lum[c] - lum[a]) < FLASH_AGREE:
+            flagged.append((b, f"flash: {d1:+.1f} vs previous, {d2:+.1f} vs next"))
+    flagged.sort(key=lambda x: x[0].name)
     kinds = {}
     for _, why in flagged:
         kinds[why.split(":")[0]] = kinds.get(why.split(":")[0], 0) + 1
