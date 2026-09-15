@@ -74,10 +74,13 @@ PLACES = {
     # block of tiles whose TOP-LEFT is (4, 10): lon -135 to -56.25, lat 21.9 to 55.8, 1792x1024.
     # GOES-East sits at 75W, so California is 45 degrees off nadir here: oblique but reprojected.
     "conus":        ("goes_east", 5, 4, 10, (11, 24)),
+    # the North Atlantic from GOES-East at z4 (~10 km/px): a 5x5 block, top-left (4, 2): lon -90 to
+    # 22.5, lat 79 to 30. Greenland, Iceland and Spain -- the path of the 12 Aug 2026 total eclipse.
+    "natlantic":    ("goes_east", 4, 4, 2, (10, 22)),
 }
 # places fetched as a RECTANGULAR block (cols, rows) with x, y as the top-left tile, rather
 # than an NxN --span centred on the named tile. Their directory is <name><layer tag>.
-RECT = {"conus": (7, 4)}
+RECT = {"conus": (7, 4), "natlantic": (5, 5)}
 
 
 def tile(layer, t, z, x, y):
@@ -131,9 +134,10 @@ def fetch(layer, t, z, x, y, span=1, rect=None):
                    "rendering is a different picture; the comparison timelapse wants both")
 @click.option("--places", default=None, help="comma-separated subset of places")
 @click.option("--span", default=1, type=int, help="stitch an NxN block of tiles per frame (3 = 768 px); costs N^2 requests")
+@click.option("--window", default=None, help="instead of --days/--hours: an explicit UTC window 'YYYY-MM-DDTHH:MM/YYYY-MM-DDTHH:MM' (one-off events)")
 @click.option("--max-black", default=0.01, type=float, help="drop frames with more pure-black (missing) pixels than this")
 @click.option("--min-mean", default=0.18, type=float, help="drop night frames (GeoColor goes infrared after dark)")
-def main(place, all_places, days, hours, stride, out, workers, max_black, min_mean, layer, allday, places, span):
+def main(place, all_places, days, hours, stride, out, workers, max_black, min_mean, layer, allday, places, span, window):
     names = list(PLACES) if all_places else (places.split(",") if places else [place])
     if not names or names == [None]:
         raise SystemExit("give --place or --all")
@@ -150,7 +154,10 @@ def main(place, all_places, days, hours, stride, out, workers, max_black, min_me
         lfull = layer_name(sat, layer)
         (out / dname).mkdir(exist_ok=True)
         times = []
-        if hours:
+        if window:
+            a, b = (datetime.strptime(x, "%Y-%m-%dT%H:%M").replace(tzinfo=timezone.utc) for x in window.split("/"))
+            times = [a + timedelta(minutes=stride * k) for k in range(int((b - a).total_seconds() // 60 // stride) + 1)]
+        elif hours:
             # still daylight-only: GeoColor switches to infrared at night, which is a different
             # picture entirely and reads as missing data to a black-pixel filter
             times = [t for t in (now - timedelta(minutes=stride * k) for k in range(hours * 60 // stride))
