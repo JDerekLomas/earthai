@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Whole Earth</title>
+<meta name="description" content="Three days of the real atmosphere on a turning globe: five geostationary satellites stitched into one picture every ten minutes.">
+<style>html{color-scheme:light dark} body{margin:0} img,video{max-width:100%} [hidden]{display:none!important}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#e9edf1; --surface:#ffffff; --sunk:#dfe5ea;
+    --ink:#13202e; --muted:#5b6b7d; --faint:#8493a4;
+    --line:#c7d1da; --hair:#dbe2e8;
+    --ochre:#b3652a; --cool:#37718f; --deep:#0f2233;
+    --ok:#2f7d5b; --no:#a33a2a;
+    --shadow:0 1px 2px rgba(15,34,51,.08), 0 8px 24px rgba(15,34,51,.06);
+    --stage:#04090f;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+      --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+      --line:#27394b; --hair:#1c2c3c;
+      --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+      --ok:#5cb98d; --no:#e0765f;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+    --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+    --line:#27394b; --hair:#1c2c3c;
+    --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+    --ok:#5cb98d; --no:#e0765f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+  *{box-sizing:border-box}
+  body{background:var(--ground); color:var(--ink);
+    font:400 16px/1.55 "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    padding-block:0 72px; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1120px; margin:0 auto; display:flex; flex-direction:column; gap:52px; padding-left:20px; padding-right:20px}
+  h1,h2,h3{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif; text-wrap:balance; margin:0}
+  h1{font-size:clamp(30px,4.6vw,46px); font-weight:600; letter-spacing:-.015em; line-height:1.08}
+  h2{font-size:clamp(20px,2.6vw,26px); font-weight:600; letter-spacing:-.01em}
+  h3{font-size:16px; font-weight:600}
+  p{margin:0; max-width:66ch}
+  a{color:var(--cool)}
+  .lede{font-size:clamp(17px,2vw,19px); color:var(--muted); max-width:62ch}
+  .eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--faint)}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+  section{display:flex; flex-direction:column; gap:18px}
+  .head{display:flex; flex-direction:column; gap:8px}
+  header{display:flex; flex-direction:column; gap:16px}
+  .claim{font-family:"IBM Plex Sans Condensed",sans-serif; font-size:clamp(19px,2.4vw,23px); line-height:1.35;
+    max-width:34ch; border-left:3px solid var(--cool); padding-left:18px}
+  .claim b{color:var(--cool); font-weight:600}
+  .xl{font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.06em; text-decoration:none; color:var(--muted); border-bottom:1px solid var(--line); padding-bottom:2px}
+  .xl:hover{color:var(--cool); border-color:var(--cool)}
+  .links{display:flex; flex-wrap:wrap; gap:20px}
+  button{font:500 13px/1 "IBM Plex Sans",sans-serif; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:3px; padding:8px 12px; cursor:pointer}
+  button:hover{border-color:var(--cool); color:var(--cool)}
+  button[aria-pressed="true"]{background:var(--cool); border-color:var(--cool); color:#fff}
+  button:focus-visible{outline:2px solid var(--ochre); outline-offset:2px}
+  .seg{display:inline-flex; border:1px solid var(--line); border-radius:3px; overflow:hidden}
+  .seg button{border:0; border-radius:0; border-left:1px solid var(--line)}
+  .seg button:first-child{border-left:0}
+  .bar{display:flex; flex-wrap:wrap; gap:12px; align-items:center}
+
+  /* the stage: full-bleed, dark whatever the theme; the globe is the page */
+  .stagewrap{background:var(--stage); color:#c9d6e2}
+  .stage{position:relative; height:min(82vh, 900px); min-height:420px; overflow:hidden;
+    background:radial-gradient(ellipse at 50% 45%, #0b1a2a 0%, var(--stage) 62%)}
+  .stage canvas{display:block; width:100%; height:100%; touch-action:none; cursor:grab}
+  .stage canvas.drag{cursor:grabbing}
+  .stage .load{position:absolute; inset:0; display:grid; place-items:center; font:13px "IBM Plex Mono",monospace; color:#7d93a8; text-align:center; padding:20px; pointer-events:none}
+  .stage .clock{position:absolute; left:20px; bottom:16px; font:500 13px/1.4 "IBM Plex Mono",monospace; color:#dbe9f3; text-shadow:0 1px 2px #000; pointer-events:none}
+  .stage .clock small{display:block; font-weight:400; color:#8fa3b8; font-size:11px; letter-spacing:.08em; text-transform:uppercase}
+  .stage .hint{position:absolute; right:20px; bottom:16px; font:11px "IBM Plex Mono",monospace; letter-spacing:.08em; text-transform:uppercase; color:#6c8399; pointer-events:none}
+  .controls{max-width:1120px; margin:0 auto; padding:14px 20px 18px; display:flex; flex-direction:column; gap:12px}
+  .controls .bar{justify-content:space-between}
+  .controls .bar > div{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+  .stagewrap button{color:#c9d6e2; background:#0e1a27; border-color:#25384c}
+  .stagewrap button:hover{color:#fff; border-color:#6aa9c9}
+  .stagewrap button[aria-pressed="true"]{background:#37718f; border-color:#37718f; color:#fff}
+  .stagewrap .seg{border-color:#25384c} .stagewrap .seg button{border-left-color:#25384c}
+  .scrub{width:100%; accent-color:#6aa9c9; margin:0}
+  .lbl{font:11px "IBM Plex Mono",monospace; letter-spacing:.1em; text-transform:uppercase; color:#6c8399; margin-right:2px}
+  .flat{max-width:1120px; margin:0 auto; padding:0 20px 20px}
+  .flat video{display:block; width:100%; border:1px solid #1c2c3c; border-radius:3px; background:#000}
+  .flat.hide{height:0; padding:0; overflow:hidden; position:relative}
+  .flat.hide video{position:absolute; width:2px; height:1px; opacity:0; pointer-events:none}
+  .flat.hide figcaption{display:none}
+  .flat figcaption{font-size:13px; color:#8fa3b8; margin-top:8px}
+
+  .tw{overflow-x:auto; background:var(--surface); border:1px solid var(--hair); border-radius:4px; box-shadow:var(--shadow)}
+  table{border-collapse:collapse; width:100%; font-size:13.5px; min-width:560px}
+  th,td{text-align:left; padding:9px 14px; border-top:1px solid var(--hair); vertical-align:top}
+  thead th{border-top:0; font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); padding-top:13px; padding-bottom:11px}
+  td.n{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; white-space:nowrap}
+  .sw{display:inline-block; width:11px; height:11px; border-radius:2px; vertical-align:-1px; margin-right:8px}
+  .cols{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:18px}
+  .note{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:16px 18px; display:flex; flex-direction:column; gap:8px; box-shadow:var(--shadow)}
+  .note p{font-size:14px; color:var(--muted)}
+  .note.have{border-left:3px solid var(--ok)}
+  .note.maybe{border-left:3px solid var(--ochre)}
+  .note.gate{border-left:3px solid var(--no)}
+  .status{font:500 11px "IBM Plex Mono",monospace; letter-spacing:.08em; text-transform:uppercase}
+  .have .status{color:var(--ok)} .maybe .status{color:var(--ochre)} .gate .status{color:var(--no)}
+  figure{margin:0; display:flex; flex-direction:column; gap:8px}
+  .plate{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:8px; box-shadow:var(--shadow); line-height:0}
+  .plate img{display:block; width:100%; border-radius:2px}
+  figcaption{font-size:13.5px; color:var(--muted); max-width:70ch; line-height:1.5}
+  footer{border-top:1px solid var(--line); padding-top:22px; font-size:13px; color:var(--faint)}
+</style>
+</head>
+<body>
+
+<div class="stagewrap">
+  <div class="stage" id="stage">
+    <div class="load" id="load">loading three days of Earth…</div>
+    <div class="clock" id="clock"><small>UTC</small>—</div>
+    <div class="hint">drag to turn · scroll to zoom</div>
+  </div>
+  <div class="controls">
+    <input class="scrub" id="scrub" type="range" min="0" max="0" value="0" step="1" aria-label="time">
+    <div class="bar">
+      <div>
+        <button id="play" aria-pressed="true">Pause</button>
+        <span class="lbl">speed</span>
+        <div class="seg" role="group" aria-label="speed">
+          <button data-rate="0.25">¼</button><button data-rate="1" aria-pressed="true">1×</button><button data-rate="2">2×</button>
+        </div>
+      </div>
+      <div>
+        <span class="lbl">frame</span>
+        <div class="seg" role="group" aria-label="frame of reference">
+          <button data-mode="earth" aria-pressed="true">Earth-fixed</button><button data-mode="sun">Sun-fixed</button>
+        </div>
+        <button id="seams" aria-pressed="false">Seams</button>
+        <button id="flat" aria-pressed="false">Flat map</button>
+      </div>
+    </div>
+  </div>
+  <figure class="flat hide" id="flatwrap">
+    <video id="vid" muted loop playsinline preload="auto" crossorigin="anonymous"></video>
+    <figcaption>The same picture unwrapped: the equirectangular mosaic the globe is wearing. Longitude runs left to right from 180°W to 180°E; the top and bottom bands are the basemap, not weather.</figcaption>
+  </figure>
+</div>
+
+<div class="wrap" style="padding-top:44px">
+
+<header>
+  <div class="eyebrow">earthai · the whole Earth · five satellites every ten minutes</div>
+  <h1>The whole Earth, every ten minutes</h1>
+  <p class="claim"><b id="daysclaim">Three days</b> of the real atmosphere, all of it at once, from the five satellites that hang over the equator.</p>
+  <p class="lede">Five geostationary satellites each photograph their own side of the planet every ten minutes, day and night. This page stitches those pictures onto one globe and plays them back at four hours a second. Drag to turn it, or just watch. Switch to <em>sun-fixed</em> and the daylight stands still while the Earth turns underneath it.</p>
+  <div class="links">
+    <a class="xl" href="../goes/">ten minutes apart &rarr;</a>
+    <a class="xl" href="../month/">one place, one month &rarr;</a>
+    <a class="xl" href="../conus/">the lower 48 &rarr;</a>
+    <a class="xl" href="../hrrr/">physics against the satellite &rarr;</a>
+    <a class="xl" href="../">all pages &rarr;</a>
+  </div>
+</header>
+
+<section>
+  <div class="head">
+    <h2>What you are looking at</h2>
+    <p>Each satellite sits 36,000 km above one point on the equator and sees a little less than half the globe. Where two of them see the same place, their pictures are averaged, weighted by how steeply each one looks down: a place directly under a satellite is all that satellite, a place seen at a grazing angle counts for less, and past 70° off nadir a satellite is not used at all. The <em>Seams</em> button tints the picture by which satellite it came from, so the blend can be inspected rather than taken on trust.</p>
+  </div>
+  <div class="tw">
+    <table>
+      <thead><tr><th>satellite</th><th>over</th><th>what it gives</th><th>where it comes from</th></tr></thead>
+      <tbody>
+        <tr><td><span class="sw" style="background:#3778c8"></span>GOES-West</td><td class="n">137.0°W</td><td>GeoColor: true colour by day, infrared over city lights by night</td><td>NASA GIBS, every 10 min</td></tr>
+        <tr><td><span class="sw" style="background:#dc8c32"></span>GOES-East</td><td class="n">75.2°W</td><td>GeoColor</td><td>NASA GIBS, every 10 min</td></tr>
+        <tr><td><span class="sw" style="background:#46aa6e"></span>Meteosat MTG-I1</td><td class="n">0°</td><td>GeoColour, EUMETSAT's own version of the same idea</td><td>EUMETView, every 10 min</td></tr>
+        <tr><td><span class="sw" style="background:#aa5abe"></span>Meteosat-9</td><td class="n">45.5°E</td><td>Infrared only, 10.8 µm. Clouds are <em>painted</em> from their temperature, see below</td><td>EUMETView, every 15 min</td></tr>
+        <tr><td><span class="sw" style="background:#d24646"></span>Himawari-9</td><td class="n">140.7°E</td><td>Infrared only, Band 13. Painted the same way</td><td>NASA GIBS, every 10 min</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Underneath everything is NASA's Blue Marble, lit by the computed sun, with the VIIRS city-lights map on the night side. It shows through wherever no satellite is trusted.</p>
+</section>
+
+<section>
+  <div class="head">
+    <h2>The seams and the gaps</h2>
+  </div>
+  <div class="cols">
+    <div class="note gate"><span class="status">the poles</span><h3>Nothing looks down on the poles</h3><p>Every one of these satellites is over the equator. Poleward of about 60° they see the Earth edge-on, and past 70° off nadir their picture is not used. The polar caps and the top and bottom of the flat map are the basemap, dimmed and standing still: there is no weather there on this page. A polar-orbiting satellite would fill it, at twice a day rather than every ten minutes.</p></div>
+    <div class="note maybe"><span class="status">two kinds of picture</span><h3>Real colour and painted cloud</h3><p>GOES-East, GOES-West and MTG deliver a finished colour picture. Himawari and Meteosat-9 are used here through their infrared channel alone, which measures cloud-top temperature. Cold is turned into an opaque white cloud and laid over the basemap. That rendering cannot see warm low cloud, fog or marine stratocumulus, and it paints very cold ground, the Tibetan plateau or Antarctic air over Australia in winter, as if it were cloud. The seam between the two kinds runs down the Indian Ocean and across the western Pacific.</p></div>
+    <div class="note maybe"><span class="status">the overlaps</span><h3>Blended, not cut</h3><p>Where two satellites see the same place at a slant, their pictures are averaged. Colour balance differs a little between agencies and the horizon of each disk is hazy, so the mid-Atlantic and the central Pacific are slightly softer than the middle of a disk. Time is exact to the minute for four satellites; Meteosat-9 runs every fifteen minutes and the nearest picture is used, so its clouds step a little.</p></div>
+    <div class="note have"><span class="status">the cadence</span><h3>Every ten minutes, all of it</h3><p id="cadence">One frame every ten minutes, 24 frames a second: four hours of weather a second, a day in six seconds. The archive on this page is three days; NASA GIBS keeps about thirty-five and EUMETSAT keeps years, so the same page can hold a month once it is worth the download.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>Why a globe</h2>
+    <p>A flat map lies about the poles and hides the fact that the atmosphere is one connected thing. On the sphere the tropical storms of the western Pacific, the fronts crossing the Atlantic and the great swirls of the Southern Ocean are all one fluid on one ball, and the day-night line is a line the planet turns through. That is the picture a model of how skies change should have in its head; this page is for checking that the data can be assembled into it.</p>
+  </div>
+</section>
+
+<footer>
+  GOES-East and GOES-West GeoColor, Himawari-9 Band 13, Blue Marble and VIIRS city lights via NASA GIBS (epsg4326) · MTG-I1 GeoColour and Meteosat-9 IR 10.8 via EUMETView, EUMETSAT ·
+  mosaics and video by <span class="mono">scripts/fetch_earth.py</span> · rendered with three.js <span id="threev"></span> · <span id="man"></span>
+</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.152.2/three.min.js"></script>
+<script>
+(function(){
+  const stage=document.getElementById('stage'), load=document.getElementById('load'), clock=document.getElementById('clock');
+  const vid=document.getElementById('vid'), scrub=document.getElementById('scrub'), playBtn=document.getElementById('play');
+  const seamsBtn=document.getElementById('seams'), flatBtn=document.getElementById('flat'), flatwrap=document.getElementById('flatwrap');
+  let man=null, mode='earth', spin=0, tilt=0.25, offset=0, vSpin=0, vTilt=0, dragging=false, lastFrame=-1, dist=4.3;
+  const DEG=Math.PI/180;
+  document.getElementById('threev').textContent='r'+THREE.REVISION;
+
+  // ---- scene
+  const renderer=new THREE.WebGLRenderer({antialias:true, alpha:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.outputColorSpace=THREE.SRGBColorSpace;
+  stage.insertBefore(renderer.domElement, stage.firstChild);
+  const scene=new THREE.Scene();
+  const cam=new THREE.PerspectiveCamera(30,1,0.1,50); cam.position.set(0,0,dist);
+  const tex=new THREE.VideoTexture(vid); tex.colorSpace=THREE.SRGBColorSpace; tex.minFilter=THREE.LinearFilter; tex.generateMipmaps=false;
+  const globe=new THREE.Mesh(new THREE.SphereGeometry(1,96,64), new THREE.MeshBasicMaterial({map:tex}));
+  const seamTex=new THREE.TextureLoader().load('seams.png'); seamTex.colorSpace=THREE.SRGBColorSpace;
+  const seams=new THREE.Mesh(new THREE.SphereGeometry(1.003,96,64), new THREE.MeshBasicMaterial({map:seamTex, transparent:true, opacity:0.8, depthWrite:false}));
+  seams.visible=false;
+  // a thin atmosphere: additive rim on a back-facing shell
+  const atmo=new THREE.Mesh(new THREE.SphereGeometry(1.035,96,64), new THREE.ShaderMaterial({
+    side:THREE.BackSide, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false,
+    vertexShader:`varying vec3 vN; varying vec3 vP; void main(){ vN=normalize(normalMatrix*normal); vec4 p=modelViewMatrix*vec4(position,1.0); vP=p.xyz; gl_Position=projectionMatrix*p; }`,
+    fragmentShader:`varying vec3 vN; varying vec3 vP; void main(){ /* back faces of a shell 3.5% wider than the globe: |dot| is ~0.26 at the globe's rim and 0 at the shell's, so this is bright against the limb and fades outward */ float d=clamp(-dot(normalize(vN), normalize(-vP))/0.26, 0.0, 1.0); float f=pow(d, 1.6); gl_FragColor=vec4(0.40,0.62,0.92,1.0)*f*0.75; }`
+  }));
+  const tiltG=new THREE.Group(); tiltG.add(globe); tiltG.add(seams); tiltG.add(atmo); scene.add(tiltG);
+
+  function size(){ const w=stage.clientWidth, h=stage.clientHeight; renderer.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix(); }
+  addEventListener('resize', size); size();
+
+  // ---- manifest + video
+  fetch('earth.json').then(r=>r.json()).then(m=>{
+    man=m; scrub.max=m.frames-1;
+    const d=m.frames>=144 ? `${Math.round(m.frames/144)} days` : `${Math.round(m.frames/6)} hours`;   // one frame per ten minutes
+    document.getElementById('man').textContent=`${m.frames} frames, ${m.start.replace('T',' ')} to ${m.end.replace('T',' ')}, ${(m.bytes/1e6).toFixed(0)} MB`;
+    document.getElementById('daysclaim').textContent=d; load.textContent=`loading ${d} of Earth, ${(m.bytes/1e6).toFixed(0)} MB…`;
+    vid.src='earth.mp4'; vid.load(); vid.play().catch(()=>{});
+  });
+  vid.addEventListener('canplay', ()=>{ load.hidden=true; }, {once:true});
+  vid.addEventListener('error', ()=>{ load.textContent='the video failed to load'; });
+
+  function frame(){ if(!man) return 0; return Math.min(man.frames-1, Math.floor(vid.currentTime*man.fps+1e-4)); }
+  function sunLon(i){ return man ? man.t[i].sun : 0; }
+  function showClock(i){
+    if(!man) return;
+    const t=man.t[i].t; const d=new Date(t.replace('Z',':00Z'));
+    const day=d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'});
+    clock.innerHTML=`<small>UTC · frame ${i+1} of ${man.frames}</small>${day} · ${t.slice(11,16)}`;
+    if(!scrubbing) scrub.value=i;
+  }
+
+  // ---- interaction
+  let scrubbing=false;
+  scrub.addEventListener('input', ()=>{ scrubbing=true; if(man) vid.currentTime=scrub.value/man.fps; });
+  scrub.addEventListener('change', ()=>{ scrubbing=false; });
+  playBtn.addEventListener('click', ()=>{ if(vid.paused){ vid.play(); playBtn.textContent='Pause'; playBtn.setAttribute('aria-pressed','true'); } else { vid.pause(); playBtn.textContent='Play'; playBtn.setAttribute('aria-pressed','false'); } });
+  document.querySelectorAll('[data-rate]').forEach(b=>b.addEventListener('click', ()=>{ vid.playbackRate=+b.dataset.rate; document.querySelectorAll('[data-rate]').forEach(x=>x.setAttribute('aria-pressed', x===b)); }));
+  document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click', ()=>{
+    const m=b.dataset.mode;
+    if(m!==mode){ // keep the globe where it is on the switch: solve the other frame's offset for the current rotation
+      const cur=globe.rotation.y;
+      if(m==='sun'){ offset=cur-(-Math.PI/2-sunLon(frame())*DEG); } else { spin=cur; }
+      mode=m; vSpin=0;
+    }
+    document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed', x===b));
+  }));
+  seamsBtn.addEventListener('click', ()=>{ seams.visible=!seams.visible; seamsBtn.setAttribute('aria-pressed', seams.visible); });
+  flatBtn.addEventListener('click', ()=>{ const on=flatwrap.classList.toggle('hide'); flatBtn.setAttribute('aria-pressed', !on); });
+
+  const cv=renderer.domElement; let px=0, py=0, moved=0;
+  cv.addEventListener('pointerdown', e=>{ dragging=true; moved=0; px=e.clientX; py=e.clientY; vSpin=vTilt=0; cv.setPointerCapture(e.pointerId); cv.classList.add('drag'); });
+  cv.addEventListener('pointermove', e=>{ if(!dragging) return; const dx=e.clientX-px, dy=e.clientY-py; px=e.clientX; py=e.clientY; moved+=Math.abs(dx)+Math.abs(dy);
+    const k=0.0055*dist/4.3; vSpin=dx*k; vTilt=dy*k; if(mode==='earth') spin+=vSpin; else offset+=vSpin; tilt=Math.max(-1.25, Math.min(1.25, tilt+vTilt)); });
+  const up=e=>{ dragging=false; cv.classList.remove('drag'); };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  cv.addEventListener('wheel', e=>{ e.preventDefault(); dist=Math.max(2.2, Math.min(8, dist*(1+Math.sign(e.deltaY)*0.08))); cam.position.z=dist; }, {passive:false});
+
+  // ---- loop
+  function tick(){
+    requestAnimationFrame(tick);
+    const i=frame();
+    if(i!==lastFrame){ lastFrame=i; showClock(i); }
+    if(!dragging){ vSpin*=0.94; vTilt*=0.94; if(Math.abs(vSpin)>1e-4){ if(mode==='earth') spin+=vSpin; else offset+=vSpin; } if(Math.abs(vTilt)>1e-4) tilt=Math.max(-1.25, Math.min(1.25, tilt+vTilt)); }
+    if(mode==='earth'){ if(!dragging && !vid.paused) spin+=0.0007; globe.rotation.y=spin; }
+    else { globe.rotation.y=-Math.PI/2 - sunLon(i)*DEG + offset; }
+    seams.rotation.y=globe.rotation.y;
+    tiltG.rotation.x=tilt;
+    renderer.render(scene, cam);
+  }
+  // start facing the Americas by day-ish: longitude -90 is at the front when spin=0
+  tick();
+})();
+</script>
+</body>
+</html>
