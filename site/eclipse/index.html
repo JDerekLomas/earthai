@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The Moon's Shadow</title>
-<meta name="description" content="The total solar eclipse of 12 August 2026 seen from GOES-East: the Moon's shadow crossing Greenland, Iceland and the North Atlantic every ten minutes, with the clouds underneath unchanged.">
+<meta name="description" content="The total solar eclipse of 12 August 2026 seen from two geostationary satellites, Meteosat-12 under the path and GOES-East from the side: the Moon's shadow crossing Greenland, Iceland and Spain every ten minutes, with the clouds underneath unchanged.">
 <style>html{color-scheme:light dark} body{margin:0} img,video{max-width:100%} [hidden]{display:none!important}</style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -104,10 +104,10 @@
 <div class="wrap">
 
 <header>
-  <div class="eyebrow">earthai · one afternoon · GOES-East every ten minutes · 12 August 2026</div>
+  <div class="eyebrow">earthai · one afternoon · Meteosat-12 and GOES-East, every ten minutes · 12 August 2026</div>
   <h1>The Moon's shadow</h1>
   <p class="claim">The total solar eclipse of 12 August 2026, seen from 36,000 km above the equator: <b>the shadow sweeps from Greenland across Iceland to Spain in about two hours</b>, and the clouds under it do not move.</p>
-  <p class="lede">GOES-East photographs its whole side of the planet every ten minutes. On the afternoon of 12 August the Moon's shadow crossed the top of its picture. This page is that afternoon, 14:00 to 20:30 UTC, in true colour, with the daily rise and fall of the sun taken out so that the only thing that darkens is the eclipse.</p>
+  <p class="lede">Two weather satellites photograph their whole side of the planet every ten minutes. On the afternoon of 12 August the Moon's shadow crossed the top of both their pictures: Meteosat-12, over the Greenwich meridian, saw it from almost underneath; GOES-East, over the Americas, saw it on its horizon. This page is that afternoon, 14:00 to 20:30 UTC, from both, with the daily rise and fall of the sun taken out so that the only thing that darkens is the eclipse.</p>
   <div class="links">
     <a class="xl" href="../">home &rarr;</a>
     <a class="xl" href="../earth/">the whole Earth &rarr;</a>
@@ -116,13 +116,80 @@
   </div>
 </header>
 
+<section id="meteosat">
+  <div class="head">
+    <div class="eyebrow">Meteosat-12 (MTG-I1) · 0° longitude · imagery EUMETSAT</div>
+    <h2>From Meteosat, under the path</h2>
+    <p>Europe's weather satellite hangs over the Gulf of Guinea, on the Greenwich meridian, and the whole path of the eclipse, Greenland to Spain, ran across the top left of its picture. Same afternoon, same window of the map as the GOES-East version below. <em>Smooth</em> stretches the forty real frames over half a minute with seven learned in-between frames per pair (RIFE), so the shadow glides; <em>real frames</em> is the same at six a second; <em>plain light</em> is the satellite's red band alone, with the height of the sun divided out, where the shadow is simply dark. Night comes in from the right as the afternoon goes on. The shadow comes in from the top at about 16:40, sits over Iceland at 17:40, and leaves through Spain at 18:20.</p>
+  </div>
+  <div class="bar">
+    <div class="seg" id="mtg-seg" role="group" aria-label="version, Meteosat">
+      <button data-src="mtg_smooth.mp4" aria-pressed="true" title="EUMETSAT true colour, seven learned in-between frames per real pair, 10 fps, 31 s">Smooth</button>
+      <button data-src="mtg.mp4" aria-pressed="false" title="EUMETSAT true colour, 6 real frames a second">Real frames</button>
+      <button data-src="mtg_vis06.mp4" aria-pressed="false" title="the 0.6 µm band, sun height normalised, 6 real frames a second">Plain light</button>
+    </div>
+    <span class="mono" style="font-size:12px;color:var(--muted)">40 frames · 14:00–20:30 UTC · MTG-I1 FCI · 5 km per pixel · EUMETSAT</span>
+  </div>
+  <div>
+    <div class="stage" style="aspect-ratio:2000/1100">
+      <video id="v2" playsinline muted loop autoplay preload="auto" poster="mtg_poster.jpg" src="mtg_smooth.mp4"></video>
+      <div class="clock"><span id="clock2">14:00</span> UTC<small>12 AUG 2026</small></div>
+    </div>
+    <input class="scrub" id="scrub2" type="range" min="0" max="1000" value="0" aria-label="scrub through the afternoon, Meteosat">
+  </div>
+
+  <div class="head">
+    <h3>The umbra over Iceland</h3>
+  </div>
+  <div class="two">
+    <figure>
+      <div class="plate"><img src="mtg_iceland_vis06_1640.jpg" alt="The North Atlantic from Greenland's east coast to Norway at 16:40 UTC in the 0.6 micron band, sun height normalised: a fully lit cloud field with Iceland under it" loading="lazy"></div>
+      <figcaption>16:40 UTC, the red band with the sun's height divided out. Greenland's east coast is at the top left, Iceland under the cloud in the middle, Norway at the right edge. An hour before the shadow.</figcaption>
+    </figure>
+    <figure>
+      <div class="plate"><img src="mtg_iceland_vis06_1740.jpg" alt="The same view at 17:40 UTC with a black oval, the umbra, sitting on the cloud over Iceland and a grey penumbra around it" loading="lazy"></div>
+      <figcaption>17:40 UTC, the same crop and normalisation. The umbra seen from almost underneath: an oval of night about 250 km across resting on the cloud over Iceland, the penumbra greying the sea for a thousand kilometres around it. Nothing in the cloud has moved.</figcaption>
+    </figure>
+  </div>
+
+  <div class="head">
+    <h3>The same minute, in light and in heat</h3>
+  </div>
+  <figure>
+    <div class="plate"><img src="mtg_pair_1730.jpg" alt="Two views from Meteosat at 17:30 UTC: true colour on the left with the shadow over Greenland and Iceland rendered in red and orange, thermal infrared on the right with the same cloud pattern and no shadow" loading="lazy"></div>
+    <figcaption>17:30 UTC. Left, EUMETSAT's true colour, in which the shadow comes out the colour of sunset (see below for why); right, the 10.5 µm thermal channel, colder is whiter, in which there is no shadow at all. Over the Greenland box the thermal reading whitened by about five levels of 255 during the shadow's twenty minutes and came back, the surface cooling a degree or two and warming again; the cloud pattern did not change.</figcaption>
+  </figure>
+
+  <div class="head">
+    <h3>How dark it got, from Meteosat</h3>
+    <p>Mean brightness of the 0.6 µm band inside five boxes, each frame, divided by the cosine of the sun's zenith angle as on the GOES chart further down. Greenland, Iceland and Spain are the same boxes as there; Britain lay under a nine-tenths partial eclipse; the control is a cloud-free patch of the Sahara. One more correction is needed here that was not needed for GOES: EUMETSAT switches its visible band off progressively once the sun is under about thirteen degrees, and the control box, which should be a flat line, measures that fade directly, so the other four curves are divided by it. The climb of the northern curves past their morning level after 18:30, off the top of the chart, is the normalisation over-correcting a very low sun on ice, the same thing that hazes the east of the GOES picture.</p>
+  </div>
+  <div class="chartbox">
+    <svg id="chart2" viewBox="0 0 900 360" role="img" aria-label="Normalised 0.6 micron brightness from Meteosat against UTC time for five regions on 12 August 2026"></svg>
+    <div class="key" id="key2"></div>
+  </div>
+  <div class="tw"><table>
+    <thead><tr><th>box</th><th>morning level</th><th>darkest</th><th>at (UTC)</th><th>fraction left</th></tr></thead>
+    <tbody id="tbody2"></tbody>
+  </table></div>
+
+  <div class="head">
+    <h3>What is different from GOES-East</h3>
+    <p>GOES-East, at 75° west, and Meteosat-12, at 0°, are the same kind of satellite in the same kind of orbit, 36,000 km up over the equator, and both saw the whole event; the difference is the angle. From GOES-East the entire path lay on the very edge of the Earth, seen 82 to 85 degrees off vertical, which is why Spain was a smear there. From Meteosat, Spain is seen at 49 degrees and Iceland at 74, close enough that the umbra is a proper oval on the map rather than a bruise on the horizon; Greenland is as grazing from both, about 83 degrees, and the Labrador Sea, where GOES watched the shadow arrive, is past the edge of Meteosat's useful view. Both agree on the timing, deepest over Greenland at about half past five, Iceland ten minutes later, Spain at twenty past six UTC; Meteosat stamps a frame by its start and scans south to north, so Greenland's pixels in its 17:20 frame were taken near 17:30, and GOES, scanning north to south, stamps the same minute 17:30. The pictures differ more than the satellites do. The GOES frames on this page were built from the raw measurements, so their darkness is measured, and Meteosat's numbers, read off a rendered eight-bit picture, come out a little higher (13 and 6 per cent of the morning light over Greenland and Iceland, against 10 and 3), the dark end of a rendered picture being its least trustworthy part. And EUMETSAT's true colour is a finished product: already corrected for the height of the sun, with a correction for haze and the blue of the air that assumes a full sun, so under the umbra it over-corrects and paints the shadow the colour of sunset, and inside the umbra it gives up and goes black. The plain 0.6 µm band shows the same shadow as simple dark, and it is the one the curves are drawn from.</p>
+  </div>
+  <figure>
+    <div class="plate"><img src="mtg_geocolour_1730.jpg" alt="Meteosat GeoColour at 17:30 UTC: the eclipse shadow over Greenland and Iceland in sunset red, and the eastern Mediterranean already rendered as night with city lights" loading="lazy"></div>
+    <figcaption>A curiosity: EUMETSAT's GeoColour at 17:30, the product that blends a night rendering with city lights in wherever it decides it is dusk. It reads the eclipse as dusk too and gives the shadow the same sunset colour, while the real evening, with Cairo and Istanbul lit, comes in from the right.</figcaption>
+  </figure>
+</section>
+
 <section>
   <div class="head">
-    <h2>Watch it cross</h2>
+    <h2>Watch it cross, from GOES-East</h2>
     <p>Forty frames, one every ten minutes, six a second: the whole afternoon in under seven seconds. Greenland is top left, Iceland top centre, Spain bottom right against the black where the satellite's view of the Earth ends. The shadow arrives from the top at about 16:40 UTC, is darkest over Greenland at 17:30, over Iceland at 17:50 and over Spain at 18:30, and is gone by 19:00. The <em>smooth</em> version adds three learned in-between frames per real pair (RIFE); <em>as seen</em> is the raw picture, in which the east also darkens simply because evening is coming.</p>
   </div>
   <div class="bar">
-    <div class="seg" role="group" aria-label="version">
+    <div class="seg" id="goes-seg" role="group" aria-label="version, GOES-East">
       <button data-src="eclipse.mp4" aria-pressed="true" title="sun height normalised, 6 real frames a second">Normalised</button>
       <button data-src="eclipse_smooth.mp4" aria-pressed="false" title="normalised, three learned in-between frames per real pair, 24 fps">Smooth</button>
       <button data-src="eclipse_raw.mp4" aria-pressed="false" title="the raw true-colour frames, no normalisation">As seen</button>
@@ -214,60 +281,78 @@
     <div class="note gate">
       <span class="status">the limit</span>
       <h3>Europe is at the edge</h3>
-      <p>Spain, France and the path's end over the Mediterranean are on the limb of GOES-East's disk, seen at a grazing angle and stretched. Iceland and Greenland are fine. The right satellite for Europe is Meteosat, which EUMETSAT serves openly through its EUMETView service and which a later page could use; this page is the eclipse as America&#39;s weather satellite saw it, and stops where its view does.</p>
+      <p>Spain, France and the path's end over the Mediterranean are on the limb of GOES-East's disk, seen at a grazing angle and stretched. Iceland and Greenland are fine. The right satellite for Europe is Meteosat, which is why its view is at the top of this page; these GOES sections are the eclipse as America&#39;s weather satellite saw it, and stop where its view does.</p>
     </div>
   </div>
 </section>
 
 <footer>
-  <div>Frames are the scan start times; each full-disk scan takes about nine and a half minutes, sweeping north to south, so the top of a frame is a few minutes older than the bottom. Fetch and reprojection: <span class="mono">scripts/fetch_goes_aws.py</span>. Other pages: <a href="../">home</a>, <a href="../earth/">the whole Earth</a>, <a href="../month/">the California deck</a>, <a href="../conus/">the lower 48</a>, <a href="../hrrr/">HRRR against the satellite</a>.</div>
+  <div>Frames are the scan start times; each full-disk scan takes about nine and a half minutes, sweeping north to south, so the top of a frame is a few minutes older than the bottom. Meteosat frames are stamped the same way but scanned south to north. GOES fetch and reprojection: <span class="mono">scripts/fetch_goes_aws.py</span>; Meteosat: <span class="mono">scripts/fetch_eclipse_meteosat.py</span>, reading EUMETSAT's open EUMETView service. Meteosat imagery &copy; EUMETSAT, used under its open data terms. Other pages: <a href="../">home</a>, <a href="../earth/">the whole Earth</a>, <a href="../month/">the California deck</a>, <a href="../conus/">the lower 48</a>, <a href="../hrrr/">HRRR against the satellite</a>.</div>
 </footer>
 
 </div>
 <script>
 (() => {
-  const v = document.getElementById('v'), scrub = document.getElementById('scrub'), clock = document.getElementById('clock');
-  const T0 = 14 * 60, SPAN = 390;  // minutes: 14:00 -> 20:30
+  const T0 = 14 * 60, SPAN = 390;  // minutes: 14:00 -> 20:30, both satellites
   const fmt = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
-  let dragging = false;
-  v.addEventListener('timeupdate', () => {
-    if (!v.duration) return;
-    const f = v.currentTime / v.duration;
-    if (!dragging) scrub.value = Math.round(f * 1000);
-    clock.textContent = fmt(T0 + Math.round(f * SPAN / 10) * 10);
-  });
-  scrub.addEventListener('input', () => { dragging = true; if (v.duration) { v.pause(); v.currentTime = scrub.value / 1000 * v.duration; } });
-  scrub.addEventListener('change', () => { dragging = false; v.play(); });
-  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
-    document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', x === b));
-    const f = v.duration ? v.currentTime / v.duration : 0;
-    v.src = b.dataset.src; v.load();
-    v.addEventListener('loadedmetadata', () => { v.currentTime = f * v.duration; v.play(); }, { once: true });
-  }));
 
-  const NAMES = { greenland: 'Greenland', iceland: 'Iceland', labrador_sea: 'Labrador Sea', iberia: 'Spain and Portugal', control_sargasso: 'control, off the Bahamas' };
-  const COL = { greenland: '#37718f', iceland: '#b3652a', labrador_sea: '#6aa9c9', iberia: '#8a6a9f', control_sargasso: '#8493a4' };
-  fetch('curves.json').then(r => r.json()).then(d => {
-    const svg = document.getElementById('chart'), W = 900, H = 360, L = 48, R = 12, T = 14, B = 40;
-    const xs = d.times.map(t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; });
-    const x = m => L + (m - T0) / SPAN * (W - L - R);
-    const y = vv => T + (1 - vv / 0.8) * (H - T - B);
-    let s = '';
-    for (let g = 0; g <= 0.8; g += 0.2) s += `<line x1="${L}" x2="${W - R}" y1="${y(g)}" y2="${y(g)}" stroke="var(--hair)"/><text x="${L - 8}" y="${y(g) + 4}" text-anchor="end" font-size="11" font-family="IBM Plex Mono" fill="var(--faint)">${g.toFixed(1)}</text>`;
-    for (let h = 14; h <= 20; h++) s += `<text x="${x(h * 60)}" y="${H - 14}" text-anchor="middle" font-size="11" font-family="IBM Plex Mono" fill="var(--faint)">${h}:00</text>`;
-    for (const k of Object.keys(d.boxes)) {
-      const pts = d.boxes[k].norm.map((vv, i) => vv == null ? null : `${x(xs[i]).toFixed(1)},${y(vv).toFixed(1)}`).filter(Boolean).join(' ');
-      s += `<polyline points="${pts}" fill="none" stroke="${COL[k]}" stroke-width="${k === 'control_sargasso' ? 1.5 : 2.2}" stroke-dasharray="${k === 'control_sargasso' ? '4 4' : ''}" stroke-linejoin="round"/>`;
-    }
-    svg.innerHTML = s;
-    document.getElementById('key').innerHTML = Object.keys(d.boxes).map(k => `<span><i style="background:${COL[k]}"></i>${NAMES[k]}</span>`).join('');
-    const tb = document.getElementById('tbody');
-    tb.innerHTML = Object.keys(d.boxes).map(k => {
-      const n = d.boxes[k].norm, base = Math.max(...n.slice(0, 12)), lim = k === 'iberia' ? 30 : n.length;
-      let i = 0; for (let j = 0; j < lim; j++) if (n[j] < n[i]) i = j;
-      return `<tr><td>${NAMES[k]}</td><td class="n">${base.toFixed(2)}</td><td class="n">${n[i].toFixed(3)}</td><td class="n">${d.times[i]}</td><td class="n">${(n[i] / base * 100).toFixed(0)}%</td></tr>`;
-    }).join('');
-  });
+  function player(vId, scrubId, clockId, segId) {
+    const v = document.getElementById(vId), scrub = document.getElementById(scrubId), clock = document.getElementById(clockId);
+    const seg = document.getElementById(segId);
+    let dragging = false;
+    v.addEventListener('timeupdate', () => {
+      if (!v.duration) return;
+      const f = v.currentTime / v.duration;
+      if (!dragging) scrub.value = Math.round(f * 1000);
+      clock.textContent = fmt(T0 + Math.round(f * SPAN / 10) * 10);
+    });
+    scrub.addEventListener('input', () => { dragging = true; if (v.duration) { v.pause(); v.currentTime = scrub.value / 1000 * v.duration; } });
+    scrub.addEventListener('change', () => { dragging = false; v.play(); });
+    seg.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+      seg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+      const f = v.duration ? v.currentTime / v.duration : 0;
+      v.src = b.dataset.src; v.load();
+      v.addEventListener('loadedmetadata', () => { v.currentTime = f * v.duration; v.play(); }, { once: true });
+    }));
+  }
+  player('v2', 'scrub2', 'clock2', 'mtg-seg');
+  player('v', 'scrub', 'clock', 'goes-seg');
+
+  // o: {url, svg, key, tbody, names, col, series, control, top?, darkest(k, series, cos) -> index}; the svg clips what runs past top
+  function chart(o) {
+    fetch(o.url).then(r => r.json()).then(d => {
+      const svg = document.getElementById(o.svg), W = 900, H = 360, L = 48, R = 12, T = 14, B = 40;
+      const xs = d.times.map(t => { const [h, m] = t.split(':').map(Number); return h * 60 + m; });
+      const keys = Object.keys(o.names), vals = k => d.boxes[k][o.series];
+      const top = o.top || Math.max(0.8, Math.ceil(Math.max(...keys.flatMap(k => vals(k).filter(v => v != null))) / 0.2) * 0.2);
+      const x = m => L + (m - T0) / SPAN * (W - L - R);
+      const y = vv => T + (1 - vv / top) * (H - T - B);
+      let s = '';
+      for (let g = 0; g <= top + 1e-9; g += 0.2) s += `<line x1="${L}" x2="${W - R}" y1="${y(g)}" y2="${y(g)}" stroke="var(--hair)"/><text x="${L - 8}" y="${y(g) + 4}" text-anchor="end" font-size="11" font-family="IBM Plex Mono" fill="var(--faint)">${g.toFixed(1)}</text>`;
+      for (let h = 14; h <= 20; h++) s += `<text x="${x(h * 60)}" y="${H - 14}" text-anchor="middle" font-size="11" font-family="IBM Plex Mono" fill="var(--faint)">${h}:00</text>`;
+      for (const k of keys) {
+        const pts = vals(k).map((vv, i) => vv == null ? null : `${x(xs[i]).toFixed(1)},${y(vv).toFixed(1)}`).filter(Boolean).join(' ');
+        s += `<polyline points="${pts}" fill="none" stroke="${o.col[k]}" stroke-width="${k === o.control ? 1.5 : 2.2}" stroke-dasharray="${k === o.control ? '4 4' : ''}" stroke-linejoin="round"/>`;
+      }
+      svg.innerHTML = s;
+      document.getElementById(o.key).innerHTML = keys.map(k => `<span><i style="background:${o.col[k]}"></i>${o.names[k]}</span>`).join('');
+      document.getElementById(o.tbody).innerHTML = keys.map(k => {
+        const n = vals(k), base = Math.max(...n.slice(0, 12).filter(v => v != null));
+        const i = o.darkest(k, n, d.boxes[k].cos_sza);
+        return `<tr><td>${o.names[k]}</td><td class="n">${base.toFixed(2)}</td><td class="n">${n[i].toFixed(3)}</td><td class="n">${d.times[i]}</td><td class="n">${(n[i] / base * 100).toFixed(0)}%</td></tr>`;
+      }).join('');
+    });
+  }
+  // Meteosat: the darkest LIT frame (sun over ~7 degrees), since the normalised band goes to zero at night anyway
+  chart({ url: 'mtg_curves.json', svg: 'chart2', key: 'key2', tbody: 'tbody2', series: 'corrected', control: 'control_sahara', top: 1.0,
+    names: { greenland: 'Greenland', iceland: 'Iceland', britain: 'Britain', iberia: 'Spain and Portugal', control_sahara: 'control, Sahara' },
+    col: { greenland: '#37718f', iceland: '#b3652a', britain: '#6aa9c9', iberia: '#8a6a9f', control_sahara: '#8493a4' },
+    darkest: (k, n, cos) => { let i = -1; for (let j = 0; j < n.length; j++) if (n[j] != null && cos[j] > 0.12 && (i < 0 || n[j] < n[i])) i = j; return i; } });
+  // GOES-East: as before; Spain's search stops at 19:00 because after that it is night on the limb
+  chart({ url: 'curves.json', svg: 'chart', key: 'key', tbody: 'tbody', series: 'norm', control: 'control_sargasso',
+    names: { greenland: 'Greenland', iceland: 'Iceland', labrador_sea: 'Labrador Sea', iberia: 'Spain and Portugal', control_sargasso: 'control, off the Bahamas' },
+    col: { greenland: '#37718f', iceland: '#b3652a', labrador_sea: '#6aa9c9', iberia: '#8a6a9f', control_sargasso: '#8493a4' },
+    darkest: (k, n) => { const lim = k === 'iberia' ? 30 : n.length; let i = 0; for (let j = 0; j < lim; j++) if (n[j] < n[i]) i = j; return i; } });
 })();
 </script>
 </body>
