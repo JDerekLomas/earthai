@@ -44,14 +44,20 @@ same ten days as /earth/ (6–15 Sep 2026), and the native-resolution cache that
    `clouds.json`, poster) into `data/clouds/tenday/` (NOT into site/globe/), the opacity PNGs, and the
    clear-sky references. rsync over ssh with `--partial --bwlimit=0`; measure the rate. The native
    cache (~100+ GB) STAYS on the volume until the tiles pipeline has consumed it (see 4).
-4. Upload to R2 bucket `earthai-clouds` (exists, empty): native cache under `native/<sat>/<date>/`,
-   products under `tenday/`. `wrangler` on the laptop is logged in via OAuth, which cannot be copied
-   to the box. Two options, try in order: (a) `rclone` on the box with an R2 S3 API token — Derek must
-   create it in the Cloudflare dashboard (R2 > Manage API tokens > Object Read & Write, this bucket);
-   ask for it through your report / SendMessage to earth-7e and carry on with 1–3 meanwhile; (b) if
-   no token arrives, rsync to the laptop and `wrangler r2 object put` from there for the products only.
-5. Detach and delete the volume and server when the cache is in R2 (or Derek says the cache is not
-   needed). `hcloud server delete`, `hcloud volume delete`. Confirm with `hcloud server list`.
+4. NO credentials go to the box (decided 2026-09-19: an R2 token cannot be minted from here and is
+   not needed). Everything comes back by rsync to the laptop: products to `data/clouds/tenday/`, the
+   native cache to `data/clouds/native/<sat>/` (679 GB free here). Any R2 upload is done from the
+   laptop with its logged-in `wrangler`, later, by another session.
+5. Keep the box and volume until earth-7e says the cache has landed AND the tile build for ten days
+   (`scripts/cloud_tiles.py`, being finished by session earthai-46) has run — the box is the right
+   place to run it, since it has the cache. Then `hcloud server delete`, `hcloud volume delete`,
+   confirm with `hcloud server list`.
+
+## Note (2026-09-19)
+The first session on this brief died when the laptop slept (18:28, mid "creating cpx51"); `hcloud
+server list` shows NOTHING was created, so start from the top. Run the box's jobs under tmux with
+logs so a laptop sleep never matters to the box; on the laptop side, poll with long sleeps, not tight
+loops. Before creating, `hcloud server list` again to be sure a half-made box is not there.
 
 ## Report back
 Append here: box id, cost so far, measured bytes/s, slots fetched per satellite (and which slots do
