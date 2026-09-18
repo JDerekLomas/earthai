@@ -52,3 +52,10 @@ design; this file is what is left.
 6. Dispatch the sky session: from the repo root,
    `claude --bg "Read /Users/dereklomas/sourcelibrary/earthai/.claude/handoffs/2026-09-19-globe-sky.md and execute it to done. Work in /Users/dereklomas/sourcelibrary/earthai on main (cd there). First run /rename globe-sky. Pull main before every edit of site/globe/index.html; the cloud-height session edits the same page. When done, SendMessage the session named 'earthai-46' (or, if gone, append to the brief): one line, DONE or BLOCKED + URL."`
 7. SendMessage `earth-7e` one line: tiles DONE + URL. If earthai-46 is gone, this file is the report.
+
+## Status (2026-09-19 01:45, session tiles-finish): DONE
+Rebuild finished (PIPELINE_DONE; L5 112 tiles 157.7 MB, L4 34 tiles 58.8 MB). Measured locally and live, pairs
+in `docs/globe-2026-09-18/tiles_pair_*.jpg`, full numbers in the `## Report` of `2026-09-18-globe-tiles.md`.
+Step 3 was NOT run: the cloud-height session's working-tree deploy went live first and already carried the tile
+files (live `L5.json` md5 = local), so a HEAD deploy would have reverted their page. `scripts/deploy_site.sh`
+gained `KEEP_LIVE` and a clip-height guard after HEAD's page rendered their 2272-tall clip as a different sky.

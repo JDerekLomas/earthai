@@ -75,3 +75,62 @@ C. GOES-West for the same day if A+B are clearly better and the day is not over.
 Append here: URL, tile counts and bytes per level, the measured budget numbers, what popped or
 stalled and how it was hidden, what level 6 and R2 would take. Commit and push (own paths only), then
 SendMessage "earth-7e": one line, DONE or BLOCKED + URL.
+
+## Report (2026-09-19, session tiles-finish)
+1. **URL.** https://earthai-scales.vercel.app/globe/ — zoom into Chile (`#lon=-75&lat=-25&zoom=0.01`) or the
+   Caribbean (`#lon=-62&lat=16&zoom=0.01`). Tiles: `/globe/tiles/L5.json`, `/globe/tiles/L5/<tx>_<ty>.h264`
+   (Vercel serves Range: `-r 0-100` → 206, `accept-ranges: bytes`). Before/after crops:
+   `docs/globe-2026-09-18/tiles_pair_chile.jpg`, `tiles_pair_caribbean.jpg`; pipeline contact sheets (levels
+   3/4/5 side by side) `tiles_levels_chile.jpg`, `tiles_levels_caribbean.jpg`.
+2. **Tiles (GOES-East, 12 Sep, 144 slots, new opacity curve vis_k 0.45 / bt_k 26 matching the base clip).**
+   Level 5: 112 tiles of 144 in the window, 157.7 MB, 1.41 MB/tile. Level 4: 34 of 36, 58.8 MB, 1.73 MB/tile.
+   avc1.640016, keyframe every 12, no B-frames, flow in chroma (p99 23.5 level-5 texels → 4.256 levels/texel).
+   Whole tile set 216.5 MB, 146 files, largest 3.6 MB — far under Vercel's 50 MB/file.
+3. **Measured, headless real Chrome 1440x900 dpr 2, Metal on the M5 Pro (60 Hz vsync in headless).**
+   "Sharp" = ms from the zoom stopping to every tile in view having a frame (`stats.sharpMs`); "bytes" =
+   tile bytes fetched from the start of the zoom to sharp; "play" = 4.5 s of zoomed playback so the 240-sample
+   rAF ring holds playback only.
+   | | level | tiles/decoders | sharp | bytes to sharp | bytes for play | rAF work p95 / max | rAF gap max |
+   |---|---|---|---|---|---|---|---|
+   | local Chile | 5 | 8 / 8 | 87 ms | 3.29 MB | 6.37 MB | 0.7 / 1.7 ms | 16.8 ms |
+   | local Caribbean | 5 | 12 / 12 | 91 ms | 5.63 MB | 8.36 MB | 0.8 / 2.0 ms | 16.8 ms |
+   | live Chile | 5 | 8 / 8 | 276 ms | 3.84 MB | 6.56 MB | 1.2 / 3.0 ms | 50 ms |
+   | live Caribbean | 5 | 12 / 12 | 328 ms | 5.63 MB | 8.36 MB | 1.7 / 3.1 ms | 50 ms |
+   Composite and update passes max 2.4–3.3 ms; decoded frames all NV12 (hardware). Whole live session: 22 tile
+   files, 24.4 MB. First present of the base clip 1.9 s from navigation (local 2.1 s). About 55% of decoded
+   frames are pre-roll from the previous keyframe (`stats.dropped`) — the price of seeking with GOP 12, not a bug.
+   Extrapolated: 8.4 MB per 4.5 s of zoomed playback ≈ 1.9 MB/s ≈ 110 MB for a zoomed minute at level 5 with
+   12 tiles; a viewer who zooms into one storm pays 3–6 MB to get sharp and ~2 MB/s while it plays.
+4. **What popped or stalled, and how it is hidden.** Nothing in the zoomed-playback window locally (gap max
+   16.8 ms = one vsync); live had one 50 ms hitch (three frames) per place, during the fetch of the next
+   keyframe group. Hidden by design: a fresh tile set shows the base clip until every tile in view has a
+   frame, then fades in over 300 ms; the atlas window is centred on the view and fades at its edge; the
+   foreshortened margins (zenith > 58°) fall back to the base clip; a level change fades out then in. Seen in
+   the live Caribbean screenshot: a faint vertical seam at the far-left edge of the 1440-wide view at
+   maximum zoom, where the atlas window's edge fade meets the base clip — the fade is a little too narrow
+   at dpr 2; widen `edge` in `tiles.js`/the shader (follow-up, cosmetic). The ~1 s stall on first paint
+   while the 8192 basemap uploads is pre-existing and not the tiles.
+5. **Deploy — what actually happened.** Not deployed by this session. While the rebuild finished, the
+   cloud-height session deployed straight from the working tree (`cd site && npx vercel --prod --yes`), which
+   carried the tile files, HEAD's `tiles.js` and the tile block in its edited `index.html`, and its own
+   4096x2272 clip. Live `L5.json` md5 equals the rebuilt local one (da2d8854…), so the live tiles are the
+   new-curve set. A second deploy of HEAD would have reverted their page, so I skipped step 3 and measured
+   live instead. Incident on the way: my first local "base" screenshots were HEAD's page sampling that
+   2272-tall clip (it appeared as a different cloud field) — `scripts/deploy_site.sh` now refuses a
+   `globe/clouds.mp4` whose height ≠ `clouds.json` height + strip, and takes `KEEP_LIVE="globe/clouds.mp4 …"`
+   to ship the live copies of named assets instead of the working tree's.
+6. **Level 6.** Band 2 at 0.5 km, daytime only, visible only (no infrared at that scale, so nothing at
+   night and no cloud-top temperature — opacity from reflectance alone with the clear-sky composite). Tiles
+   32768 wide, 2^7 × 2^6; over the same window ~450 tiles/day at ~4× the level-5 bytes (~650 MB/day for
+   GOES-East). Fetch is the band-2 MCMIPF at native 0.5 km (~4× the 12 Sep 5.9 GB); the opacity step must
+   work in latitude strips. Client needs nothing new except `levels:[6,5,4]` and a 24-tile decoder cap.
+7. **R2.** `tiles/<sat>/<date>/L<n>/<tx>_<ty>.h264` plus `tiles/<sat>/<date>/L<n>.json`, public bucket
+   with Range (R2 supports it), `Cache-Control: public, max-age=31536000, immutable` (files are dated, never
+   rewritten). Ten days × five satellites ≈ 216 MB × 50 ≈ 11 GB, ~$0.17/month storage and zero egress. The
+   page takes a `tilesBase` (from `clouds.json`) so the host is a config line. `wrangler` is not logged in here.
+8. **Follow-ups.** (a) GOES-West's window straddles the dateline and comes out 2.7× too big — make `window()`
+   in `cloud_tiles.py` wrap-aware. (b) Tiles for the other four satellites (Himawari, MTG, IODC, GOES-West).
+   (c) Phones: level 4 only, untested. (d) The edge seam above. (e) The first-paint basemap stall.
+   (f) Cross-session deploys: two sessions now deploy the same page from the same checkout; whoever deploys
+   next should use `scripts/deploy_site.sh` (HEAD + assets, with the clip-height guard) once the height
+   page is merged, not the working tree.
