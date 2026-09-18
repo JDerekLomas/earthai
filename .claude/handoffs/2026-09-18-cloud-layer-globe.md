@@ -116,3 +116,34 @@ gets wrong; which satellites are in; what you would do next. Then SendMessage th
 "earth-7e": one line, DONE or BLOCKED + URL. If that session is gone, the file is the report.
 
 Tracking issue: https://github.com/JDerekLomas/earthai/issues/2
+
+## Report (2026-09-18, session cloud-globe)
+
+1. **Shipped, stage 1:** https://earthai-scales.vercel.app/globe/ — 12 Sep 2026, GOES-East, 144 frames at 10 min,
+   over a shader-lit Earth. PR #3 merged to main. Code: `scripts/fetch_clouds.py`, `site/globe/index.html`.
+   `/earth/` untouched. Homepage not linked (site/index.html belongs to another session's uncommitted work).
+2. **Bytes per slot fetched (GOES):** 41–54 MB of the 240–370 MB MCMIPF file — the HDF5 chunk index by
+   256 KB byte-range reads, then one ranged GET per variable (bands 2 and 13 sit contiguously). 5.87 GB for
+   the day. fsspec's http filesystem deadlocked at 8 threads; a 60-line `RangeFile` over `requests` replaced it.
+3. **Clip sizes (one day, 144 frames, grey H.264 yuv420p, 12 fps = 2 h/s, keyframe every 2 s, no B-frames):**
+   4096×1504 crf 20 = 22.5 MB; 2048×752 crf 22 = 6.2 MB. Poster WebP 62 KB. Basemaps: 8192 4.3 MB, 4096 1.3 MB,
+   2048 0.37 MB; lights 4096 0.5 MB. Compare /earth/: 29.7 MB for ten days at 2048 wide (≈3 MB/day at a
+   quarter of the pixels, carrying land, sea and the terminator in the codec).
+4. **Page, measured in headless Chrome on the live host (M5 Pro, dpr 2, 1440×900):** first paint (lit globe,
+   2048 basemap + poster cloud) **435 ms / 0.65 MB**; first moving frame (4k clip) **~1.0 s**; 8192 basemap
+   swapped in after the video starts. **60 fps idle, 60 fps dragging, 60 fps zoomed in** on the GPU
+   (swiftshader software GL: 19–23 fps, not representative). Video pauses off-screen / hidden tab. Cloud
+   texture uploads only on `requestVideoFrameCallback`; a plain three `Texture` reads `video.width` (0) —
+   `VideoTexture` is required, and its `update()` only fires in the copy pass, so uploads = presented frames.
+5. **Temporal smoothness:** (a) shader cross-fade between the two most recent frames (two small render
+   targets, R8), zero extra bytes; RIFE (b) not run, no GPU box started. At 10 km/px and 10 min, cloud
+   moves 1–3 px a frame and the cross-fade reads smooth; the `Blend` button switches it off for comparison.
+6. **What the clear-sky method gets wrong (one day):** the visible reference is the day's darkest
+   sun-normalised reflectance capped by a Blue Marble albedo prior (linear red ×1.4 + 0.04, floor 0.09);
+   a place under cloud all day falls back to the prior, which is right for the Atacama and Greenland's ice
+   but generic for the ocean. Sun glint is switched to infrared-only inside 18–36° of the specular point over
+   water. The first linear opacity ramp starved marine stratocumulus (reflectance ~0.35 → 0.28 opacity;
+   /earth/ showed the deck, /globe/ did not) — replaced by saturating curves 1−exp(−x/k), k = 0.26
+   reflectance / 16 K, which is closer to reflectance-vs-optical-depth. Infrared-only night misses thin
+   low cloud and paints very cold ground; the IR clear reference is the day's warmest within ±1 h of the time
+   of day, floored at (warmest of all − 14 K). Coast pixels were briefly speckled by a water-only cap.
