@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Cloud Layer</title>
+<meta name="description" content="One day of real cloud over a computed Earth: the only video is the weather; land, sea, day, night and city lights are lit in a shader from the sun's position.">
+<style>html{color-scheme:light dark} body{margin:0} img,video{max-width:100%} [hidden]{display:none!important}</style>
+<link rel="preload" href="clouds.json" as="fetch" crossorigin>
+<link rel="preload" href="base_2048.jpg" as="image" crossorigin="anonymous">
+<link rel="preload" href="clouds_poster.webp" as="image" crossorigin="anonymous">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#e9edf1; --surface:#ffffff; --sunk:#dfe5ea;
+    --ink:#13202e; --muted:#5b6b7d; --faint:#8493a4;
+    --line:#c7d1da; --hair:#dbe2e8;
+    --ochre:#b3652a; --cool:#37718f; --deep:#0f2233;
+    --ok:#2f7d5b; --no:#a33a2a;
+    --shadow:0 1px 2px rgba(15,34,51,.08), 0 8px 24px rgba(15,34,51,.06);
+    --stage:#04090f;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+      --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+      --line:#27394b; --hair:#1c2c3c;
+      --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+      --ok:#5cb98d; --no:#e0765f;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+    --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+    --line:#27394b; --hair:#1c2c3c;
+    --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+    --ok:#5cb98d; --no:#e0765f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+  *{box-sizing:border-box}
+  body{background:var(--ground); color:var(--ink);
+    font:400 16px/1.55 "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    padding-block:0 72px; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1120px; margin:0 auto; display:flex; flex-direction:column; gap:52px; padding-left:20px; padding-right:20px}
+  h1,h2,h3{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif; text-wrap:balance; margin:0}
+  h1{font-size:clamp(30px,4.6vw,46px); font-weight:600; letter-spacing:-.015em; line-height:1.08}
+  h2{font-size:clamp(20px,2.6vw,26px); font-weight:600; letter-spacing:-.01em}
+  h3{font-size:16px; font-weight:600}
+  p{margin:0; max-width:66ch}
+  a{color:var(--cool)}
+  .lede{font-size:clamp(17px,2vw,19px); color:var(--muted); max-width:62ch}
+  .eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--faint)}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+  section{display:flex; flex-direction:column; gap:18px}
+  .head{display:flex; flex-direction:column; gap:8px}
+  header{display:flex; flex-direction:column; gap:16px}
+  .claim{font-family:"IBM Plex Sans Condensed",sans-serif; font-size:clamp(19px,2.4vw,23px); line-height:1.35;
+    max-width:34ch; border-left:3px solid var(--cool); padding-left:18px}
+  .claim b{color:var(--cool); font-weight:600}
+  .xl{font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.06em; text-decoration:none; color:var(--muted); border-bottom:1px solid var(--line); padding-bottom:2px}
+  .xl:hover{color:var(--cool); border-color:var(--cool)}
+  .links{display:flex; flex-wrap:wrap; gap:20px}
+  button{font:500 13px/1 "IBM Plex Sans",sans-serif; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:3px; padding:8px 12px; cursor:pointer}
+  button:hover{border-color:var(--cool); color:var(--cool)}
+  button[aria-pressed="true"]{background:var(--cool); border-color:var(--cool); color:#fff}
+  button:focus-visible{outline:2px solid var(--ochre); outline-offset:2px}
+  .seg{display:inline-flex; border:1px solid var(--line); border-radius:3px; overflow:hidden}
+  .seg button{border:0; border-radius:0; border-left:1px solid var(--line)}
+  .seg button:first-child{border-left:0}
+  .bar{display:flex; flex-wrap:wrap; gap:12px; align-items:center}
+
+  .stagewrap{background:var(--stage); color:#c9d6e2}
+  .stage{position:relative; height:min(82vh, 900px); min-height:420px; overflow:hidden;
+    background:radial-gradient(ellipse at 50% 45%, #0b1a2a 0%, var(--stage) 62%)}
+  .stage canvas{display:block; width:100%; height:100%; touch-action:none; cursor:grab}
+  .stage canvas.drag{cursor:grabbing}
+  .stage .load{position:absolute; left:20px; top:16px; font:12px "IBM Plex Mono",monospace; letter-spacing:.06em; color:#7d93a8; pointer-events:none; transition:opacity .6s}
+  .stage .clock{position:absolute; left:20px; bottom:16px; font:500 13px/1.4 "IBM Plex Mono",monospace; color:#dbe9f3; text-shadow:0 1px 2px #000; pointer-events:none}
+  .stage .clock small{display:block; font-weight:400; color:#8fa3b8; font-size:11px; letter-spacing:.08em; text-transform:uppercase}
+  .stage .hint{position:absolute; right:20px; bottom:16px; font:11px "IBM Plex Mono",monospace; letter-spacing:.08em; text-transform:uppercase; color:#6c8399; pointer-events:none}
+  .controls{max-width:1120px; margin:0 auto; padding:14px 20px 18px; display:flex; flex-direction:column; gap:12px}
+  .controls .bar{justify-content:space-between}
+  .controls .bar > div{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+  .stagewrap button{color:#c9d6e2; background:#0e1a27; border-color:#25384c}
+  .stagewrap button:hover{color:#fff; border-color:#6aa9c9}
+  .stagewrap button[aria-pressed="true"]{background:#37718f; border-color:#37718f; color:#fff}
+  .stagewrap .seg{border-color:#25384c} .stagewrap .seg button{border-left-color:#25384c}
+  .scrub{width:100%; accent-color:#6aa9c9; margin:0}
+  .lbl{font:11px "IBM Plex Mono",monospace; letter-spacing:.1em; text-transform:uppercase; color:#6c8399; margin-right:2px}
+  video.src{position:absolute; width:2px; height:2px; opacity:0; pointer-events:none; left:0; top:0}
+
+  .cols{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:18px}
+  .note{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:16px 18px; display:flex; flex-direction:column; gap:8px; box-shadow:var(--shadow)}
+  .note p{font-size:14px; color:var(--muted)}
+  .note.have{border-left:3px solid var(--ok)}
+  .note.maybe{border-left:3px solid var(--ochre)}
+  .note.gate{border-left:3px solid var(--no)}
+  .status{font:500 11px "IBM Plex Mono",monospace; letter-spacing:.08em; text-transform:uppercase}
+  .have .status{color:var(--ok)} .maybe .status{color:var(--ochre)} .gate .status{color:var(--no)}
+  .tw{overflow-x:auto; background:var(--surface); border:1px solid var(--hair); border-radius:4px; box-shadow:var(--shadow)}
+  table{border-collapse:collapse; width:100%; font-size:13.5px; min-width:520px}
+  th,td{text-align:left; padding:9px 14px; border-top:1px solid var(--hair); vertical-align:top}
+  thead th{border-top:0; font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); padding-top:13px; padding-bottom:11px}
+  td.n{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; white-space:nowrap}
+  footer{border-top:1px solid var(--line); padding-top:22px; font-size:13px; color:var(--faint)}
+</style>
+</head>
+<body>
+
+<div class="stagewrap">
+  <div class="stage" id="stage">
+    <div class="load" id="load">lighting the Earth…</div>
+    <div class="clock" id="clock"><small>UTC</small>—</div>
+    <div class="hint">drag to turn · scroll to zoom</div>
+    <video class="src" id="vid" muted loop playsinline preload="auto" crossorigin="anonymous" aria-hidden="true"></video>
+  </div>
+  <div class="controls">
+    <input class="scrub" id="scrub" type="range" min="0" max="0" value="0" step="1" aria-label="time">
+    <div class="bar">
+      <div>
+        <button id="play" aria-pressed="true">Pause</button>
+        <span class="lbl">speed</span>
+        <div class="seg" role="group" aria-label="speed">
+          <button data-rate="0.25">¼</button><button data-rate="0.5">½</button><button data-rate="1" aria-pressed="true">1×</button><button data-rate="2">2×</button>
+        </div>
+      </div>
+      <div>
+        <span class="lbl">frame</span>
+        <div class="seg" role="group" aria-label="frame of reference">
+          <button data-mode="earth" aria-pressed="true">Earth-fixed</button><button data-mode="sun">Sun-fixed</button>
+        </div>
+        <button id="cover" aria-pressed="false" title="where the satellites can see">Coverage</button>
+        <button id="blendBtn" aria-pressed="true" title="cross-fade between the ten-minute frames">Blend</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap" style="padding-top:44px">
+
+<header>
+  <div class="eyebrow">earthai · the cloud layer · weather as the only video</div>
+  <h1>The cloud layer</h1>
+  <p class="claim"><b id="claim">One day</b> of real cloud, every ten minutes, over an Earth that is lit by arithmetic.</p>
+  <p class="lede">The only thing on this globe that changes from one ten-minute picture to the next is the cloud, so the cloud is the only thing that is a video. Everything else you see, the land and sea, the day and the night, the line of dusk, the city lights, the shadow a cloud throws on the ground, is computed while you watch from where the sun is. Drag to turn it, scroll to zoom. Switch to <em>sun-fixed</em> and the daylight stands still while the Earth turns through it.</p>
+  <div class="links">
+    <a class="xl" href="../earth/">the earlier version, for comparison &rarr;</a>
+    <a class="xl" href="../month/">one place, one month &rarr;</a>
+    <a class="xl" href="../">all pages &rarr;</a>
+  </div>
+</header>
+
+<section>
+  <div class="head">
+    <h2>What is real and what is computed</h2>
+    <p>The clouds are real. They come from the satellite's own measurements, two channels of the sixteen: how much sunlight a place reflects at 0.64 µm, and how cold it looks at 10.3 µm. By day both are used; by night only the temperature, so night cloud is softer and the page shows it dim, where the eye cannot tell. Each pixel's measurement is compared with what that place looks like with no cloud at all, its darkest and warmest self over the day, and the difference is the cloud, a single number from clear to opaque. No lighting is in that number, which is why there is nothing to mismatch where two satellites will meet.</p>
+  </div>
+  <div class="tw">
+    <table>
+      <thead><tr><th>layer</th><th>what it is</th><th>where it comes from</th></tr></thead>
+      <tbody>
+        <tr><td>cloud</td><td>opacity, 0 to 1, every ten minutes, 4096 pixels around the equator (about 10 km each), latitudes 66°S to 66°N</td><td id="srcrow">GOES-East, bands 2 and 13, NOAA's archive on AWS</td></tr>
+        <tr><td>land and sea</td><td>NASA Blue Marble with shaded relief and bathymetry, 8192 pixels around, sharp at any zoom</td><td>NASA GIBS</td></tr>
+        <tr><td>night</td><td>VIIRS city lights, shown only on the night side and only where the cloud is thin</td><td>NASA GIBS</td></tr>
+        <tr><td>light</td><td>the sun's position for the moment being shown; day and night, a warm terminator, glint off the sea, the cloud's shadow, the blue rim of the air</td><td>computed on your graphics card</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>What is missing</h2>
+  </div>
+  <div class="cols">
+    <div class="note gate"><span class="status">the other satellites</span><h3 id="satsh">One satellite of five, for now</h3><p id="satsp">This first day is GOES-East alone, which sees the Americas and the Atlantic. Everywhere it cannot see is drawn honestly clear: the <em>Coverage</em> button shows the edge. The other four satellites, whose measurements are the same physical quantities, are the next step; because every zone is then the same number, the seams can be checked with arithmetic rather than by eye.</p></div>
+    <div class="note gate"><span class="status">the poles</span><h3>Nothing looks down on the poles</h3><p>Every geostationary satellite sits over the equator and sees the Earth edge-on past about 60° of latitude, so past 66° there is no cloud on this page at all. The polar caps are the basemap, lit but weatherless.</p></div>
+    <div class="note maybe"><span class="status">the clear-sky guess</span><h3>Where the method is wrong</h3><p id="wrongp">"What this place looks like with no cloud" is taken from one day of pictures, so a place under cloud all day has no clear reference and its cloud reads thinner than it is. Bright ground (the Atacama, Greenland's ice) is handled by that reference and stays ground; the sun's glint on the sea is switched to the infrared reading alone, so a calm sea at noon is not white. Very cold ground at night, and thin high cloud after dark, are the known failures of an infrared-only night.</p></div>
+    <div class="note have"><span class="status">between frames</span><h3>Ten minutes, cross-faded</h3><p>A real frame every ten minutes, twelve of them a second at full speed: two hours a second, a day in twelve seconds. The <em>Blend</em> button cross-fades each frame into the next so the motion is continuous; nothing between the frames is invented, only mixed. Switch it off to see the frames step.</p></div>
+  </div>
+</section>
+
+<footer>
+  GOES-East ABI L2 CMIP bands 2 and 13 via NOAA Open Data on AWS · Blue Marble and VIIRS city lights via NASA GIBS ·
+  cloud field by <span class="mono">scripts/fetch_clouds.py</span> · rendered with three.js <span id="threev"></span> · <span id="man"></span>
+</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.152.2/three.min.js"></script>
+<script>
+(function(){
+  const T0=performance.now();
+  const stage=document.getElementById('stage'), load=document.getElementById('load'), clock=document.getElementById('clock');
+  const vid=document.getElementById('vid'), scrub=document.getElementById('scrub'), playBtn=document.getElementById('play');
+  const coverBtn=document.getElementById('cover'), blendBtn=document.getElementById('blendBtn');
+  const DEG=Math.PI/180;
+  document.getElementById('threev').textContent='r'+THREE.REVISION;
+  let man=null, mode='earth', spin=0.6, tilt=0.25, offset=0, vSpin=0, vTilt=0, dragging=false, lastFrame=-1, dist=4.3;
+  let times=[], suns=[];        // per real frame: Date, sun unit vector (Earth-fixed x:0N0E y:90E z:N)
+  const perf={firstPaint:null, videoFirstFrame:null, bytes:{}};
+  window.__globe=perf;
+
+  // ---- the sun, Spencer's series (same as the pipeline)
+  function sunVec(d){
+    const doy=Math.floor((d-Date.UTC(d.getUTCFullYear(),0,1))/864e5)+1;
+    const h=d.getUTCHours()+d.getUTCMinutes()/60+d.getUTCSeconds()/3600;
+    const g=2*Math.PI/365*(doy-1+(h-12)/24);
+    const decl=0.006918-0.399912*Math.cos(g)+0.070257*Math.sin(g)-0.006758*Math.cos(2*g)+0.000907*Math.sin(2*g)-0.002697*Math.cos(3*g)+0.00148*Math.sin(3*g);
+    const eot=229.18*(0.000075+0.001868*Math.cos(g)-0.032077*Math.sin(g)-0.014615*Math.cos(2*g)-0.040849*Math.sin(2*g));
+    const lon=(-15*(h+eot/60-12))*DEG;
+    return [Math.cos(decl)*Math.cos(lon), Math.cos(decl)*Math.sin(lon), Math.sin(decl)];
+  }
+
+  // ---- renderer and scene
+  const renderer=new THREE.WebGLRenderer({antialias:true, alpha:true, powerPreference:'high-performance'});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.outputColorSpace=THREE.SRGBColorSpace;
+  stage.insertBefore(renderer.domElement, stage.firstChild);
+  const maxTex=renderer.capabilities.maxTextureSize;
+  const scene=new THREE.Scene();
+  const cam=new THREE.PerspectiveCamera(30,1,0.1,50); cam.position.set(0,0,dist);
+
+  const loader=new THREE.TextureLoader();
+  function srgb(t){ t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=Math.min(8, renderer.capabilities.getMaxAnisotropy()); return t; }
+  const blank=new THREE.DataTexture(new Uint8Array([0,0,0,255]),1,1); blank.needsUpdate=true;
+
+  const U={
+    uBase:{value:blank}, uLights:{value:blank}, uCover:{value:blank},
+    uCloudA:{value:blank}, uCloudB:{value:blank}, uMix:{value:0}, uCloudTexel:{value:new THREE.Vector2(1/4096,1/1504)},
+    uSun:{value:new THREE.Vector3(1,0,0)}, uCam:{value:new THREE.Vector3(0,0,4)},
+    uLatMax:{value:66.09}, uShowCover:{value:0}, uHasCloud:{value:0}
+  };
+  const planet=new THREE.Mesh(new THREE.SphereGeometry(1,128,96), new THREE.ShaderMaterial({
+    uniforms:U,
+    vertexShader:`
+      varying vec2 vUv; varying vec3 vP;
+      void main(){ vUv=uv; vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+    fragmentShader:`
+      precision highp float;
+      uniform sampler2D uBase, uLights, uCover, uCloudA, uCloudB;
+      uniform float uMix, uLatMax, uShowCover, uHasCloud;
+      uniform vec2 uCloudTexel; uniform vec3 uSun, uCam;
+      varying vec2 vUv; varying vec3 vP;
+      // cloud opacity at a lon/lat uv: the clip covers only +/- uLatMax
+      float cloudAt(vec2 uv){
+        float lat=(uv.y-0.5)*180.0;
+        float v=(lat+uLatMax)/(2.0*uLatMax);
+        if(v<0.0||v>1.0) return 0.0;
+        vec2 c=vec2(uv.x, v);
+        float a=texture2D(uCloudA,c).r, b=texture2D(uCloudB,c).r;
+        float edge=smoothstep(0.0,0.02,v)*smoothstep(1.0,0.98,v);
+        return mix(a,b,uMix)*edge*uHasCloud;
+      }
+      void main(){
+        vec3 n=normalize(vP);
+        // object space: +x = 0N 0E, +y = north, -z = 90E. Earth-fixed sun (x,y,z) arrives already swizzled.
+        vec3 s=normalize(uSun);
+        vec3 v=normalize(uCam-vP);
+        float mu=dot(n,s);
+        float day=smoothstep(-0.10,0.12,mu);
+        float dusk=smoothstep(0.30,-0.06,mu)*smoothstep(-0.22,0.0,mu);   // a band either side of the terminator
+        vec3 base=texture2D(uBase,vUv).rgb;
+        float lights=texture2D(uLights,vUv).r;
+        float water=step(base.r*1.25,base.b)*step(base.r,0.30);
+        float lat=(vUv.y-0.5)*3.14159265;
+        // cloud, and the cloud a little toward the sun for its shadow on the ground
+        float cl=cloudAt(vUv);
+        vec3 east=normalize(cross(vec3(0.0,1.0,0.0),n)); vec3 north=cross(n,east);
+        vec3 st=s-n*mu;                                                   // the sun's direction along the ground
+        vec2 sh=vec2(dot(st,east)/max(cos(lat),0.2)*0.0018, dot(st,north)*0.0036);   // ~0.65 deg at most: a low sun throws a longer shadow
+        float shadow=cloudAt(vUv+sh)*day;
+        // ground by day: diffuse with a floor, warm toward dusk, sea glint
+        float diff=clamp(mu,0.0,1.0);
+        vec3 warm=mix(vec3(1.0), vec3(1.0,0.70,0.42), dusk*0.55);
+        vec3 dayCol=base*(0.06+0.94*pow(diff,0.8))*warm;
+        vec3 r=reflect(-s,n);
+        float spec=pow(max(dot(r,v),0.0),420.0)*water*0.30*day;
+        dayCol+=vec3(1.0,0.95,0.85)*spec*(1.0-cl);
+        dayCol*=1.0-0.5*shadow*(1.0-cl);
+        // ground by night: faint blue earth, city lights through thin cloud
+        vec3 nightCol=base*vec3(0.018,0.024,0.040)+vec3(1.0,0.82,0.55)*lights*0.85*(1.0-cl*0.85)+vec3(0.35,0.42,0.55)*cl*0.030;
+        vec3 ground=mix(nightCol, dayCol, day);
+        // cloud: white in the sun, warm at dusk, blue-grey and faint at night
+        vec3 cloudDay=vec3(0.94,0.955,0.98)*(0.08+0.92*pow(clamp(mu*1.15+0.08,0.0,1.0),0.7))*warm;
+        vec3 cloudNight=vec3(0.30,0.36,0.48)*0.16;
+        vec3 cloudCol=mix(cloudNight, cloudDay, day);
+        vec3 col=mix(ground, cloudCol, cl);
+        // the air: a blue haze that thickens toward the limb, only where lit
+        float fres=pow(1.0-max(dot(n,v),0.0),3.0);
+        col+=vec3(0.30,0.50,0.90)*fres*0.45*day;
+        if(uShowCover>0.5){ float c=texture2D(uCover,vec2(vUv.x,(lat/3.14159265*180.0+uLatMax)/(2.0*uLatMax))).r;
+          if(abs(lat)*180.0/3.14159265>uLatMax) c=0.0;
+          col=mix(col*0.35+vec3(0.28,0.06,0.04), col, c); }
+        gl_FragColor=vec4(pow(max(col,0.0), vec3(1.0/2.2)),1.0);
+      }`
+  }));
+  const atmo=new THREE.Mesh(new THREE.SphereGeometry(1.035,96,64), new THREE.ShaderMaterial({
+    side:THREE.BackSide, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false,
+    uniforms:{uSunV:{value:new THREE.Vector3(1,0,0)}},
+    vertexShader:`varying vec3 vN; varying vec3 vP; varying vec3 vW; void main(){ vN=normalize(normalMatrix*normal); vec4 p=modelViewMatrix*vec4(position,1.0); vP=p.xyz; vW=normalize(mat3(modelMatrix)*normal); gl_Position=projectionMatrix*p; }`,
+    fragmentShader:`varying vec3 vN; varying vec3 vP; varying vec3 vW; uniform vec3 uSunV; void main(){ float d=clamp(-dot(normalize(vN), normalize(-vP))/0.26, 0.0, 1.0); float f=pow(d, 1.6); float lit=smoothstep(-0.35,0.25,dot(vW,uSunV)); gl_FragColor=vec4(0.40,0.62,0.92,1.0)*f*0.75*(0.15+0.85*lit); }`
+  }));
+  const tiltG=new THREE.Group(); tiltG.add(planet); tiltG.add(atmo); scene.add(tiltG);
+
+  function size(){ const w=stage.clientWidth, h=stage.clientHeight; renderer.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix(); }
+  addEventListener('resize', size); size();
+
+  // ---- the cloud frames: the video is copied into one of two render targets only when it presents a new frame,
+  // and the planet shader cross-fades from the older to the newer. Nothing is uploaded on frames the video did not change.
+  const isGL2=renderer.capabilities.isWebGL2;
+  function makeRT(w,h){ return new THREE.WebGLRenderTarget(w,h,{format:isGL2?THREE.RedFormat:THREE.RGBAFormat, type:THREE.UnsignedByteType, minFilter:THREE.LinearFilter, magFilter:THREE.LinearFilter, depthBuffer:false, stencilBuffer:false, generateMipmaps:false}); }
+  let rtA=null, rtB=null, rtW=0, rtH=0;
+  // a VideoTexture, because a plain Texture reads video.width (0) not videoWidth; its update() marks needsUpdate on
+  // every render it takes part in, and it only takes part in the copy pass, which only runs when a frame is presented
+  const vtex=new THREE.VideoTexture(vid); vtex.minFilter=THREE.LinearFilter; vtex.magFilter=THREE.LinearFilter; vtex.generateMipmaps=false; vtex.colorSpace=THREE.NoColorSpace;
+  const copyScene=new THREE.Scene(), copyCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+  const copyMat=new THREE.ShaderMaterial({uniforms:{t:{value:vtex}}, depthTest:false, depthWrite:false,
+    vertexShader:`varying vec2 u; void main(){ u=uv; gl_Position=vec4(position.xy,0.0,1.0); }`,
+    fragmentShader:`uniform sampler2D t; varying vec2 u; void main(){ gl_FragColor=vec4(texture2D(t,u).rrr,1.0); }`});
+  copyScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2), copyMat));
+  let lastPresent=0, frameGap=1/12, presented=0;
+  function present(){                    // the video has a new frame: upload it once, into the older target
+    if(vid.videoWidth===0) return;
+    if(rtW!==vid.videoWidth){ rtW=vid.videoWidth; rtH=vid.videoHeight; if(rtA){rtA.dispose(); rtB.dispose();} rtA=makeRT(rtW,rtH); rtB=makeRT(rtW,rtH); U.uCloudTexel.value.set(1/rtW,1/rtH); }
+    vtex.needsUpdate=true;
+    const tmp=rtA; rtA=rtB; rtB=tmp;     // B becomes the newest
+    renderer.setRenderTarget(rtB); renderer.render(copyScene, copyCam); renderer.setRenderTarget(null);
+    U.uCloudA.value=rtA.texture; U.uCloudB.value=rtB.texture; U.uHasCloud.value=1;
+    const now=performance.now(); if(lastPresent) frameGap=Math.min(0.5, (now-lastPresent)/1000); lastPresent=now; presented++;
+    if(perf.videoFirstFrame===null){ perf.videoFirstFrame=Math.round(now-T0); load.textContent=''; load.style.opacity=0; }
+  }
+  if('requestVideoFrameCallback' in vid){ const cb=()=>{ present(); vid.requestVideoFrameCallback(cb); }; vid.requestVideoFrameCallback(cb); }
+  else { let lt=-1; vid.addEventListener('timeupdate', ()=>{}); setInterval(()=>{ if(!vid.paused && vid.currentTime!==lt){ lt=vid.currentTime; present(); } }, 16); }
+
+  // ---- loading order: basemap 2048 + poster cloud first (paint), then the video, then the 8192 basemap
+  let posterTex=null;
+  const t2k=loader.load('base_2048.jpg', t=>{ U.uBase.value=srgb(t); firstPaint(); });
+  loader.load('lights_4096.jpg', t=>{ U.uLights.value=t; });
+  loader.load('coverage.png', t=>{ t.colorSpace=THREE.NoColorSpace; U.uCover.value=t; });
+  loader.load('clouds_poster.webp', t=>{ posterTex=t; t.colorSpace=THREE.NoColorSpace; if(!U.uHasCloud.value){ U.uCloudA.value=t; U.uCloudB.value=t; U.uHasCloud.value=1; U.uMix.value=0; } });
+  function firstPaint(){ if(perf.firstPaint!==null) return; renderer.render(scene,cam); perf.firstPaint=Math.round(performance.now()-T0); }
+
+  const small=Math.max(screen.width, innerWidth)*Math.min(devicePixelRatio,2) < 1900;     // a phone, or a small 1x screen: the 2048 clip is enough
+  const slow=navigator.connection && (navigator.connection.saveData || /2g|3g/.test(navigator.connection.effectiveType||''));
+  const useSmall=small||slow;
+  perf.clip=useSmall?'clouds_2k.mp4':'clouds.mp4';
+
+  fetch('clouds.json').then(r=>r.json()).then(m=>{
+    man=m; scrub.max=m.frames.length-1;
+    times=m.frames.map(s=>new Date(s.slice(0,4)+'-'+s.slice(5,7)+'-'+s.slice(8,10)+'T'+s.slice(11,13)+':'+s.slice(13,15)+':00Z'));
+    suns=times.map(sunVec);
+    const days=m.frames.length/144;
+    document.getElementById('claim').textContent=days>=1.5?`${Math.round(days)} days`:'One day';
+    const bytes=m.sizes[perf.clip]; perf.bytes.clip=bytes;
+    document.getElementById('man').textContent=`${m.frames.length} frames, ${m.frames[0].replace('T',' ')} to ${m.frames[m.frames.length-1].replace('T',' ')} · ${(m.sizes['clouds.mp4']/1e6).toFixed(1)} MB (4k) / ${(m.sizes['clouds_2k.mp4']/1e6).toFixed(1)} MB (2k)`;
+    load.textContent=`streaming ${(bytes/1e6).toFixed(0)} MB of cloud…`;
+    vid.src=perf.clip; vid.load(); vid.play().catch(()=>{});
+    // the big basemap after the video has started, if the card can hold it and the screen can use it
+    const want=(maxTex>=8192 && !useSmall)?8192:4096;
+    const start=()=>{ loader.load(`base_${want}.jpg`, t=>{ U.uBase.value=srgb(t); t2k.dispose(); perf.baseLoaded=Math.round(performance.now()-T0); perf.base=want; }); };
+    vid.addEventListener('playing', start, {once:true}); setTimeout(()=>{ if(!perf.base) start(); }, 4000);
+  });
+  vid.addEventListener('error', ()=>{ load.textContent='the cloud video failed to load'; load.style.opacity=1; });
+
+  // pause when nobody is looking
+  let onscreen=true;
+  new IntersectionObserver(es=>{ onscreen=es[0].isIntersecting; sync(); }, {threshold:0.05}).observe(stage);
+  document.addEventListener('visibilitychange', sync);
+  let wantPlay=true;
+  function sync(){ const should=wantPlay && onscreen && !document.hidden; if(should && vid.paused && vid.src) vid.play().catch(()=>{}); else if(!should && !vid.paused) vid.pause(); }
+
+  // ---- time
+  function pos(){ return man ? vid.currentTime*man.fps : 0; }
+  function seek(x){ if(man) vid.currentTime=x/man.fps; }
+  function frame(){ if(!man) return 0; return Math.max(0, Math.min(times.length-1, Math.floor(pos()+1e-4))); }
+  function sunNow(){                         // interpolated between real frames, so the light moves continuously
+    if(!man) return [1,0,0];
+    const x=Math.max(0, Math.min(times.length-1, pos())), i=Math.floor(x), f=x-i, a=suns[i], b=suns[Math.min(times.length-1,i+1)];
+    const v=[a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f, a[2]+(b[2]-a[2])*f]; const l=Math.hypot(v[0],v[1],v[2]); return [v[0]/l, v[1]/l, v[2]/l];
+  }
+  function showClock(i){
+    if(!man) return;
+    const d=times[i];
+    const day=d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'});
+    clock.innerHTML=`<small>UTC · frame ${i+1} of ${times.length}</small>${day} · ${man.frames[i].slice(11,13)}:${man.frames[i].slice(13,15)}`;
+    if(!scrubbing) scrub.value=i;
+  }
+
+  // ---- interaction
+  let scrubbing=false;
+  scrub.addEventListener('input', ()=>{ scrubbing=true; seek(+scrub.value); });
+  scrub.addEventListener('change', ()=>{ scrubbing=false; });
+  playBtn.addEventListener('click', ()=>{ wantPlay=vid.paused; sync(); playBtn.textContent=wantPlay?'Pause':'Play'; playBtn.setAttribute('aria-pressed', wantPlay); });
+  document.querySelectorAll('[data-rate]').forEach(b=>b.addEventListener('click', ()=>{ vid.playbackRate=+b.dataset.rate; document.querySelectorAll('[data-rate]').forEach(x=>x.setAttribute('aria-pressed', x===b)); }));
+  document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click', ()=>{
+    const m=b.dataset.mode;
+    if(m!==mode){ if(m==='sun'){ offset=0; } else { spin=planet.rotation.y; } mode=m; vSpin=0; }
+    document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed', x===b));
+  }));
+  coverBtn.addEventListener('click', ()=>{ U.uShowCover.value=U.uShowCover.value?0:1; coverBtn.setAttribute('aria-pressed', !!U.uShowCover.value); });
+  let blend=true;
+  blendBtn.addEventListener('click', ()=>{ blend=!blend; blendBtn.setAttribute('aria-pressed', blend); });
+
+  const cv=renderer.domElement; let px=0, py=0, pinch=0;
+  cv.addEventListener('pointerdown', e=>{ dragging=true; px=e.clientX; py=e.clientY; vSpin=vTilt=0; cv.setPointerCapture(e.pointerId); cv.classList.add('drag'); });
+  cv.addEventListener('pointermove', e=>{ if(!dragging) return; const dx=e.clientX-px, dy=e.clientY-py; px=e.clientX; py=e.clientY;
+    const k=0.0055*dist/4.3; vSpin=dx*k; vTilt=dy*k; if(mode==='earth') spin+=vSpin; else offset+=vSpin; tilt=Math.max(-1.25, Math.min(1.25, tilt+vTilt)); });
+  const up=()=>{ dragging=false; cv.classList.remove('drag'); };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  function zoom(f){ dist=Math.max(1.35, Math.min(8, dist*f)); cam.position.z=dist; }
+  cv.addEventListener('wheel', e=>{ e.preventDefault(); zoom(1+Math.sign(e.deltaY)*0.08); }, {passive:false});
+  cv.addEventListener('touchstart', e=>{ if(e.touches.length===2) pinch=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); }, {passive:true});
+  cv.addEventListener('touchmove', e=>{ if(e.touches.length===2 && pinch){ const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); zoom(pinch/d); pinch=d; dragging=false; } }, {passive:true});
+
+  // ---- a view can be set from outside (the measurement script) or from the URL: #lon=-75&lat=-30&zoom=2.2&frame=90
+  function setView(lon, lat, d, fi){ mode='earth'; document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed', x.dataset.mode==='earth'));
+    spin=-(90+lon)*DEG; tilt=Math.max(-1.25, Math.min(1.25, lat*DEG)); vSpin=vTilt=0; if(d){ dist=Math.max(1.35, Math.min(8, d)); cam.position.z=dist; } if(fi!=null) seek(fi); }
+  window.__setView=setView;
+  window.__dbg={renderer, U, vid, vtex, rt:()=>rtB, presented:()=>presented};
+  window.__pause=()=>{ wantPlay=false; sync(); playBtn.textContent='Play'; playBtn.setAttribute('aria-pressed','false'); };
+  (function(){ const h=new URLSearchParams(location.hash.slice(1)); if(h.has('lon')) setView(+h.get('lon'), +(h.get('lat')||0), +(h.get('zoom')||0)||null, null); })();
+
+  // ---- loop: no allocation per frame
+  const sunObj=U.uSun.value, camObj=U.uCam.value, inv=new THREE.Matrix4(), rot3=new THREE.Matrix3();
+  let frames=0, fpsT=performance.now(); perf.fps=0;
+  function tick(now){
+    requestAnimationFrame(tick);
+    const i=frame();
+    if(i!==lastFrame){ lastFrame=i; showClock(i); }
+    if(!dragging){ vSpin*=0.94; vTilt*=0.94; if(Math.abs(vSpin)>1e-4){ if(mode==='earth') spin+=vSpin; else offset+=vSpin; } if(Math.abs(vTilt)>1e-4) tilt=Math.max(-1.25, Math.min(1.25, tilt+vTilt)); }
+    const s=sunNow();
+    if(mode==='earth'){ if(!dragging && !vid.paused) spin+=0.00045; planet.rotation.y=spin; }
+    else { planet.rotation.y=-Math.PI/2 - Math.atan2(s[1],s[0]) + offset; }
+    atmo.rotation.y=planet.rotation.y;
+    tiltG.rotation.x=tilt;
+    // Earth-fixed (x 0E, y 90E, z N) -> object space (x 0E, y N, z -90E)
+    sunObj.set(s[0], s[2], -s[1]);
+    planet.updateMatrixWorld(); inv.copy(planet.matrixWorld).invert(); camObj.copy(cam.position).applyMatrix4(inv);
+    atmo.material.uniforms.uSunV.value.set(s[0],s[2],-s[1]).applyMatrix3(rot3.setFromMatrix4(planet.matrixWorld));
+    // cross-fade from the older frame to the newest over the measured gap between presents
+    U.uMix.value = blend && presented>1 && !vid.paused ? Math.max(0, Math.min(1, (performance.now()-lastPresent)/1000/Math.max(frameGap,1e-3))) : 1;
+    renderer.render(scene, cam);
+    frames++; if(now-fpsT>1000){ perf.fps=Math.round(frames*1000/(now-fpsT)); frames=0; fpsT=now; }
+  }
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
