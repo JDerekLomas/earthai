@@ -147,3 +147,39 @@ Tracking issue: https://github.com/JDerekLomas/earthai/issues/2
    reflectance / 16 K, which is closer to reflectance-vs-optical-depth. Infrared-only night misses thin
    low cloud and paints very cold ground; the IR clear reference is the day's warmest within ±1 h of the time
    of day, floored at (warmest of all − 14 K). Coast pixels were briefly speckled by a water-only cap.
+7. **Stage 2, shipped:** all five satellites for 12 Sep are live at https://earthai-scales.vercel.app/globe/
+   (PRs #4, #5 merged; 4k clip 62.9 MB, 2k 18.8 MB at crf 26, chosen by measuring 1% mean error against the PNG
+   frames over the Chile cloud streets; crf 20 was 93 MB for no visible gain). Comparison plates, /globe/ above
+   /earth/ at the same view (whole disc, Chile, terminator, mid-Atlantic, dateline): `docs/globe-2026-09-18/`.
+   Live measurement, five-satellite page: first paint 502 ms / 1.5 MB, first moving frame 677 ms, 8192 basemap in
+   at 1.5 s, 60 fps idle/drag/zoom on an M5 Pro at dpr 2.
+8. **Satellites in:** GOES-East and GOES-West (byte-range MCMIPF, 41–54 MB/slot), Himawari-9 (raw HSD bz2
+   segments from `noaa-himawari9`, band 3 at 0.5 km box-averaged 4×4 plus band 13; 129 + 22 MB/slot by day, 22 MB
+   at night when the whole disk is dark; a 100-line header/Planck reader, geometry verified against coastlines),
+   MTG-I1 and Meteosat-9 (EUMETView WMS, keyless, no account created). Himawari's 02:40 and 14:40 slots do not
+   exist on S3 (daily housekeeping); Meteosat-9 is 15-minute; both are held from the previous frame (30 min max).
+9. **Seams, measured** (mean |Δopacity| where both satellites weigh ≥ 0.5, over all 144 frames; bias = first minus
+   second): GOES-E/GOES-W 0.083 (+0.005), GOES-E/MTG 0.079 (+0.001), GOES-W/Himawari 0.082 (+0.003),
+   MTG/Meteosat-9 0.098 (−0.003), Himawari/Meteosat-9 0.142 (+0.014). For scale, the field's mean is ~0.18;
+   the seams do not show in the frames. Meteosat-9 is the worst pair on both sides: it is calibrated second-hand
+   (against MTG, itself calibrated against GOES-East) and held 15 minutes.
+10. **What the EUMETView route gets wrong, and how it is handled:** the WMS serves contrast-stretched 8-bit
+    pictures, and its infrared greys are bright = cold. Grey → physical is a quantile match against the neighbour
+    in the overlap (MTG ← GOES-East over the Atlantic, ~2% of the grid; Meteosat-9 ← MTG over Africa), which
+    can only build an increasing map — the sign is now checked first (IR correlation −0.93). Before that fix every
+    desert at night was cloud. The Blue Marble cap is not applied to those two (a quantile-mapped grey is not
+    accurate enough over the Sahara for an absolute cap); their visible reference is the day's own darkest.
+11. **Ten days: not done, and not doable from this laptop today.** Measured link during the run: 0.27–1.5 MB/s per
+    S3 connection, ~6 MB/s total; 25 concurrent connections caused SSL EOFs, IncompleteReads and one machine-wide
+    DNS blip that killed two runs. One day of five satellites is ~35 GB and took ~2.5 h wall-clock; ten days is
+    ~340 GB. Run `fetch` for the nine other days on Hetzner (per CLAUDE.md bulk rule), rsync `data/clouds/raw/`
+    back, then `clearsky` (which will get much better with ten days: per-time-of-day warmest and true darkest),
+    `opacity`, `blend`, `encode`. Expect ~600 MB for the 4k ten-day clip at crf 26; consider 2k default + 4k on
+    demand, or per-day clips switched by the scrubber.
+12. **Next, in order of value:** (a) the nine days on a fast box, as above; (b) link /globe/ from the homepage
+    (the other session owns site/index.html); (c) the night side is infrared-only and the IR clear reference over
+    land is a single-day guess — ten days fixes most of it, a VIIRS-derived land-surface temperature climatology
+    would fix the rest; (d) the crossfade is good enough that RIFE was not run; try it only if a viewer asks for
+    slower-than-¼ playback; (e) `sun-fixed` mode is a uniform now — a "follow the terminator" camera would be a
+    two-line addition; (f) Himawari band 3 could be swapped for the 1 km bands to cut its bytes 5× if the 0.5 km
+    detail is never seen at 10 km/px (it is not).
