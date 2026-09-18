@@ -343,7 +343,7 @@
   loader.load('clouds_poster.webp', t=>{ posterTex=t; t.colorSpace=THREE.NoColorSpace; if(!U.uHasCloud.value){ U.uCloudA.value=t; U.uCloudB.value=t; U.uHasCloud.value=1; U.uMix.value=0; } });
   function firstPaint(){ if(perf.firstPaint!==null) return; renderer.render(scene,cam); perf.firstPaint=Math.round(performance.now()-T0); }
 
-  const small=screen.width*Math.min(devicePixelRatio,2) < 1900;     // a phone, or a small 1x screen: the 2048 clip is enough
+  const small=Math.max(screen.width, innerWidth)*Math.min(devicePixelRatio,2) < 1900;     // a phone, or a small 1x screen: the 2048 clip is enough
   const slow=navigator.connection && (navigator.connection.saveData || /2g|3g/.test(navigator.connection.effectiveType||''));
   const useSmall=small||slow;
   perf.clip=useSmall?'clouds_2k.mp4':'clouds.mp4';
