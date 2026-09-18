@@ -7,23 +7,31 @@ sixteen bands (~370 MB a slot) and draws pictures of a bounding box. This reads 
 bands a cloud mask needs, by HTTP byte range, and turns them into opacity: no lighting in it at
 all, so the page can light it, and nothing to mismatch where two satellites meet.
 
-    python scripts/fetch_clouds.py fetch    --sat goes19 --start 2026-09-12T00:00 --end 2026-09-12T23:50
-    python scripts/fetch_clouds.py clearsky --sat goes19
-    python scripts/fetch_clouds.py opacity  --sat goes19
-    python scripts/fetch_clouds.py blend    --start 2026-09-12T00:00 --end 2026-09-12T23:50
-    python scripts/fetch_clouds.py encode   --out site/globe --name clouds
+    python scripts/fetch_clouds.py fetch     --sat goes19 --start 2026-09-12T00:00 --end 2026-09-12T23:50
+    python scripts/fetch_clouds.py calibrate --sat mtg        # WMS satellites only, after their reference is fetched
+    python scripts/fetch_clouds.py clearsky  --sat goes19
+    python scripts/fetch_clouds.py opacity   --sat goes19
+    python scripts/fetch_clouds.py blend     --start 2026-09-12T00:00 --end 2026-09-12T23:50 --sats goes19,goes18,himawari9,mtg,iodc
+    python scripts/fetch_clouds.py encode    --out site/globe --name clouds
 
 Run from the repo root (paths are relative to data/). The grid is equirectangular, 4096 wide,
 cropped to +/-66.09 deg latitude (1504 rows, a multiple of 16): a geostationary satellite sees
 nothing useful poleward of that, so no pixel is spent there.
 
-fetch     Per slot: the HDF5 chunk index of `CMI_C02` (0.64 um reflectance factor) and `CMI_C13`
-          (10.3 um brightness temperature) is read through fsspec (a few 256 KB blocks), then each
-          variable's chunks, which sit contiguously in the file, come down in ONE ranged GET and
-          are inflated and unshuffled here. ~52 MB a slot instead of ~370. The 2 km fixed grid is
-          box-averaged 2x2, blurred a little (the output pixel is ~10 km; without this, cloud
-          streets alias) and sampled bilinearly. Writes 16-bit PNGs under data/clouds/raw/<sat>/:
-          <UTC>_vis.png = reflectance x 40000, <UTC>_bt.png = kelvin x 100, 0 = no data.
+fetch     Five satellites, three kinds of source, one output: <UTC>_vis.png (reflectance x 40000)
+          and <UTC>_bt.png (kelvin x 100) as 16-bit PNGs on the grid under data/clouds/raw/<sat>/,
+          0 = no data.
+          abi (goes19, goes18): the HDF5 chunk index of `CMI_C02` (0.64 um reflectance factor) and
+          `CMI_C13` (10.3 um brightness temperature) is read by byte range (a few 256 KB blocks),
+          then each variable's chunks, which sit contiguously in the file, come down in ONE ranged
+          GET and are inflated and unshuffled here. ~40-55 MB a slot instead of ~370.
+          ahi (himawari9): the raw HSD segments, bands 3 (0.64 um, 0.5 km, box-averaged 4x4) and 13,
+          bz2, calibrated from the header blocks (~150 MB a slot, mostly band 3).
+          wms (mtg, iodc): EUMETView's 0.6 um and 10.5/10.8 um layers as served, an 8-bit grey each,
+          stored x100; `calibrate` turns grey into reflectance and kelvin by quantile matching
+          against a neighbour in the overlap. Meteosat-9 is every 15 min; blend holds it.
+          Every native grid is box-averaged 2x2, blurred a little (the output pixel is ~10 km;
+          without this, cloud streets alias) and sampled bilinearly.
 clearsky  What each pixel looks like with NO cloud, from the frames themselves.
           vis: the lowest sun-normalised reflectance seen in any daytime slot (mu > 0.35).
           bt:  per time of day, the warmest temperature seen within +/-1 h of that time on any
@@ -361,7 +369,7 @@ def wms_grey(sat: str, band: str, t: datetime) -> np.ndarray | None:
     a = np.asarray(im).astype(np.float32)
     g = a[..., :3].mean(-1)
     g[a[..., 3] < 128] = np.nan
-    if np.isfinite(g).mean() < 0.2 or np.nanstd(g) < 2:                 # a blank slot
+    if np.isfinite(g).mean() < 0.2 or (band == "ir" and np.nanstd(g) < 2):   # a blank slot (a night vis is flat and fine)
         return None
     out = np.full((H, W), np.nan, np.float32)
     out[:, c0:c1] = g
@@ -461,14 +469,14 @@ def fetch(sat, start, end, workers):
     def one(item):
         slot, key, size = item
         url = f"https://{cfg['bucket']}.s3.amazonaws.com/{key}"
-        for attempt in range(4):
+        for attempt in range(6):                                    # patient: a DNS blip once killed a whole run
             try:
                 t0 = time.time()
                 bands, nbytes = abi_read(url, ("CMI_C02", "CMI_C13"))
                 return slot, size, bands, nbytes, time.time() - t0
             except Exception as e:                                  # noqa: BLE001
                 click.echo(f"   retry {attempt + 1} {slot_name(slot)}: {e}")
-                time.sleep(3 * (attempt + 1))
+                time.sleep(10 * (attempt + 1))
         return slot, size, None, 0, 0.0
 
     total = 0
@@ -492,7 +500,7 @@ def fetch_ahi(sat, cfg, out, start, end, workers, log):
     geo = DiskGeometry.ahi(cfg["lon"])
 
     def one(t):
-        for attempt in range(3):
+        for attempt in range(6):
             try:
                 t0 = time.time()
                 vis = ahi_read(cfg["bucket"], t, 3, 4)
@@ -500,7 +508,7 @@ def fetch_ahi(sat, cfg, out, start, end, workers, log):
                 return t, vis, bt, time.time() - t0
             except Exception as e:                                  # noqa: BLE001
                 click.echo(f"   retry {attempt + 1} {slot_name(t)}: {e}")
-                time.sleep(5)
+                time.sleep(10 * (attempt + 1))
         return t, None, None, 0.0
 
     with ThreadPoolExecutor(workers) as pool:
@@ -785,8 +793,21 @@ def encode(out, name, start, end, fps, crf, crf_small):
         sizes[dest.name] = dest.stat().st_size
         click.echo(f"{dest}  {dest.stat().st_size / 1e6:.1f} MB")
     Image.open(frames[0]).resize((2048, H // 2), Image.LANCZOS).save(out / f"{name}_poster.webp", quality=80)
+    # the seam numbers and hold counts from the blend, averaged over these frames
+    names = {p.stem for p in frames}
+    rows = [json.loads(l) for l in (ROOT / "frames.jsonl").read_text().splitlines() if l.strip()]
+    rows = {r["t"]: r for r in rows if r["t"] in names}.values()
+    seam, held = {}, {}
+    for r in rows:
+        for k, v in r.get("seam", {}).items():
+            seam.setdefault(k, []).append((v["bias"], v["mad"]))
+        for s, back in r.get("held", {}).items():
+            if back:
+                held[s] = held.get(s, 0) + 1
+    seam = {k: {"bias": round(float(np.mean([a for a, _ in v])), 4), "mad": round(float(np.mean([b for _, b in v])), 4), "frames": len(v)} for k, v in seam.items()}
+    sats = sorted({s for k in seam for s in k.split("-")} | set(held))
     manifest = {"frames": [p.stem for p in frames], "fps": fps, "width": W, "height": H, "lat_max": LAT_MAX,
-                "sizes": sizes, "poster": f"{name}_poster.webp"}
+                "sizes": sizes, "poster": f"{name}_poster.webp", "seam": seam, "held": held, "sats": sats}
     (out / f"{name}.json").write_text(json.dumps(manifest))
     click.echo(f"manifest {out / (name + '.json')}")
 

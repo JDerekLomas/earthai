@@ -162,7 +162,7 @@
     <table>
       <thead><tr><th>layer</th><th>what it is</th><th>where it comes from</th></tr></thead>
       <tbody>
-        <tr><td>cloud</td><td>opacity, 0 to 1, every ten minutes, 4096 pixels around the equator (about 10 km each), latitudes 66°S to 66°N</td><td id="srcrow">GOES-East, bands 2 and 13, NOAA's archive on AWS</td></tr>
+        <tr><td>cloud</td><td>opacity, 0 to 1, every ten minutes, 4096 pixels around the equator (about 10 km each), latitudes 66°S to 66°N</td><td id="srcrow">GOES-East and GOES-West (bands 2 and 13, NOAA's archive on AWS), Himawari-9 (bands 3 and 13, the raw HSD segments on AWS), Meteosat MTG-I1 and Meteosat-9 (0.6 µm and 10.5/10.8 µm through EUMETView)</td></tr>
         <tr><td>land and sea</td><td>NASA Blue Marble with shaded relief and bathymetry, 8192 pixels around, sharp at any zoom</td><td>NASA GIBS</td></tr>
         <tr><td>night</td><td>VIIRS city lights, shown only on the night side and only where the cloud is thin</td><td>NASA GIBS</td></tr>
         <tr><td>light</td><td>the sun's position for the moment being shown; day and night, a warm terminator, glint off the sea, the cloud's shadow, the blue rim of the air</td><td>computed on your graphics card</td></tr>
@@ -176,7 +176,7 @@
     <h2>What is missing</h2>
   </div>
   <div class="cols">
-    <div class="note gate"><span class="status">the other satellites</span><h3 id="satsh">One satellite of five, for now</h3><p id="satsp">This first day is GOES-East alone, which sees the Americas and the Atlantic. Everywhere it cannot see is drawn honestly clear: the <em>Coverage</em> button shows the edge. The other four satellites, whose measurements are the same physical quantities, are the next step; because every zone is then the same number, the seams can be checked with arithmetic rather than by eye.</p></div>
+    <div class="note have"><span class="status">the seams</span><h3 id="satsh">Five satellites, checked with arithmetic</h3><p id="satsp">Where two satellites both see a place at a decent angle, each has its own opinion of the cloud there, and because both opinions are the same physical number they can be compared: the mean difference in opacity across each overlap is printed below, measured over every frame. The two Meteosats come through EUMETSAT's map server as pictures rather than numbers, so their greys are calibrated against a neighbour (MTG against GOES-East over the Atlantic, Meteosat-9 against MTG over Africa) by matching distributions before they are used. Everywhere no satellite sees is drawn honestly clear: the <em>Coverage</em> button shows where that is.</p><p id="seams" class="mono" style="font-size:12px"></p></div>
     <div class="note gate"><span class="status">the poles</span><h3>Nothing looks down on the poles</h3><p>Every geostationary satellite sits over the equator and sees the Earth edge-on past about 60° of latitude, so past 66° there is no cloud on this page at all. The polar caps are the basemap, lit but weatherless.</p></div>
     <div class="note maybe"><span class="status">the clear-sky guess</span><h3>Where the method is wrong</h3><p id="wrongp">"What this place looks like with no cloud" is taken from one day of pictures, so a place under cloud all day has no clear reference and its cloud reads thinner than it is. Bright ground (the Atacama, Greenland's ice) is handled by that reference and stays ground; the sun's glint on the sea is switched to the infrared reading alone, so a calm sea at noon is not white. Very cold ground at night, and thin high cloud after dark, are the known failures of an infrared-only night.</p></div>
     <div class="note have"><span class="status">between frames</span><h3>Ten minutes, cross-faded</h3><p>A real frame every ten minutes, twelve of them a second at full speed: two hours a second, a day in twelve seconds. The <em>Blend</em> button cross-fades each frame into the next so the motion is continuous; nothing between the frames is invented, only mixed. Switch it off to see the frames step.</p></div>
@@ -184,7 +184,7 @@
 </section>
 
 <footer>
-  GOES-East ABI L2 CMIP bands 2 and 13 via NOAA Open Data on AWS · Blue Marble and VIIRS city lights via NASA GIBS ·
+  GOES-East and GOES-West ABI L2 CMIP bands 2 and 13 and Himawari-9 AHI L1b bands 3 and 13 via NOAA Open Data on AWS · MTG-I1 and Meteosat-9 via EUMETView, EUMETSAT · Blue Marble and VIIRS city lights via NASA GIBS ·
   cloud field by <span class="mono">scripts/fetch_clouds.py</span> · rendered with three.js <span id="threev"></span> · <span id="man"></span>
 </footer>
 </div>
@@ -354,6 +354,8 @@
     suns=times.map(sunVec);
     const days=m.frames.length/144;
     document.getElementById('claim').textContent=days>=1.5?`${Math.round(days)} days`:'One day';
+    if(m.seam){ const NAMES={goes19:'GOES-East',goes18:'GOES-West',himawari9:'Himawari-9',mtg:'MTG-I1',iodc:'Meteosat-9'};
+      document.getElementById('seams').textContent=Object.entries(m.seam).map(([k,v])=>{ const [a,b]=k.split('-'); return `${NAMES[a]||a} vs ${NAMES[b]||b}: mean |difference| ${v.mad.toFixed(3)}, bias ${v.bias>=0?'+':''}${v.bias.toFixed(3)}`; }).join(' · '); }
     const bytes=m.sizes[perf.clip]; perf.bytes.clip=bytes;
     document.getElementById('man').textContent=`${m.frames.length} frames, ${m.frames[0].replace('T',' ')} to ${m.frames[m.frames.length-1].replace('T',' ')} · ${(m.sizes['clouds.mp4']/1e6).toFixed(1)} MB (4k) / ${(m.sizes['clouds_2k.mp4']/1e6).toFixed(1)} MB (2k)`;
     load.textContent=`streaming ${(bytes/1e6).toFixed(0)} MB of cloud…`;
