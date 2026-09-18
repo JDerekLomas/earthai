@@ -180,7 +180,7 @@
     <div class="note gate"><span class="status">the poles</span><h3>Nothing looks down on the poles</h3><p>Every geostationary satellite sits over the equator and sees the Earth edge-on past about 60° of latitude, so past 66° there is no cloud on this page at all. The polar caps are the basemap, lit but weatherless.</p></div>
     <div class="note maybe"><span class="status">the clear-sky guess</span><h3>Where the method is wrong</h3><p id="wrongp">"What this place looks like with no cloud" is taken from one day of pictures, so a place under cloud all day has no clear reference and its cloud reads thinner than it is. Bright ground (the Atacama, Greenland's ice) is handled by that reference and stays ground; the sun's glint on the sea is switched to the infrared reading alone, so a calm sea at noon is not white. Very cold ground at night, and thin high cloud after dark, are the known failures of an infrared-only night.</p></div>
     <div class="note have"><span class="status">between frames</span><h3>Ten minutes, in motion</h3><p>A real frame every ten minutes, twelve of them a second at full speed: two hours a second, a day in twelve seconds. Between two frames the cloud has moved, typically one to three pixels, and a cross-fade would show it fading from one place to the next. So the motion between each frame and the next is measured (optical flow, on the frames themselves) and travels with the clip, and the <em>Blend</em> button carries each frame along it: the older frame is pushed forward, the newer pulled back, and the two are mixed. Nothing is invented; where the motion estimate is wrong the cloud ghosts a little. Switch it off to see the frames step.</p></div>
-    <div class="note maybe"><span class="status">the resolution</span><h3>Ten kilometres per pixel</h3><p>The cloud is drawn at ten kilometres per pixel, 4096 of them around the equator, and the zoom stops where one of those would be two screen pixels wide, so the cloud is never magnified into mush over a basemap that is still sharp. The satellites see finer, down to half a kilometre; this page does not yet.</p></div>
+    <div class="note maybe"><span class="status">the resolution</span><h3>Ten kilometres per pixel</h3><p>The cloud is drawn at ten kilometres per pixel, 4096 of them around the equator, and the zoom stops where one of those would be two device pixels wide, so the cloud is never magnified into mush over a basemap that is still sharp; on a retina laptop that is only about one and a half times closer than the opening view. The satellites see finer, down to half a kilometre; this page does not yet.</p></div>
   </div>
 </section>
 
@@ -233,7 +233,9 @@
     uCloudA:{value:blank}, uCloudB:{value:blank}, uMix:{value:0}, uCloudTexel:{value:new THREE.Vector2(1/4096,1/1504)},
     uFlow:{value:new THREE.Vector2(0,0)},      // uv per unit of coded flow (x east, y north); zero until the clip's manifest says
     uSun:{value:new THREE.Vector3(1,0,0)}, uCam:{value:new THREE.Vector3(0,0,4)},
-    uLatMax:{value:66.09}, uShowCover:{value:0}, uHasCloud:{value:0}
+    uLatMax:{value:66.09}, uShowCover:{value:0}, uHasCloud:{value:0},
+    uBicubic:{value:0},                        // 1 when a cloud texel is wider than a device pixel: Catmull-Rom instead of bilinear
+    uCloudK:{value:0.45}                       // the pipeline's vis_k: -k ln(1 - opacity) is the cloud's reflectance again
   };
   const planet=new THREE.Mesh(new THREE.SphereGeometry(1,128,96), new THREE.ShaderMaterial({
     uniforms:U,
@@ -243,19 +245,34 @@
     fragmentShader:`
       precision highp float;
       uniform sampler2D uBase, uLights, uCover, uCloudA, uCloudB;
-      uniform float uMix, uLatMax, uShowCover, uHasCloud;
+      uniform float uMix, uLatMax, uShowCover, uHasCloud, uBicubic, uCloudK;
       uniform vec2 uCloudTexel, uFlow; uniform vec3 uSun, uCam;
       varying vec2 vUv; varying vec3 vP;
+      // Catmull-Rom in five bilinear taps (the four corner taps dropped, weights renormalised): when the cloud
+      // is magnified, bilinear shows the 10 km texel grid as staircases; this gives a smooth contour instead.
+      float cubicR(sampler2D t, vec2 uv){
+        vec2 sp=uv/uCloudTexel, tc=floor(sp-0.5)+0.5, f=sp-tc;
+        vec2 w0=f*(-0.5+f*(1.0-0.5*f)), w1=1.0+f*f*(-2.5+1.5*f), w2=f*(0.5+f*(2.0-1.5*f)), w3=f*f*(-0.5+0.5*f);
+        vec2 w12=w1+w2, t12=(tc+w2/w12)*uCloudTexel, t0=(tc-1.0)*uCloudTexel, t3=(tc+2.0)*uCloudTexel;
+        float r=texture2D(t,t12).r*w12.x*w12.y
+               +texture2D(t,vec2(t12.x,t0.y)).r*w12.x*w0.y+texture2D(t,vec2(t12.x,t3.y)).r*w12.x*w3.y
+               +texture2D(t,vec2(t0.x,t12.y)).r*w0.x*w12.y+texture2D(t,vec2(t3.x,t12.y)).r*w3.x*w12.y;
+        return clamp(r/(1.0-(w0.x+w3.x)*(w0.y+w3.y)), 0.0, 1.0);
+      }
       // cloud opacity at a lon/lat uv: the clip covers only +/- uLatMax. Each frame carries the motion to the
       // next frame (r = opacity, gb = flow); the older frame is warped forward along it and the newer one
       // backward, by uMix, then mixed: motion between the ten-minute frames rather than a dissolve.
-      float cloudAt(vec2 uv){
+      // fine=true asks for the bicubic taps; the shadow and relief taps stay bilinear (they read differences).
+      float cloudAt(vec2 uv, bool fine){
         float lat=(uv.y-0.5)*180.0;
         float v=(lat+uLatMax)/(2.0*uLatMax);
         if(v<0.0||v>1.0) return 0.0;
         vec2 c=vec2(uv.x, v);
         vec2 f=(texture2D(uCloudA,c).gb-0.5)*2.0*uFlow;
-        float a=texture2D(uCloudA, c-f*uMix).r, b=texture2D(uCloudB, c+f*(1.0-uMix)).r;
+        vec2 ca=c-f*uMix, cb=c+f*(1.0-uMix);
+        float a, b;
+        if(fine && uBicubic>0.5){ a=cubicR(uCloudA,ca); b=cubicR(uCloudB,cb); }
+        else { a=texture2D(uCloudA,ca).r; b=texture2D(uCloudB,cb).r; }
         float edge=smoothstep(0.0,0.02,v)*smoothstep(1.0,0.98,v);
         return mix(a,b,uMix)*edge*uHasCloud;
       }
@@ -272,27 +289,41 @@
         float water=step(base.r*1.25,base.b)*step(base.r,0.30);
         float lat=(vUv.y-0.5)*3.14159265;
         // cloud, and the cloud a little toward the sun for its shadow on the ground
-        float cl=cloudAt(vUv);
+        float cl=cloudAt(vUv, true);
         vec3 east=normalize(cross(vec3(0.0,1.0,0.0),n)); vec3 north=cross(n,east);
         vec3 st=s-n*mu;                                                   // the sun's direction along the ground
         vec2 sh=vec2(dot(st,east)/max(cos(lat),0.2)*0.0018, dot(st,north)*0.0036);   // ~0.65 deg at most: a low sun throws a longer shadow
-        float shadow=cloudAt(vUv+sh)*day;
+        float shadow=cloudAt(vUv+sh, false)*day;
+        // Tone. The pipeline's opacity is 1 - exp(-reflectance/k), so -k ln(1 - opacity) is the reflectance
+        // again: the cloud's brightness follows that (thin cloud is dim and lets the ground through; only a
+        // thick top is white) while its COVER of the ground follows the opacity. Painting flat white by
+        // opacity, as before, gave every cloud two values, on and off.
+        float cov=clamp((cl-0.01)/0.90, 0.0, 1.0);
+        float refl=clamp(-uCloudK*log(1.0-min(cl,0.995)), 0.0, 1.0);
+        // Relief. Read the opacity a texel and a half either side along the sun's ground direction and treat
+        // the difference as a slope: the side that falls away toward the sun is lit, the far side is shaded,
+        // more so when the sun is low. This is what makes a cloud read as a surface with height.
+        float sl=length(st);
+        vec2 sd=vec2(dot(st,east)/max(cos(lat),0.2), dot(st,north))/max(sl,1e-3);
+        vec2 rd=sd*vec2(uCloudTexel.x, uCloudTexel.y*2.0*uLatMax/180.0)*1.5;
+        float slope=cloudAt(vUv-rd, false)-cloudAt(vUv+rd, false);
+        float relief=clamp(slope*1.1, -0.45, 0.45)*(0.4+0.6*sl)*day;
         // ground by day: diffuse with a floor, warm toward dusk, sea glint
         float diff=clamp(mu,0.0,1.0);
         vec3 warm=mix(vec3(1.0), vec3(1.0,0.70,0.42), dusk*0.55);
         vec3 dayCol=base*(0.06+0.94*pow(diff,0.8))*warm;
         vec3 r=reflect(-s,n);
         float spec=pow(max(dot(r,v),0.0),420.0)*water*0.30*day;
-        dayCol+=vec3(1.0,0.95,0.85)*spec*(1.0-cl);
-        dayCol*=1.0-0.5*shadow*(1.0-cl);
+        dayCol+=vec3(1.0,0.95,0.85)*spec*(1.0-cov);
+        dayCol*=1.0-0.5*clamp((shadow-0.01)/0.9,0.0,1.0)*(1.0-cov);
         // ground by night: faint blue earth, city lights through thin cloud
-        vec3 nightCol=base*vec3(0.018,0.024,0.040)+vec3(1.0,0.82,0.55)*lights*0.85*(1.0-cl*0.85)+vec3(0.35,0.42,0.55)*cl*0.030;
+        vec3 nightCol=base*vec3(0.018,0.024,0.040)+vec3(1.0,0.82,0.55)*lights*0.85*(1.0-cov*0.85)+vec3(0.35,0.42,0.55)*cov*0.030;
         vec3 ground=mix(nightCol, dayCol, day);
-        // cloud: white in the sun, warm at dusk, blue-grey and faint at night
+        // cloud: white in the sun (a thin one a little blue, from the air beneath it), warm at dusk, blue-grey and faint at night
         vec3 cloudDay=vec3(0.94,0.955,0.98)*(0.08+0.92*pow(clamp(mu*1.15+0.08,0.0,1.0),0.7))*warm;
         vec3 cloudNight=vec3(0.30,0.36,0.48)*0.16;
-        vec3 cloudCol=mix(cloudNight, cloudDay, day);
-        vec3 col=mix(ground, cloudCol, cl);
+        vec3 lit=cloudDay*mix(vec3(0.86,0.91,1.0), vec3(1.0), cov)*refl*(1.0+relief);
+        vec3 col=ground*(1.0-cov)+mix(cloudNight*cov, lit, day);
         // the air: a blue haze that thickens toward the limb, only where lit
         float fres=pow(1.0-max(dot(n,v),0.0),3.0);
         col+=vec3(0.30,0.50,0.90)*fres*0.45*day;
@@ -387,7 +418,7 @@
   const t2k=loader.load('base_2048.jpg', t=>{ U.uBase.value=srgb(t); firstPaint(); });
   loader.load('lights_4096.jpg', t=>{ U.uLights.value=t; });
   loader.load('coverage.png', t=>{ t.colorSpace=THREE.NoColorSpace; U.uCover.value=t; });
-  loader.load('clouds_poster.webp', t=>{ posterTex=t; t.colorSpace=THREE.NoColorSpace; t.wrapS=THREE.RepeatWrapping; if(!U.uHasCloud.value){ U.uCloudA.value=t; U.uCloudB.value=t; U.uHasCloud.value=1; U.uMix.value=0; } });
+  loader.load('clouds_poster.webp', t=>{ posterTex=t; t.colorSpace=THREE.NoColorSpace; t.wrapS=THREE.RepeatWrapping; if(!U.uHasCloud.value){ U.uCloudA.value=t; U.uCloudB.value=t; U.uHasCloud.value=1; U.uMix.value=0; U.uCloudTexel.value.set(1/t.image.width, 1/t.image.height); } });
   function firstPaint(){ if(perf.firstPaint!==null) return; renderer.render(scene,cam); perf.firstPaint=Math.round(performance.now()-T0); }
 
   const small=Math.max(screen.width, innerWidth)*Math.min(devicePixelRatio,2) < 1900;     // a phone, or a small 1x screen: the 2048 clip is enough
@@ -398,6 +429,7 @@
   fetch('clouds.json').then(r=>r.json()).then(m=>{
     man=m; scrub.max=m.frames.length-1;
     if(m.code){ code=m.code; U.uFlow.value.set(code.flow_p99_px/m.width, -code.flow_p99_px/m.height); }   // flow y is down the image; v is up
+    if(m.curve && m.curve.vis_k) U.uCloudK.value=m.curve.vis_k;
     zoomLimit();
     times=m.frames.map(s=>new Date(s.slice(0,4)+'-'+s.slice(5,7)+'-'+s.slice(8,10)+'T'+s.slice(11,13)+':'+s.slice(13,15)+':00Z'));
     suns=times.map(sunVec);
@@ -464,13 +496,16 @@
     const k=0.0055*dist/4.3; vSpin=dx*k; vTilt=dy*k; if(mode==='earth') spin+=vSpin; else offset+=vSpin; tilt=Math.max(-1.25, Math.min(1.25, tilt+vTilt)); });
   const up=()=>{ dragging=false; cv.classList.remove('drag'); };
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
-  // Zoom stops where a cloud texel at the centre of the disc would be wider than MAX_TEXEL_CSS screen pixels: the
+  // Zoom stops where a cloud texel at the centre of the disc would be wider than MAX_TEXEL_DEV DEVICE pixels: the
   // clip is ~10 km per texel, and past that the cloud is magnified into mush over a basemap that is still sharp.
   // Camera at dist d, fov 30 deg: a texel (2pi/W world units) at the disc centre, depth d-1, covers
   // (2pi/W) * Hpx / (2 tan(fov/2) (d-1)) device pixels. Recomputed on resize and when the clip's width is known.
-  const MAX_TEXEL_CSS=2.0; let minDist=1.35, zoomTarget=dist;
-  function zoomLimit(){ const pr=Math.min(devicePixelRatio,2), Hpx=stage.clientHeight*pr, Wc=rtW||(man&&useSmall?man.width/2:0)||(man?man.width:4096);
-    minDist=Math.max(1.35, 1+(2*Math.PI/Wc)*Hpx/(2*Math.tan(cam.fov/2*DEG)*MAX_TEXEL_CSS*pr)); perf.minDist=+minDist.toFixed(3);
+  // (Until 2026-09-19 the limit was 2 CSS pixels, i.e. 4 device pixels on a retina screen, and the grid showed.)
+  // On a retina laptop the opening view is already ~1.3 device px per texel, so this allows only ~1.5x closer.
+  const MAX_TEXEL_DEV=2.0; let minDist=1.35, zoomTarget=dist;
+  function texelPx(d){ const pr=Math.min(devicePixelRatio,2), Hpx=stage.clientHeight*pr, Wc=rtW||(man&&useSmall?man.width/2:0)||(man?man.width:4096);
+    return (2*Math.PI/Wc)*Hpx/(2*Math.tan(cam.fov/2*DEG)*(d-1)); }
+  function zoomLimit(){ minDist=Math.max(1.35, 1+texelPx(2)/MAX_TEXEL_DEV); perf.minDist=+minDist.toFixed(3);
     if(zoomTarget<minDist) zoomTarget=minDist; }
   function zoom(f){ zoomTarget=Math.max(minDist, Math.min(8, zoomTarget*f)); }
   cv.addEventListener('wheel', e=>{ e.preventDefault(); zoom(1+Math.sign(e.deltaY)*0.08); }, {passive:false});
@@ -500,6 +535,7 @@
     if(i!==lastFrame){ lastFrame=i; showClock(i); }
     if(!dragging){ const decay=Math.pow(0.94,k60); if(Math.abs(vSpin)>1e-4){ if(mode==='earth') spin+=vSpin*k60; else offset+=vSpin*k60; } if(Math.abs(vTilt)>1e-4) tilt=Math.max(-1.25, Math.min(1.25, tilt+vTilt*k60)); vSpin*=decay; vTilt*=decay; }
     if(Math.abs(zoomTarget-dist)>1e-4){ dist+=(zoomTarget-dist)*(1-Math.exp(-dt/0.12)); cam.position.z=dist; }
+    const tpx=texelPx(dist); U.uBicubic.value=tpx>1.15?1:0; perf.texelPx=+tpx.toFixed(2);   // magnified: bicubic; minified: bilinear is right
     const s=sunNow();
     if(mode==='earth'){ if(!dragging && !vid.paused) spin+=0.027*dt; planet.rotation.y=spin; }
     else { planet.rotation.y=-Math.PI/2 - Math.atan2(s[1],s[0]) + offset; }
