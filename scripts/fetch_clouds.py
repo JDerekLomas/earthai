@@ -677,7 +677,12 @@ def albedo_prior() -> np.ndarray:
     return np.where(r <= 0.04045, r / 12.92, ((r + 0.055) / 1.055) ** 2.4).astype(np.float32)
 
 
-PARAMS = {"bt_margin": 3.0, "bt_k": 16.0, "vis_margin": 0.03, "vis_margin_mu": 0.012, "vis_margin_rel": 0.12, "vis_k": 0.26,
+# vis_k / bt_k set how fast the saturating curve reaches 1. At 0.26 / 16 K (2026-09-18) most cloud sat
+# at 0.9+ and the field read as on/off white lace on the page; at 0.45 / 26 K a thick cloud top
+# (reflectance 0.8) lands at ~0.81, a bright one (1.0) at ~0.88 and marine stratocumulus (0.35) at
+# ~0.40, so nothing clips and the page can shade by opacity (the shader inverts this curve for
+# brightness: `-k ln(1 - opacity)` is the reflectance again).
+PARAMS = {"bt_margin": 3.0, "bt_k": 26.0, "vis_margin": 0.03, "vis_margin_mu": 0.012, "vis_margin_rel": 0.12, "vis_k": 0.45,
           "glint_in": 18.0, "glint_out": 36.0}
 
 
@@ -862,8 +867,10 @@ def yuv_frame(op: np.ndarray, flow: np.ndarray, p99: float, width: int) -> bytes
 @click.option("--fps", default=12, show_default=True, help="real frames per second of playback")
 @click.option("--crf", default=26, show_default=True, help="26 keeps the Chile cloud streets; measured 1% mean error vs the PNGs")
 @click.option("--crf-small", default=26, show_default=True)
+@click.option("--aq", default="3:1.2", show_default=True, help="x264 aq-mode:aq-strength; mode 3 with 1.2 gives the near-clear ocean "
+              "(opacity 0..0.1, where the eye looks and the codec spends nothing) its own bits; '' for x264's default")
 @click.option("--flow-cache", default=None, type=click.Path(path_type=Path), help="reuse/save the flow fields (.npz)")
-def encode(out, name, start, end, fps, crf, crf_small, flow_cache):
+def encode(out, name, start, end, fps, crf, crf_small, aq, flow_cache):
     import cv2
     out.mkdir(parents=True, exist_ok=True)
     frames = sorted(p for p in (ROOT / "frames").glob("*.png")
@@ -879,6 +886,10 @@ def encode(out, name, start, end, fps, crf, crf_small, flow_cache):
     click.echo(f"flow: {len(frames)} frames in {time.time() - t0:.0f}s; |flow| p50 {np.percentile(mag, 50):.2f} p90 {np.percentile(mag, 90):.2f} "
                f"p99 {p99:.2f} p99.9 {np.percentile(mag, 99.9):.2f} px at {W}; coded +/-{CHROMA} levels = +/-{p99:.2f} px")
     sizes = {}
+    x264 = "colorprim=bt709:transfer=bt709:colormatrix=bt709:range=tv"
+    if aq:
+        mode, strength = aq.split(":")
+        x264 += f":aq-mode={mode}:aq-strength={strength}"
     for width, c, suffix in ((W, crf, ""), (W // 2, crf_small, "_2k")):
         dest = out / f"{name}{suffix}.mp4"
         h = H * width // W
@@ -886,7 +897,7 @@ def encode(out, name, start, end, fps, crf, crf_small, flow_cache):
                                "-r", str(fps), "-i", "-", "-c:v", "libx264", "-preset", "slow", "-crf", str(c),
                                "-g", str(fps * 2), "-keyint_min", str(fps * 2), "-sc_threshold", "0", "-bf", "0", "-pix_fmt", "yuv420p",
                                "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
-                               "-x264-params", "colorprim=bt709:transfer=bt709:colormatrix=bt709:range=tv",
+                               "-x264-params", x264,
                                "-movflags", "+faststart+write_colr", "-an", str(dest)], stdin=subprocess.PIPE)
         for i, p in enumerate(frames):
             op = np.asarray(Image.open(p).convert("L"))
@@ -916,6 +927,7 @@ def encode(out, name, start, end, fps, crf, crf_small, flow_cache):
     sats = sorted({s for k in seam for s in k.split("-")} | set(held))
     manifest = {"frames": [p.stem for p in frames], "fps": fps, "width": W, "height": H, "lat_max": LAT_MAX,
                 "sizes": sizes, "poster": f"{name}_poster.webp", "seam": seam, "held": held, "sats": sats,
+                "curve": {"vis_k": PARAMS["vis_k"], "bt_k": PARAMS["bt_k"]},       # the page inverts vis_k for the cloud's brightness
                 "code": {"y_lo": Y_LO, "y_hi": Y_HI, "chroma": CHROMA, "strip": STRIP, "patches": PATCHES,
                          "flow_p99_px": round(p99, 3), "flow_width": W,
                          "flow_stats_px": {k: round(float(np.percentile(mag, q)), 3) for k, q in (("p50", 50), ("p90", 90), ("p99", 99), ("p999", 99.9))}}}

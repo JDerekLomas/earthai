@@ -61,3 +61,41 @@ site/night, site/index.html.
 ## Report back
 Append here: what changed in the curve and shader with the numbers, before/after plate paths, bytes,
 p95. SendMessage "earth-7e" one line DONE/BLOCKED + URL.
+
+## Report (2026-09-19, branch `globe-look`)
+
+Plates, all 1032x806 CSS at dpr 2 in headless real Chrome on the M5 Pro (ANGLE Metal), same two views as
+Derek's shots (`__setView(-124.4,14.3,4.3,124)` = the opening view at frame 125; `__setView(-75,-25,minDist,97)`):
+- `docs/globe-2026-09-19/before_*.jpg` — old shader, old clip (matches `look_*_m5pro.jpg` exactly)
+- `shader_oldclip_*.jpg` — new shader on the OLD clip (most of the win is here, no re-encode needed)
+- `after_*.jpg` — new shader, new clip; `ocean_crop_before_after.png` — 1:1 crop of the near-clear ocean off Chile
+
+**Shader (`site/globe/index.html`)**
+- Tone: cover = clamp((op-0.01)/0.90), brightness = -k·ln(1-op) with k = the pipeline's vis_k (from the manifest's new
+  `curve.vis_k`, default 0.45) — i.e. the cloud's reflectance again. Thin cloud is dim and a little blue
+  (tint mix(0.86,0.91,1.0)→white by cover); only a thick top is white. col = ground·(1-cover) + lit cloud.
+- Relief: opacity read 1.5 texels either side along the sun's ground direction; slope·1.1 clamped ±0.45, scaled by
+  (0.4+0.6·sin zenith)·day. Two bilinear taps. Ground shadow kept (its strength now follows cover).
+- Bicubic: Catmull-Rom in five bilinear taps on the primary sample only (shadow/relief stay bilinear), switched on
+  when a texel is > 1.15 device px (uniform `uBicubic`, set per tick from `texelPx(dist)`).
+- Zoom cap: 2.0 DEVICE px per texel. The old constant was 2 CSS px, i.e. 4 device px on retina — and the brief's
+  "1.9" omitted the depth term (d-1): at d=1.946, H=1322 device px, it was 4.0 px/texel, which is the staircase Derek
+  saw. 1.25 device px would put the cap at d≈4.03, leaving 1.07x zoom from the default 4.3, so 2.0 was chosen: minDist
+  1.946 → 2.892 on that stage (zoom from default 2.2x → 1.49x, the ~1.4x the brief expected). Copy says so.
+- Perf, same instrument as the motion report (`__dbg.rafStats`, CPU-side render time; headless runs at 60 Hz so the
+  gap is vsync): work p95 0.4 ms → 0.9 ms, max 0.6 → 1.2 ms. GPU time is not captured by that instrument; the M5 Pro
+  at 120 Hz should be checked once by eye.
+
+**Pipeline (`scripts/fetch_clouds.py`)** — vis_k 0.26 → 0.45, bt_k 16 → 26 K; opacity ×5 sats + blend re-run (4.5 min).
+Frame 16:10: share of cloud pixels (>0.1) above 0.9: 8.5% → 2.0%; max 1.00 → 0.976. Marine Sc off Chile
+(95W–75W, 35S–15S): fraction > 0.1 0.82 → 0.79, mean 0.47 → 0.33 — still there, now textured (see after_zoomcap).
+Note: only 8.5% of cloud pixels were ≥0.9 even before; the on/off look was mostly the shader painting flat white by
+opacity through the output gamma (a 0.3 cloud displayed at 58%). Old op/frames kept at `data/clouds/{op,frames}_k026`.
+
+**Encode** — `--aq 3:1.2` (x264 aq-mode 3, aq-strength 1.2) at crf 26, new default. Bytes: 4k 42.1 → 34.3 MB, 2k 12.4 → 9.6 MB
+(smaller: the softer curve has less contrast to code). Decoded frame 97 vs its PNG, mean |err|/255: all 6.26 → 6.15;
+near-clear ocean (<0.1) 1.91 → 2.35 (the number is slightly worse, the rectangles are visibly gone — the crop).
+Chroma flow packing and calibration strip unchanged (calibration check error 1 level, as before).
+
+**Not done / caveats**: p95 on a real 120 Hz display not measured (headless caps at 60 Hz). The merge went through a
+PR on GitHub rather than a local merge: the main checkout had earthai-46's uncommitted tile edits to the same file.
