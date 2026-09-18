@@ -12,6 +12,7 @@ all, so the page can light it, and nothing to mismatch where two satellites meet
     python scripts/fetch_clouds.py clearsky  --sat goes19
     python scripts/fetch_clouds.py opacity   --sat goes19
     python scripts/fetch_clouds.py blend     --start 2026-09-12T00:00 --end 2026-09-12T23:50 --sats goes19,goes18,himawari9,mtg,iodc
+    python scripts/fetch_clouds.py height    --start 2026-09-12T00:00 --end 2026-09-12T23:50 --sats goes19,goes18,himawari9,mtg,iodc
     python scripts/fetch_clouds.py encode    --out site/globe --name clouds
 
 Run from the repo root (paths are relative to data/). The grid is equirectangular, 4096 wide,
@@ -42,8 +43,12 @@ opacity   vis: 1-exp(-(refl/mu - clear - margin)/k); bt: 1-exp(-(clear - bt - ma
           so the field is continuous across the terminator: night and glint are infrared-only.
           Weighted to zero from 58 to 66 degrees of satellite zenith angle.
 blend     Weighted mean of every satellite's opacity on the common grid (weights as above).
+height    Cloud-top height per blended frame from the band-13 brightness temperature against the same
+          clear-sky reference: (T_clear - BT) / 6.5 K/km, 0..16 km, 0 where opacity < 0.1, blended with
+          blend's weights over the satellites that see cloud there. data/clouds/height/<slot>.png, km x 16.
 encode    Grey H.264 clips for the page (opacity in luma, optical flow to the next frame in the
-          otherwise-empty chroma planes, a calibration strip along the bottom), a poster, a manifest.
+          otherwise-empty chroma planes, the height field at half resolution in extra rows under the
+          opacity when `height` has run, a calibration strip along the bottom), a poster, a manifest.
 """
 from __future__ import annotations
 
@@ -795,6 +800,82 @@ def blend(start, end, sats, hold_min):
     click.echo(f"frames in {out}")
 
 
+# ---------------------------------------------------------------- height: cloud top from brightness temperature
+
+LAPSE_K_PER_KM = 6.5                          # a standard atmosphere; the page says so
+HEIGHT_MAX_KM = 16.0                          # the tropical tropopause; uint8 = km x 16 fills 0..255
+HEIGHT_MIN_OP = 0.10                          # below this opacity a pixel has no top to measure
+
+
+def height_frame(sat: str, t: datetime, clear_dir: Path, lut=None) -> np.ndarray | None:
+    """Cloud-top height in km for one satellite frame: (T_clear - BT) / lapse rate, clamped 0..16.
+    T_clear is the same per-pixel, per-time-of-day clear-sky reference `opacity` uses, so a clear pixel
+    reads 0 by construction. Thin cirrus reads too LOW: its brightness temperature is a mix of the cold
+    cloud and the warm ground beneath, so a 12 km veil can come out at 4-6 km. Accepted and said on the page."""
+    bt = load_band(sat, t, "bt", lut)
+    if bt is None:
+        return None
+    tod = (t.hour * 60 + t.minute) // 10
+    bt_clear = load16(clear_dir / f"bt_clear_{tod:03d}.png", BT_SCALE)
+    h = np.clip((bt_clear - bt) / LAPSE_K_PER_KM, 0, HEIGHT_MAX_KM)
+    h[~np.isfinite(bt)] = np.nan
+    return h.astype(np.float32)
+
+
+@cli.command()
+@click.option("--start", required=True)
+@click.option("--end", required=True)
+@click.option("--sats", default="goes19", show_default=True, help="comma-separated, the same list as blend")
+@click.option("--hold-min", default=30, show_default=True, help="the same hold as blend, so a held opacity frame gets its own height")
+@click.option("--workers", default=4, show_default=True)
+def height(start, end, sats, hold_min, workers):
+    """Cloud-top height per blended frame, data/clouds/height/<slot>.png, uint8 = km x 16.
+    Blended across satellites with blend's view weights, restricted to pixels where THAT satellite sees
+    cloud (opacity >= 0.1): a satellite that sees no cloud has no top to average in, so it abstains rather
+    than voting 0 km. Where the blended opacity is under 0.1 the height is 0 whatever the temperatures say."""
+    names = sats.split(",")
+    out = ROOT / "height"
+    out.mkdir(parents=True, exist_ok=True)
+    weights = {s: view_weight(SATS[s]["lon"]) for s in names}
+    luts = {s: json.loads((ROOT / f"lut_{s}.json").read_text()) if SATS[s]["kind"] == "wms" else None for s in names}
+    slots = slots_between(start, end)
+
+    def one(t):
+        num = np.zeros((H, W), np.float32)
+        den = np.zeros((H, W), np.float32)
+        used = []
+        for s in names:
+            for back in range(0, hold_min + 1, 5):
+                ts = t - timedelta(minutes=back)
+                f = ROOT / "op" / s / f"{slot_name(ts)}.png"
+                if f.exists():
+                    h = height_frame(s, ts, ROOT / "clear" / s, luts[s])
+                    if h is None:
+                        break
+                    q = np.asarray(Image.open(f)).astype(np.float32)
+                    cloudy = (q > 0) & ((q - 1) / 254.0 >= HEIGHT_MIN_OP) & np.isfinite(h)
+                    w = weights[s] * cloudy
+                    num += w * np.nan_to_num(h, nan=0.0)
+                    den += w
+                    used.append(s)
+                    break
+        h = np.where(den > 0, num / np.maximum(den, 1e-6), 0.0)
+        fb = ROOT / "frames" / f"{slot_name(t)}.png"
+        if fb.exists():
+            op = np.asarray(Image.open(fb)).astype(np.float32) / 255.0
+            h[op < HEIGHT_MIN_OP] = 0.0
+        q = np.clip(np.rint(h * 16.0), 0, 255).astype(np.uint8)
+        Image.fromarray(q).save(out / f"{slot_name(t)}.png", compress_level=3)
+        cl = h[h > 0]
+        return t, used, (float(np.percentile(cl, 50)), float(np.percentile(cl, 90)), float(np.percentile(cl, 99))) if cl.size else (0.0, 0.0, 0.0)
+
+    with ThreadPoolExecutor(workers) as pool:
+        for i, (t, used, (p50, p90, p99)) in enumerate(pool.map(one, slots)):
+            if i % 24 == 0:
+                click.echo(f"   {slot_name(t)}  sats {len(used)}  cloudy-pixel height km p50 {p50:.1f} p90 {p90:.1f} p99 {p99:.1f}")
+    click.echo(f"{len(slots)} height frames in {out}")
+
+
 # ---------------------------------------------------------------- encode: opacity in luma, motion in chroma
 
 # The clip is grey, so its two chroma planes are empty: they carry the optical flow to the NEXT frame,
@@ -839,21 +920,37 @@ def flow_fields(frames: list[Path]) -> tuple[np.ndarray, float]:
     return out, float(np.percentile(mag, 99))
 
 
-def yuv_frame(op: np.ndarray, flow: np.ndarray, p99: float, width: int) -> bytes:
+def height_rows(width: int) -> int:
+    """Rows the height field takes under the opacity at this clip width: half resolution, so a quarter of
+    the pixels, and a multiple of 16 so every plane stays macroblock-aligned (4096 wide: 752 rows)."""
+    return (H * width // W) // 2
+
+
+def yuv_frame(op: np.ndarray, flow: np.ndarray, p99: float, width: int, hgt: np.ndarray | None = None) -> bytes:
     """One raw yuv420p frame of the clip at `width`: luma = opacity coded Y_LO..Y_HI, chroma = flow
-    coded 128 +/- CHROMA at the 99th percentile, plus the calibration strip along the bottom."""
+    coded 128 +/- CHROMA at the 99th percentile, plus the calibration strip along the bottom.
+    With `hgt` (uint8 cloud-top height, km x 16, already at half this width), the height field sits in
+    extra rows BETWEEN the opacity and the strip, coded into the same luma levels, its chroma flat 128:
+    the page warps it with the opacity's own flow. 4096 wide that is 1504 + 752 + 16 = 2272 rows, under
+    the 2304 a level-5.1 decoder is promised."""
     import cv2
     h = H * width // W
-    y = np.empty((h + STRIP, width), np.uint8)
+    hh = height_rows(width) if hgt is not None else 0
+    y = np.empty((h + hh + STRIP, width), np.uint8)
     y[:h] = np.rint(Y_LO + op.astype(np.float32) * ((Y_HI - Y_LO) / 255.0)).astype(np.uint8)
-    cw, ch = width // 2, h // 2
-    f = cv2.resize(flow.astype(np.float32), (cw, ch), interpolation=cv2.INTER_LINEAR)
+    cw, ch = width // 2, (h + hh) // 2
+    f = cv2.resize(flow.astype(np.float32), (cw, h // 2), interpolation=cv2.INTER_LINEAR)
     lv = np.clip(np.rint(128 + f * (CHROMA / max(p99, 1e-6))), 128 - CHROMA - 4, 128 + CHROMA + 4).astype(np.uint8)
-    u = np.empty((ch + STRIP // 2, cw), np.uint8); v = np.empty_like(u)
-    u[:ch] = lv[..., 0]; v[:ch] = lv[..., 1]
+    u = np.full((ch + STRIP // 2, cw), 128, np.uint8); v = np.full_like(u, 128)
+    u[:h // 2] = lv[..., 0]; v[:h // 2] = lv[..., 1]
+    if hgt is not None:
+        hs = hgt if hgt.shape == (hh, cw) else cv2.resize(hgt, (cw, hh), interpolation=cv2.INTER_AREA)
+        # the field is half width: it is placed in the left half of its rows, the right half stays Y_LO (0 km)
+        y[h:h + hh] = Y_LO
+        y[h:h + hh, :cw] = np.rint(Y_LO + hs.astype(np.float32) * ((Y_HI - Y_LO) / 255.0)).astype(np.uint8)
     pw = width // len(PATCHES)
     for i, (py, pu, pv) in enumerate(PATCHES):
-        y[h:, i * pw:(i + 1) * pw] = py
+        y[h + hh:, i * pw:(i + 1) * pw] = py
         u[ch:, i * pw // 2:(i + 1) * pw // 2] = pu
         v[ch:, i * pw // 2:(i + 1) * pw // 2] = pv
     return y.tobytes() + u.tobytes() + v.tobytes()
@@ -885,6 +982,9 @@ def encode(out, name, start, end, fps, crf, crf_small, aq, flow_cache):
     mag = np.hypot(flow[..., 0].astype(np.float32), flow[..., 1].astype(np.float32))
     click.echo(f"flow: {len(frames)} frames in {time.time() - t0:.0f}s; |flow| p50 {np.percentile(mag, 50):.2f} p90 {np.percentile(mag, 90):.2f} "
                f"p99 {p99:.2f} p99.9 {np.percentile(mag, 99.9):.2f} px at {W}; coded +/-{CHROMA} levels = +/-{p99:.2f} px")
+    heights = [ROOT / "height" / p.name for p in frames]
+    with_height = bool(frames) and all(q.exists() for q in heights)
+    click.echo(f"height field: {'in the clip' if with_height else 'NOT built (run `height` first); clip is opacity only'}")
     sizes = {}
     x264 = "colorprim=bt709:transfer=bt709:colormatrix=bt709:range=tv"
     if aq:
@@ -893,7 +993,8 @@ def encode(out, name, start, end, fps, crf, crf_small, aq, flow_cache):
     for width, c, suffix in ((W, crf, ""), (W // 2, crf_small, "_2k")):
         dest = out / f"{name}{suffix}.mp4"
         h = H * width // W
-        ff = subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "yuv420p", "-s", f"{width}x{h + STRIP}",
+        hh = height_rows(width) if with_height else 0
+        ff = subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "yuv420p", "-s", f"{width}x{h + hh + STRIP}",
                                "-r", str(fps), "-i", "-", "-c:v", "libx264", "-preset", "slow", "-crf", str(c),
                                "-g", str(fps * 2), "-keyint_min", str(fps * 2), "-sc_threshold", "0", "-bf", "0", "-pix_fmt", "yuv420p",
                                "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
@@ -903,7 +1004,8 @@ def encode(out, name, start, end, fps, crf, crf_small, aq, flow_cache):
             op = np.asarray(Image.open(p).convert("L"))
             if width != W:
                 op = cv2.resize(op, (width, h), interpolation=cv2.INTER_AREA)
-            ff.stdin.write(yuv_frame(op, flow[i], p99, width))
+            hgt = cv2.resize(np.asarray(Image.open(heights[i]).convert("L")), (width // 2, hh), interpolation=cv2.INTER_AREA) if with_height else None
+            ff.stdin.write(yuv_frame(op, flow[i], p99, width, hgt))
         ff.stdin.close(); ff.wait()
         if ff.returncode:
             raise RuntimeError(f"ffmpeg failed on {dest}")
@@ -929,6 +1031,10 @@ def encode(out, name, start, end, fps, crf, crf_small, aq, flow_cache):
                 "sizes": sizes, "poster": f"{name}_poster.webp", "seam": seam, "held": held, "sats": sats,
                 "curve": {"vis_k": PARAMS["vis_k"], "bt_k": PARAMS["bt_k"]},       # the page inverts vis_k for the cloud's brightness
                 "code": {"y_lo": Y_LO, "y_hi": Y_HI, "chroma": CHROMA, "strip": STRIP, "patches": PATCHES,
+                         # height_rows: rows of cloud-top height under the opacity (at `width`; scale by the clip's actual
+                         # width), the field itself in the LEFT half of those rows, luma y_lo..y_hi = 0..height_km_max
+                         "height_rows": height_rows(W) if with_height else 0, "height_km_max": HEIGHT_MAX_KM,
+                         "height_lapse_k_per_km": LAPSE_K_PER_KM, "height_min_op": HEIGHT_MIN_OP,
                          "flow_p99_px": round(p99, 3), "flow_width": W,
                          "flow_stats_px": {k: round(float(np.percentile(mag, q)), 3) for k, q in (("p50", 50), ("p90", 90), ("p99", 99), ("p999", 99.9))}}}
     (out / f"{name}.json").write_text(json.dumps(manifest))

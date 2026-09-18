@@ -145,7 +145,7 @@
   <div class="eyebrow">earthai · the cloud layer · weather as the only video</div>
   <h1>The cloud layer</h1>
   <p class="claim"><b id="claim">One day</b> of real cloud, every ten minutes, over an Earth that is lit by arithmetic.</p>
-  <p class="lede">The only thing on this globe that changes from one ten-minute picture to the next is the cloud, so the cloud is the only thing that is a video. Everything else you see, the land and sea, the day and the night, the line of dusk, the city lights, the shadow a cloud throws on the ground, is computed while you watch from where the sun is. Drag to turn it, scroll to zoom. Switch to <em>sun-fixed</em> and the daylight stands still while the Earth turns through it.</p>
+  <p class="lede">The only thing on this globe that changes from one ten-minute picture to the next is the cloud, so the cloud is the only thing that is a video. Everything else you see, the land and sea, the day and the night, the line of dusk, the city lights, the shadow a cloud throws on the ground by its own measured height, is computed while you watch from where the sun is. Drag to turn it, scroll to zoom. Switch to <em>sun-fixed</em> and the daylight stands still while the Earth turns through it.</p>
   <div class="links">
     <a class="xl" href="../earth/">the earlier version, for comparison &rarr;</a>
     <a class="xl" href="../month/">one place, one month &rarr;</a>
@@ -165,7 +165,8 @@
         <tr><td>cloud</td><td>opacity, 0 to 1, every ten minutes, 4096 pixels around the equator (about 10 km each), latitudes 66°S to 66°N; with it, the motion of the cloud from each frame to the next</td><td id="srcrow">GOES-East and GOES-West (bands 2 and 13, NOAA's archive on AWS), Himawari-9 (bands 3 and 13, the raw HSD segments on AWS), Meteosat MTG-I1 and Meteosat-9 (0.6 µm and 10.5/10.8 µm through EUMETView)</td></tr>
         <tr><td>land and sea</td><td>NASA Blue Marble with shaded relief and bathymetry, 8192 pixels around, sharp at any zoom</td><td>NASA GIBS</td></tr>
         <tr><td>night</td><td>VIIRS city lights, shown only on the night side and only where the cloud is thin</td><td>NASA GIBS</td></tr>
-        <tr><td>light</td><td>the sun's position for the moment being shown; day and night, a warm terminator, glint off the sea, the cloud's shadow, the blue rim of the air</td><td>computed on your graphics card</td></tr>
+        <tr><td>cloud height</td><td id="hrow">the height of each cloud's top, 0 to 16 km, from how cold it looks at 10.3 µm against the clear-sky temperature of the ground beneath it, at a standard 6.5 °C per kilometre; carried at 20 km per pixel</td><td>the same band-13 measurements</td></tr>
+        <tr><td>light</td><td>the sun's position for the moment being shown; day and night, a warm terminator, glint off the sea, the shadow each cloud throws by its height, the blue rim of the air</td><td>computed on your graphics card</td></tr>
       </tbody>
     </table>
   </div>
@@ -179,6 +180,7 @@
     <div class="note have"><span class="status">the seams</span><h3 id="satsh">Five satellites, checked with arithmetic</h3><p id="satsp">Where two satellites both see a place at a decent angle, each has its own opinion of the cloud there, and because both opinions are the same physical number they can be compared: the mean difference in opacity across each overlap is printed below, measured over every frame. The two Meteosats come through EUMETSAT's map server as pictures rather than numbers, so their greys are calibrated against a neighbour (MTG against GOES-East over the Atlantic, Meteosat-9 against MTG over Africa) by matching distributions before they are used. Everywhere no satellite sees is drawn honestly clear: the <em>Coverage</em> button shows where that is.</p><p id="seams" class="mono" style="font-size:12px"></p></div>
     <div class="note gate"><span class="status">the poles</span><h3>Nothing looks down on the poles</h3><p>Every geostationary satellite sits over the equator and sees the Earth edge-on past about 60° of latitude, so past 66° there is no cloud on this page at all. The polar caps are the basemap, lit but weatherless.</p></div>
     <div class="note maybe"><span class="status">the clear-sky guess</span><h3>Where the method is wrong</h3><p id="wrongp">"What this place looks like with no cloud" is taken from one day of pictures, so a place under cloud all day has no clear reference and its cloud reads thinner than it is. Bright ground (the Atacama, Greenland's ice) is handled by that reference and stays ground; the sun's glint on the sea is switched to the infrared reading alone, so a calm sea at noon is not white. Very cold ground at night, and thin high cloud after dark, are the known failures of an infrared-only night.</p></div>
+    <div class="note maybe"><span class="status">the height</span><h3 id="hgth">Every cloud has a top, and it is measured</h3><p id="hgtp">The infrared band reads the temperature of whatever it sees, and the air cools by about 6.5 °C for every kilometre up, so a cloud top 65 °C colder than the ground beneath it is about ten kilometres high. That number, 0 to 16 km for every cloudy pixel, rides in the same clip as the opacity and does three things here: the shadow a cloud throws is as long as its height and the sun's angle say (drawn at three times its true length, because at ten kilometres a pixel a true one is under a pixel for all but the tallest storms); high cloud is a little cooler in colour and keeps the sun for some minutes after the ground below it has gone dark, by the geometry of being higher; and where the top steps up toward the sun, that edge is lit. Two things are wrong with it, and stay wrong: thin cirrus reads too low, because its temperature is a mix of the cold cloud and the warm ground showing through, so a veil at twelve kilometres can come out at five; and a real atmosphere is not a standard one, so the heights are good to a kilometre or two, not a hundred metres.</p></div>
     <div class="note have"><span class="status">between frames</span><h3>Ten minutes, in motion</h3><p>A real frame every ten minutes, twelve of them a second at full speed: two hours a second, a day in twelve seconds. Between two frames the cloud has moved, typically one to three pixels, and a cross-fade would show it fading from one place to the next. So the motion between each frame and the next is measured (optical flow, on the frames themselves) and travels with the clip, and the <em>Blend</em> button carries each frame along it: the older frame is pushed forward, the newer pulled back, and the two are mixed. Nothing is invented; where the motion estimate is wrong the cloud ghosts a little. Switch it off to see the frames step.</p></div>
     <div class="note have"><span class="status">the resolution</span><h3>Ten kilometres per pixel, and closer over the Americas</h3><p>The whole-Earth cloud is drawn at ten kilometres per pixel, 4096 of them around the equator. Zoom in over the Americas and the page switches to tiles cut from GOES-East at its own resolution, 2.4 kilometres per pixel, decoded in the browser only for the part of the world in view (each tile is its own small video, fetched a second at a time). The zoom stops where a pixel of the finest cloud available under the view would be two device pixels wide, so the cloud is never magnified into mush over a basemap that is still sharp: about two and a half times closer where the tiles exist than elsewhere. The other four satellites see just as finely; their tiles are not built yet, and a browser without WebCodecs stays on the whole-Earth clip.</p></div>
   </div>
@@ -241,7 +243,10 @@
     // lon/lat uv; flow = atlas uv per unit of coded flow; on = 0..1 fade; cubic = 1 when an atlas texel is magnified;
     // sub = the tiles' satellite longitude in radians (GOES-East), for the same 58..66 deg view-angle fade the pipeline uses
     uTileA:{value:blank}, uTileB:{value:blank}, uTileRect:{value:new THREE.Vector4(0,0,1,1)}, uTileFlow:{value:new THREE.Vector2(0,0)},
-    uTileOn:{value:0}, uTileCubic:{value:0}, uTileSub:{value:-75*Math.PI/180}                       // the pipeline's vis_k: -k ln(1 - opacity) is the cloud's reflectance again
+    uTileOn:{value:0}, uTileCubic:{value:0}, uTileSub:{value:-75*Math.PI/180},                      // the pipeline's vis_k: -k ln(1 - opacity) is the cloud's reflectance again
+    // cloud-top height (fetch_clouds.py `height`): the clip carries it in extra rows and the copy pass puts it in the
+    // cloud texture's ALPHA, 0..1 = 0..uHeightKm km; 0 until a clip that has it presents (the poster has none)
+    uHasHeight:{value:0}, uHeightKm:{value:16}
   };
   const planet=new THREE.Mesh(new THREE.SphereGeometry(1,128,96), new THREE.ShaderMaterial({
     uniforms:U,
@@ -251,7 +256,7 @@
     fragmentShader:`
       precision highp float;
       uniform sampler2D uBase, uLights, uCover, uCloudA, uCloudB, uTileA, uTileB;
-      uniform float uMix, uLatMax, uShowCover, uHasCloud, uBicubic, uCloudK, uTileOn, uTileCubic, uTileSub;
+      uniform float uMix, uLatMax, uShowCover, uHasCloud, uBicubic, uCloudK, uTileOn, uTileCubic, uTileSub, uHasHeight, uHeightKm;
       uniform vec2 uTileFlow; uniform vec4 uTileRect;
       uniform vec2 uCloudTexel, uFlow; uniform vec3 uSun, uCam;
       varying vec2 vUv; varying vec3 vP;
@@ -270,18 +275,22 @@
       // next frame (r = opacity, gb = flow); the older frame is warped forward along it and the newer one
       // backward, by uMix, then mixed: motion between the ten-minute frames rather than a dissolve.
       // fine=true asks for the bicubic taps; the shadow and relief taps stay bilinear (they read differences).
-      float cloudAt(vec2 uv, bool fine){
+      // Returns (opacity, cloud-top height in km). The height rides in the same texture's alpha and is warped by
+      // the same flow, so a tap costs nothing extra; it is 0 where the opacity is under 0.1 and 0 everywhere
+      // until a clip that carries it has presented (uHasHeight).
+      vec2 cloudOH(vec2 uv, bool fine){
         float lat=(uv.y-0.5)*180.0;
         float v=(lat+uLatMax)/(2.0*uLatMax);
-        if(v<0.0||v>1.0) return 0.0;
+        if(v<0.0||v>1.0) return vec2(0.0);
         vec2 c=vec2(uv.x, v);
         vec2 f=(texture2D(uCloudA,c).gb-0.5)*2.0*uFlow;
         vec2 ca=c-f*uMix, cb=c+f*(1.0-uMix);
-        float a, b;
+        vec4 pa=texture2D(uCloudA,ca), pb=texture2D(uCloudB,cb);
+        float a=pa.r, b=pb.r;
         if(fine && uBicubic>0.5){ a=cubicR(uCloudA,ca,uCloudTexel); b=cubicR(uCloudB,cb,uCloudTexel); }
-        else { a=texture2D(uCloudA,ca).r; b=texture2D(uCloudB,cb).r; }
         float edge=smoothstep(0.0,0.02,v)*smoothstep(1.0,0.98,v);
         float o=mix(a,b,uMix)*edge*uHasCloud;
+        float hk=mix(pa.a,pb.a,uMix)*uHeightKm*uHasHeight*edge;
         // zoomed in: the same field from the regional tiles (tiles.js), where the atlas has them (alpha), faded at the
         // atlas window's edge and by the satellite's view angle (58..66 deg, exactly as the pipeline weights it), so the
         // tiles hand back to the base clip's other satellites at their own edge instead of showing less cloud there
@@ -302,7 +311,44 @@
             o=mix(o, mix(ra,rb,uMix), w);
           }
         }
-        return o;
+        return vec2(o, hk);       // the tiles carry no height yet: under them the base clip's 10 km height field is used
+      }
+      float cloudAt(vec2 uv, bool fine){ return cloudOH(uv, fine).x; }
+      float cloudHeightAt(vec2 uv){ return cloudOH(uv, false).y; }
+      // The shadow, by height. The sun's ray that reaches ground point P at height h passes over the point
+      // shPerKm*h toward the sun, so the cloud THERE shades P if its top is at least h. Three probes, at the
+      // heights of a low deck, mid cloud and an anvil, and the darkest wins: a 12 km anvil at a low sun throws
+      // its shadow many pixels away, a 1 km deck a fraction of one. hP is the height of the cloud AT P, so the
+      // same probes also give the shadow an anvil throws on the lower cloud beside it (a probe only counts on
+      // cloud when its ray is clear above that cloud's own top).
+      const float SHADOW_DRAWN_X = 3.0;   // shadows are drawn three times their true length: at ten kilometres a
+                                          // pixel a true one is under a pixel for all but the tallest cloud
+      vec2 cloudShadow(vec2 uv, vec2 shPerKm, float hP){
+        float g=0.0, c=0.0;
+        for(int k=0;k<3;k++){
+          float hk = k==0 ? 1.2 : (k==1 ? 4.0 : 10.0);
+          vec2 q=cloudOH(uv+shPerKm*hk, false);
+          float occ=q.x*smoothstep(hk*0.5, hk, q.y);
+          g=max(g, occ);
+          c=max(c, occ*smoothstep(hP+0.5, hP+3.0, hk));
+        }
+        return vec2(g, c);
+      }
+      // The cloud's colour by height. Ice cloud (tops above ~8 km) is a little cooler and, at the very top, a
+      // touch less bright; a low deck is warmer and flatter. The terminator is pushed back for high cloud by the
+      // geometry of its height: a top at h km still sees the sun when the sun is acos(R/(R+h)) below the ground's
+      // horizon (~3 deg at 10 km), so muC is the cloud's own cosine of the solar zenith, and its dusk band is
+      // redder than the ground's because the light reaching it has come the long way through the air.
+      vec3 cloudShade(float hk, float mu, float cov, float refl, float relief, float shadeOn, out float dayC){
+        float hi=smoothstep(6.0, 11.0, hk), lo=1.0-smoothstep(1.0, 4.0, hk);
+        float muC=mu+sqrt(2.0*max(hk,0.0)/6378.0);
+        dayC=smoothstep(-0.10,0.12,muC);
+        float duskC=smoothstep(0.30,-0.06,muC)*smoothstep(-0.22,0.0,muC);
+        vec3 warmC=mix(vec3(1.0), vec3(1.0,0.68,0.40), duskC*(0.55+0.30*hi));
+        vec3 tint=mix(mix(vec3(0.94,0.955,0.98), vec3(0.965,0.950,0.925), lo), vec3(0.905,0.935,0.99), hi)*(1.0-0.05*hi);
+        vec3 cloudDay=tint*(0.08+0.92*pow(clamp(muC*1.15+0.08,0.0,1.0),0.7))*warmC;
+        vec3 lit=cloudDay*mix(vec3(0.86,0.91,1.0), vec3(1.0), cov)*refl*(1.0+relief);
+        return lit*(1.0-0.40*shadeOn);
       }
       void main(){
         vec3 n=normalize(vP);
@@ -316,12 +362,25 @@
         float lights=texture2D(uLights,vUv).r;
         float water=step(base.r*1.25,base.b)*step(base.r,0.30);
         float lat=(vUv.y-0.5)*3.14159265;
-        // cloud, and the cloud a little toward the sun for its shadow on the ground
-        float cl=cloudAt(vUv, true);
+        // cloud (opacity, top height), and the cloud toward the sun for its shadow on the ground
+        vec2 oh=cloudOH(vUv, true);
+        float cl=oh.x, hk=oh.y;
         vec3 east=normalize(cross(vec3(0.0,1.0,0.0),n)); vec3 north=cross(n,east);
         vec3 st=s-n*mu;                                                   // the sun's direction along the ground
-        vec2 sh=vec2(dot(st,east)/max(cos(lat),0.2)*0.0018, dot(st,north)*0.0036);   // ~0.65 deg at most: a low sun throws a longer shadow
-        float shadow=cloudAt(vUv+sh, false)*day;
+        float sl=length(st);                                              // sin of the solar zenith angle
+        vec2 gdir=vec2(dot(st,east), dot(st,north))/max(sl,1e-3);         // unit ground direction toward the sun
+        float shadow, shadeOn=0.0;
+        if(uHasHeight>0.5){
+          // uv per km of ground along gdir (u shrinks with latitude), times tan(zenith) per km of cloud height
+          vec2 uvPerKm=vec2(1.0/(40075.0*max(cos(lat),0.2)), 1.0/20038.0);
+          float tanz=clamp(sl/max(mu,0.15), 0.0, 6.0);
+          vec2 shPerKm=gdir*uvPerKm*tanz*SHADOW_DRAWN_X;
+          vec2 shd=cloudShadow(vUv, shPerKm, hk);
+          shadow=shd.x*day; shadeOn=shd.y*day;
+        } else {
+          vec2 sh=vec2(dot(st,east)/max(cos(lat),0.2)*0.0018, dot(st,north)*0.0036);   // no height in this clip: a fixed ~0.65 deg
+          shadow=cloudAt(vUv+sh, false)*day;
+        }
         // Tone. The pipeline's opacity is 1 - exp(-reflectance/k), so -k ln(1 - opacity) is the reflectance
         // again: the cloud's brightness follows that (thin cloud is dim and lets the ground through; only a
         // thick top is white) while its COVER of the ground follows the opacity. Painting flat white by
@@ -331,11 +390,15 @@
         // Relief. Read the opacity a texel and a half either side along the sun's ground direction and treat
         // the difference as a slope: the side that falls away toward the sun is lit, the far side is shaded,
         // more so when the sun is low. This is what makes a cloud read as a surface with height.
-        float sl=length(st);
         vec2 sd=vec2(dot(st,east)/max(cos(lat),0.2), dot(st,north))/max(sl,1e-3);
         vec2 rd=sd*vec2(uCloudTexel.x, uCloudTexel.y*2.0*uLatMax/180.0)*1.5;
-        float slope=cloudAt(vUv-rd, false)-cloudAt(vUv+rd, false);
+        vec2 ohm=cloudOH(vUv-rd, false), ohp=cloudOH(vUv+rd, false);
+        float slope=ohm.x-ohp.x;
         float relief=clamp(slope*1.1, -0.45, 0.45)*(0.4+0.6*sl)*day;
+        // and the same from the HEIGHT gradient: a top that steps up toward the sun is lit on that side, so an
+        // anvil has an edge where its deck does not; a low deck is flatter than the opacity alone would draw it
+        float reliefH=clamp((ohm.y-ohp.y)*0.06, -0.35, 0.35)*(0.4+0.6*sl)*day*uHasHeight;
+        relief=clamp(relief*mix(0.75,1.0,smoothstep(1.0,5.0,hk)*uHasHeight+(1.0-uHasHeight))+reliefH, -0.55, 0.55);
         // ground by day: diffuse with a floor, warm toward dusk, sea glint
         float diff=clamp(mu,0.0,1.0);
         vec3 warm=mix(vec3(1.0), vec3(1.0,0.70,0.42), dusk*0.55);
@@ -347,11 +410,12 @@
         // ground by night: faint blue earth, city lights through thin cloud
         vec3 nightCol=base*vec3(0.018,0.024,0.040)+vec3(1.0,0.82,0.55)*lights*0.85*(1.0-cov*0.85)+vec3(0.35,0.42,0.55)*cov*0.030;
         vec3 ground=mix(nightCol, dayCol, day);
-        // cloud: white in the sun (a thin one a little blue, from the air beneath it), warm at dusk, blue-grey and faint at night
-        vec3 cloudDay=vec3(0.94,0.955,0.98)*(0.08+0.92*pow(clamp(mu*1.15+0.08,0.0,1.0),0.7))*warm;
+        // cloud: white in the sun (a thin one a little blue, from the air beneath it), warm at dusk, blue-grey and faint at
+        // night; coloured and lit by its own height (cloudShade), so high cloud stays in the sun after the ground has gone dark
+        float dayC;
+        vec3 lit=cloudShade(hk, mu, cov, refl, relief, shadeOn, dayC);
         vec3 cloudNight=vec3(0.30,0.36,0.48)*0.16;
-        vec3 lit=cloudDay*mix(vec3(0.86,0.91,1.0), vec3(1.0), cov)*refl*(1.0+relief);
-        vec3 col=ground*(1.0-cov)+mix(cloudNight*cov, lit, day);
+        vec3 col=ground*(1.0-cov)+mix(cloudNight*cov, lit, dayC);
         // the air: a blue haze that thickens toward the limb, only where lit
         float fres=pow(1.0-max(dot(n,v),0.0),3.0);
         col+=vec3(0.30,0.50,0.90)*fres*0.45*day;
@@ -389,14 +453,20 @@
   // (128 +/- chroma levels), with a strip of known patches along the bottom. The browser hands us RGB after its own
   // YUV->RGB, whose matrix and range it chooses (Chrome on a Mac ignored the tags and used limited-range BT.601), so
   // the patches are read back once and the actual RGB->YUV inverse is solved from them. The copy pass then writes
-  // r = opacity 0..1, g,b = flow 0..1 (0.5 = still).
+  // r = opacity 0..1, g,b = flow 0..1 (0.5 = still), a = cloud-top height 0..1 (= 0..height_km_max km).
+  // A clip with `code.height_rows` carries the height at half resolution in rows between the opacity and the strip,
+  // the field in the LEFT half of those rows, coded into the same luma levels as the opacity; the copy pass reads it
+  // (bilinear, so the 2x upsample is smooth) into the alpha of the same target, and the planet shader gets it free
+  // with every cloud tap. A clip without it (the poster, the older encode) leaves alpha 1 and uHasHeight 0.
   let code={y_lo:60, y_hi:190, chroma:24, strip:16};
   const copyMat=new THREE.ShaderMaterial({uniforms:{t:{value:vtex}, uInv:{value:new THREE.Matrix3()}, uRgb0:{value:new THREE.Vector3(0.5,0.5,0.5)},
-      uOp:{value:new THREE.Vector2(1,0)}, uFl:{value:1}, uCrop:{value:new THREE.Vector2(0,1)}}, depthTest:false, depthWrite:false,
+      uOp:{value:new THREE.Vector2(1,0)}, uFl:{value:1}, uCrop:{value:new THREE.Vector2(0,1)}, uHCrop:{value:new THREE.Vector2(0,0)}, uHasH:{value:0}}, depthTest:false, depthWrite:false,
     vertexShader:`varying vec2 u; void main(){ u=uv; gl_Position=vec4(position.xy,0.0,1.0); }`,
-    fragmentShader:`uniform sampler2D t; uniform mat3 uInv; uniform vec3 uRgb0; uniform vec2 uOp, uCrop; uniform float uFl; varying vec2 u;
+    fragmentShader:`uniform sampler2D t; uniform mat3 uInv; uniform vec3 uRgb0; uniform vec2 uOp, uCrop, uHCrop; uniform float uFl, uHasH; varying vec2 u;
       void main(){ vec3 yuv=uInv*(texture2D(t, vec2(u.x, uCrop.x+u.y*uCrop.y)).rgb-uRgb0);
-        gl_FragColor=vec4(clamp(yuv.x*uOp.x+uOp.y,0.0,1.0), clamp(yuv.yz*uFl+0.5,0.0,1.0), 1.0); }`});
+        float h=1.0;
+        if(uHasH>0.5){ vec3 hy=uInv*(texture2D(t, vec2(u.x*0.5, uHCrop.x+u.y*uHCrop.y)).rgb-uRgb0); h=clamp(hy.x*uOp.x+uOp.y,0.0,1.0); }
+        gl_FragColor=vec4(clamp(yuv.x*uOp.x+uOp.y,0.0,1.0), clamp(yuv.yz*uFl+0.5,0.0,1.0), h); }`});
   copyScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2), copyMat));
   // the calibration strip, read at its centre row into 64 pixels (8 per patch)
   const calRT=new THREE.WebGLRenderTarget(64,1,{format:THREE.RGBAFormat, type:THREE.UnsignedByteType, depthBuffer:false, stencilBuffer:false, generateMipmaps:false});
@@ -432,8 +502,14 @@
   let lastPresent=0, frameGap=1/12, presented=0;
   function present(){                    // the video has a new frame: upload it once, into the older target
     if(vid.videoWidth===0) return;
-    if(rtW!==vid.videoWidth){ rtW=vid.videoWidth; rtH=vid.videoHeight-code.strip; if(rtA){rtA.dispose(); rtB.dispose();} rtA=makeRT(rtW,rtH); rtB=makeRT(rtW,rtH); U.uCloudTexel.value.set(1/rtW,1/rtH);
-      copyMat.uniforms.uCrop.value.set(code.strip/vid.videoHeight, rtH/vid.videoHeight); vtex.needsUpdate=true; calibrate(); zoomLimit(); }
+    if(rtW!==vid.videoWidth){ rtW=vid.videoWidth;
+      const hRows=code.height_rows ? Math.round(code.height_rows*vid.videoWidth/(man?man.width:4096)) : 0;   // the height field's rows at this clip's width
+      rtH=vid.videoHeight-code.strip-hRows; if(rtA){rtA.dispose(); rtB.dispose();} rtA=makeRT(rtW,rtH); rtB=makeRT(rtW,rtH); U.uCloudTexel.value.set(1/rtW,1/rtH);
+      // flipY: v=0 is the bottom of the frame, so from the bottom up: the strip, then the height rows, then the opacity
+      copyMat.uniforms.uCrop.value.set((code.strip+hRows)/vid.videoHeight, rtH/vid.videoHeight);
+      copyMat.uniforms.uHCrop.value.set(code.strip/vid.videoHeight, hRows/vid.videoHeight); copyMat.uniforms.uHasH.value=hRows?1:0;
+      U.uHasHeight.value=hRows?1:0; if(code.height_km_max) U.uHeightKm.value=code.height_km_max; perf.heightRows=hRows;
+      vtex.needsUpdate=true; calibrate(); zoomLimit(); }
     vtex.needsUpdate=true;
     const tmp=rtA; rtA=rtB; rtB=tmp;     // B becomes the newest
     renderer.setRenderTarget(rtB); renderer.render(copyScene, copyCam); renderer.setRenderTarget(null);
