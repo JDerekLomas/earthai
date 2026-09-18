@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Real Night</title>
+<meta name="description" content="The Earth at night as it actually was, one picture per night from the VIIRS Day/Night Band: moonlit cloud, city lights, ships, fires, and the aurora when there is one.">
+<style>html{color-scheme:light dark} body{margin:0} img,video{max-width:100%} [hidden]{display:none!important}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="preload" href="night.json" as="fetch" crossorigin>
+<style>
+  :root{
+    --ground:#e9edf1; --surface:#ffffff; --sunk:#dfe5ea;
+    --ink:#13202e; --muted:#5b6b7d; --faint:#8493a4;
+    --line:#c7d1da; --hair:#dbe2e8;
+    --ochre:#b3652a; --cool:#37718f; --deep:#0f2233;
+    --ok:#2f7d5b; --no:#a33a2a;
+    --shadow:0 1px 2px rgba(15,34,51,.08), 0 8px 24px rgba(15,34,51,.06);
+    --stage:#02050a;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+      --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+      --line:#27394b; --hair:#1c2c3c;
+      --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+      --ok:#5cb98d; --no:#e0765f;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0b1420; --surface:#111e2c; --sunk:#0d1826;
+    --ink:#e4ecf4; --muted:#93a4b6; --faint:#6c7f92;
+    --line:#27394b; --hair:#1c2c3c;
+    --ochre:#dd8b4b; --cool:#6aa9c9; --deep:#cfe0ee;
+    --ok:#5cb98d; --no:#e0765f;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+  *{box-sizing:border-box}
+  body{background:var(--ground); color:var(--ink);
+    font:400 16px/1.55 "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    padding-block:0 72px; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1120px; margin:0 auto; display:flex; flex-direction:column; gap:52px; padding-left:20px; padding-right:20px}
+  h1,h2,h3{font-family:"IBM Plex Sans Condensed","IBM Plex Sans",sans-serif; text-wrap:balance; margin:0}
+  h1{font-size:clamp(30px,4.6vw,46px); font-weight:600; letter-spacing:-.015em; line-height:1.08}
+  h2{font-size:clamp(20px,2.6vw,26px); font-weight:600; letter-spacing:-.01em}
+  h3{font-size:16px; font-weight:600}
+  p{margin:0; max-width:66ch}
+  a{color:var(--cool)}
+  .lede{font-size:clamp(17px,2vw,19px); color:var(--muted); max-width:62ch}
+  .eyebrow{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--faint)}
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:tabular-nums}
+  section{display:flex; flex-direction:column; gap:18px}
+  .head{display:flex; flex-direction:column; gap:8px}
+  header{display:flex; flex-direction:column; gap:16px}
+  .claim{font-family:"IBM Plex Sans Condensed",sans-serif; font-size:clamp(19px,2.4vw,23px); line-height:1.35;
+    max-width:34ch; border-left:3px solid var(--cool); padding-left:18px}
+  .claim b{color:var(--cool); font-weight:600}
+  .xl{font-family:"IBM Plex Mono",monospace; font-size:12px; letter-spacing:.06em; text-decoration:none; color:var(--muted); border-bottom:1px solid var(--line); padding-bottom:2px}
+  .xl:hover{color:var(--cool); border-color:var(--cool)}
+  .links{display:flex; flex-wrap:wrap; gap:20px}
+  button{font:500 13px/1 "IBM Plex Sans",sans-serif; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:3px; padding:8px 12px; cursor:pointer}
+  button:hover{border-color:var(--cool); color:var(--cool)}
+  button[aria-pressed="true"]{background:var(--cool); border-color:var(--cool); color:#fff}
+  button:focus-visible{outline:2px solid var(--ochre); outline-offset:2px}
+  .seg{display:inline-flex; border:1px solid var(--line); border-radius:3px; overflow:hidden}
+  .seg button{border:0; border-radius:0; border-left:1px solid var(--line)}
+  .seg button:first-child{border-left:0}
+  .bar{display:flex; flex-wrap:wrap; gap:12px; align-items:center}
+
+  /* the stage: full-bleed, dark whatever the theme; the globe is the page */
+  .stagewrap{background:var(--stage); color:#c9d6e2}
+  .stage{position:relative; height:min(84vh, 940px); min-height:440px; overflow:hidden;
+    background:radial-gradient(ellipse at 50% 45%, #081221 0%, var(--stage) 60%)}
+  .stage canvas{display:block; width:100%; height:100%; touch-action:none; cursor:grab}
+  .stage canvas.drag{cursor:grabbing}
+  .stage .load{position:absolute; inset:0; display:grid; place-items:center; font:13px "IBM Plex Mono",monospace; color:#7d93a8; text-align:center; padding:20px; pointer-events:none}
+  .stage .clock{position:absolute; left:20px; bottom:16px; font:500 15px/1.35 "IBM Plex Mono",monospace; color:#dbe9f3; text-shadow:0 1px 2px #000; pointer-events:none}
+  .stage .clock small{display:block; font-weight:400; color:#8fa3b8; font-size:11px; letter-spacing:.08em; text-transform:uppercase}
+  .stage .clock .kp{display:block; font-size:12px; color:#8fa3b8; margin-top:3px}
+  .stage .clock .kp b{color:#e7b26a; font-weight:500}
+  .stage .hint{position:absolute; right:20px; bottom:16px; font:11px "IBM Plex Mono",monospace; letter-spacing:.08em; text-transform:uppercase; color:#6c8399; pointer-events:none; text-align:right}
+  .controls{max-width:1120px; margin:0 auto; padding:14px 20px 18px; display:flex; flex-direction:column; gap:12px}
+  .controls .bar{justify-content:space-between}
+  .controls .bar > div{display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+  .stagewrap button{color:#c9d6e2; background:#0e1a27; border-color:#25384c}
+  .stagewrap button:hover{color:#fff; border-color:#6aa9c9}
+  .stagewrap button[aria-pressed="true"]{background:#37718f; border-color:#37718f; color:#fff}
+  .stagewrap .seg{border-color:#25384c} .stagewrap .seg button{border-left-color:#25384c}
+  .lbl{font:11px "IBM Plex Mono",monospace; letter-spacing:.1em; text-transform:uppercase; color:#6c8399; margin-right:2px}
+  /* the night stepper: one chip per night, its Kp as a bar, a mark when the oval was out */
+  .nights{display:flex; gap:4px; overflow-x:auto; padding-bottom:4px; scrollbar-width:thin}
+  .nights button{flex:1 0 56px; display:flex; flex-direction:column; align-items:stretch; gap:6px; padding:8px 6px 6px; border-radius:3px; min-width:56px}
+  .nights button .d{font:500 12px/1 "IBM Plex Mono",monospace; text-align:center}
+  .nights button .m{font:10px/1 "IBM Plex Mono",monospace; color:#6c8399; text-align:center; letter-spacing:.04em}
+  .nights button[aria-pressed="true"] .m{color:#d6e6f2}
+  .nights button .k{height:22px; display:flex; align-items:flex-end; justify-content:center}
+  .nights button .k i{display:block; width:14px; background:#3a5d78; border-radius:1px 1px 0 0}
+  .nights button.storm .k i{background:#e7b26a}
+  .nights button[aria-pressed="true"] .k i{background:#fff}
+  .nights button.storm .d::after{content:"•"; color:#e7b26a; margin-left:4px}
+  .nights button[aria-pressed="true"].storm .d::after{color:#ffd79a}
+  .flat{max-width:1120px; margin:0 auto; padding:0 20px 20px}
+  .flat img{display:block; width:100%; border:1px solid #1c2c3c; border-radius:3px; background:#000}
+  .flat figcaption{font-size:13px; color:#8fa3b8; margin-top:8px}
+
+  .tw{overflow-x:auto; background:var(--surface); border:1px solid var(--hair); border-radius:4px; box-shadow:var(--shadow)}
+  table{border-collapse:collapse; width:100%; font-size:13.5px; min-width:560px}
+  th,td{text-align:left; padding:9px 14px; border-top:1px solid var(--hair); vertical-align:middle}
+  thead th{border-top:0; font:500 11px/1 "IBM Plex Mono",monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); padding-top:13px; padding-bottom:11px}
+  td.n{font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums; white-space:nowrap}
+  tr.storm td{background:color-mix(in srgb, var(--ochre) 9%, transparent)}
+  tr.storm td.n b{color:var(--ochre)}
+  td svg{display:block; height:22px; width:96px}
+  td svg rect{fill:var(--cool)} td svg rect.hi{fill:var(--ochre)}
+  tr.pick td{border-left:3px solid var(--cool)}
+  tbody tr{cursor:pointer} tbody tr:hover td{background:var(--sunk)}
+  .cols{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:18px}
+  .note{background:var(--surface); border:1px solid var(--hair); border-radius:4px; padding:16px 18px; display:flex; flex-direction:column; gap:8px; box-shadow:var(--shadow)}
+  .note p{font-size:14px; color:var(--muted)}
+  .note.have{border-left:3px solid var(--ok)}
+  .note.maybe{border-left:3px solid var(--ochre)}
+  .note.gate{border-left:3px solid var(--no)}
+  .status{font:500 11px "IBM Plex Mono",monospace; letter-spacing:.08em; text-transform:uppercase}
+  .have .status{color:var(--ok)} .maybe .status{color:var(--ochre)} .gate .status{color:var(--no)}
+  figure{margin:0; display:flex; flex-direction:column; gap:8px}
+  .plate{background:#000; border:1px solid var(--hair); border-radius:4px; padding:0; box-shadow:var(--shadow); line-height:0; overflow:hidden}
+  .plate img{display:block; width:100%}
+  figcaption{font-size:13.5px; color:var(--muted); max-width:70ch; line-height:1.5}
+  footer{border-top:1px solid var(--line); padding-top:22px; font-size:13px; color:var(--faint)}
+</style>
+</head>
+<body>
+
+<div class="stagewrap">
+  <div class="stage" id="stage">
+    <div class="load" id="load">loading the night…</div>
+    <div class="clock" id="clock"><small>night of</small>—</div>
+    <div class="hint">drag to turn · scroll to zoom<br>← → step nights</div>
+  </div>
+  <div class="controls">
+    <div class="nights" id="nights" role="group" aria-label="nights"></div>
+    <div class="bar">
+      <div>
+        <button id="prev" title="previous night (←)">&larr; earlier</button>
+        <button id="next" title="next night (→)">later &rarr;</button>
+      </div>
+      <div>
+        <span class="lbl">day side</span>
+        <div class="seg" role="group" aria-label="lighting">
+          <button data-light="1" aria-pressed="true">drawn crescent</button><button data-light="0">all night</button>
+        </div>
+        <button id="drawn" aria-pressed="false" title="tint what was not photographed">Not photographed</button>
+        <button id="flat" aria-pressed="false">Flat map</button>
+      </div>
+    </div>
+  </div>
+  <figure class="flat" id="flatwrap" hidden>
+    <img id="flatimg" alt="the night's mosaic, unwrapped" loading="lazy">
+    <figcaption>The same night unwrapped: the equirectangular picture the globe is wearing, 180°W to 180°E. Black is where the Day/Night Band had no dark pass; in September that is the Arctic. The bright band along the bottom is Antarctic twilight on ice and cloud, with the southern aurora in it.</figcaption>
+  </figure>
+</div>
+
+<div class="wrap" style="padding-top:44px">
+
+<header>
+  <div class="eyebrow">earthai · the real night · VIIRS Day/Night Band, one pass per place</div>
+  <h1>The real night</h1>
+  <p class="claim"><b id="claim">Fourteen nights</b> of the Earth after dark as it actually was: moonlit cloud, city lights, fishing fleets, fires, and on the stormy nights the aurora.</p>
+  <p class="lede">A polar-orbiting satellite crosses every place on Earth once a night, at about half past one local time, and its Day/Night Band is sensitive enough to photograph the ground by moonlight. This page stitches one night's passes onto a globe, one still per night, and steps through the last two weeks. It is not a film: every strip of the picture is a different moment, and each place appears exactly once.</p>
+  <div class="links">
+    <a class="xl" href="../earth/">the whole Earth every ten minutes &rarr;</a>
+    <a class="xl" href="../month/">one place, one month &rarr;</a>
+    <a class="xl" href="../eclipse/">the Moon's shadow &rarr;</a>
+    <a class="xl" href="../">all pages &rarr;</a>
+  </div>
+</header>
+
+<section>
+  <div class="head">
+    <h2>What you are looking at</h2>
+    <p>The night side is a photograph. NOAA-20 flies over each place at about 01:30 local solar time and the Day/Night Band records whatever light there is: cities, gas flares, wildfires, fishing boats lit to draw squid, moonlight on cloud and snow, the faint glow of the upper air itself, and the aurora. It is one greyscale channel, shown here with a curve that lifts the moonlight without blowing out the city cores. The day side is drawn, not photographed: nothing on this satellite sees the ground in daylight in this band, so the lit crescent is NASA's Blue Marble under a sun we placed, there only so the globe reads as a globe. Switch it off and the whole sphere is the real night.</p>
+    <p>Because every place is seen once, the picture for a date is really a ribbon of moments. NASA composites the passes that fall in one UTC day, so the picture dated the 8th shows the small hours of the 8th over the Americas and the night that began on the evening of the 8th over Europe, Asia and Australia; the two ends of the day meet near 22°E, in a thin sliver that one satellite misses and the other fills. Where the night never gets dark enough, the Arctic in September, there is no picture at all, and the <em>Not photographed</em> button shows exactly where the drawing begins.</p>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>The nights, and how stormy the sky was</h2>
+    <p>Kp is the planetary index of geomagnetic disturbance, measured every three hours from magnetometers around the world, 0 to 9. At Kp 5 there is a geomagnetic storm and the auroral oval, which is always there over the Arctic and Antarctic, brightens and pushes towards the equator; around Kp 7 it reaches the northern United States. The bars are the eight readings of each UTC day; a night is marked when any of them reached 5. Moonlight is the other thing that changes the picture from night to night: near full moon the clouds show like a black-and-white photograph, near new moon only the lights.</p>
+  </div>
+  <div class="tw">
+    <table id="tbl">
+      <thead><tr><th>night</th><th>Kp, every 3 h UTC</th><th>max Kp</th><th>moon lit</th><th>photographed</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+<section id="aurora">
+  <div class="head">
+    <h2 id="aurora-h">The aurora</h2>
+    <p id="aurora-p"></p>
+  </div>
+  <figure id="aurora-fig" hidden>
+    <div class="plate"><img id="aurora-img" alt="the auroral oval over North America, Day/Night Band" loading="lazy"></div>
+    <figcaption id="aurora-cap"></figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="head">
+    <h2>What is honest and what is not</h2>
+  </div>
+  <div class="cols">
+    <div class="note have"><span class="status">the night side</span><h3>One sensor, one curve</h3><p>Every night-side pixel is the Day/Night Band's own radiance, from the same NASA rendering, through the same fixed curve. Nothing is painted in: not the clouds, not the lights. The curve is a black point and a gamma chosen by eye so that a moonlit night and a moonless one both read; it is the same on every night, so a brighter night on this page was a brighter night.</p></div>
+    <div class="note maybe"><span class="status">the day side</span><h3>Drawn, and declared</h3><p>The lit crescent is a basemap lit by an invented sun. It carries no weather and belongs to no date. It is there because a globe with no day side does not read as a planet; the <em>all night</em> button removes it.</p></div>
+    <div class="note maybe"><span class="status">the swaths</span><h3>A ribbon of moments</h3><p>The satellite's swath is about 3,000 km wide and the strips lean with the orbit. Adjacent strips are a hundred minutes apart, so a front can jog at a strip edge, and the edges of a strip see the ground at a slant and look slightly brighter. Where NOAA-20 left a gap, the older Suomi NPP, on the same orbit a few minutes apart, fills it; the fill is shown under <em>Not photographed</em>.</p></div>
+    <div class="note gate"><span class="status">the ends of the Earth</span><h3>Twilight</h3><p>Poleward of about 70° the September night never gets dark and the band has no picture; that cap is the basemap, dimmed. Around Antarctica the band does see, but in twilight, so the sea ice and cloud there are far brighter than anything else on the night side, and the southern auroral oval sits inside that glow.</p></div>
+  </div>
+</section>
+
+<footer>
+  VIIRS Day/Night Band at-sensor radiance, NOAA-20 with Suomi NPP fill, and Blue Marble, all via NASA GIBS (epsg4326, daily) · planetary Kp from NOAA SWPC · mosaics by <span class="mono">scripts/fetch_night.py</span> · rendered with three.js <span id="threev"></span> · <span id="man"></span>
+</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.152.2/three.min.js"></script>
+<script>
+(function(){
+  const stage=document.getElementById('stage'), load=document.getElementById('load'), clock=document.getElementById('clock');
+  const nightsEl=document.getElementById('nights'), flatwrap=document.getElementById('flatwrap'), flatimg=document.getElementById('flatimg');
+  document.getElementById('threev').textContent='r'+THREE.REVISION;
+  let man=null, cur=-1, spin=0, tilt=0.42, vSpin=0, vTilt=0, dragging=false, dist=4.1, light=1, drawn=0;
+  const DEG=Math.PI/180;
+
+  // ---- scene: the globe is a shader that composes two nights (for the crossfade), their masks, and the basemap
+  const renderer=new THREE.WebGLRenderer({antialias:true, alpha:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.outputColorSpace=THREE.LinearSRGBColorSpace;      // pass texture values straight through: what the shader computes is what shows
+  stage.insertBefore(renderer.domElement, stage.firstChild);
+  const scene=new THREE.Scene();
+  const cam=new THREE.PerspectiveCamera(30,1,0.1,50); cam.position.set(0,0,dist);
+  const loader=new THREE.TextureLoader();
+  const blank=new THREE.DataTexture(new Uint8Array([0,0,0,255]),1,1); blank.needsUpdate=true;
+  const tex=(url)=>new Promise((ok,no)=>loader.load(url, t=>{ t.minFilter=THREE.LinearMipmapLinearFilter; t.generateMipmaps=true; t.anisotropy=renderer.capabilities.getMaxAnisotropy(); ok(t); }, undefined, no));
+  const U={ nightA:{value:blank}, nightB:{value:blank}, maskA:{value:blank}, maskB:{value:blank}, base:{value:blank}, f:{value:0},
+            light:{value:1}, drawn:{value:0}, sun:{value:new THREE.Vector3(0.82,0.30,-0.49).normalize()} };
+  const mat=new THREE.ShaderMaterial({ uniforms:U,
+    vertexShader:`varying vec2 vUv; varying vec3 vN; void main(){ vUv=uv; vN=normalize(normalMatrix*normal); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+    fragmentShader:`
+      uniform sampler2D nightA, nightB, maskA, maskB, base; uniform float f, light, drawn; uniform vec3 sun;
+      varying vec2 vUv; varying vec3 vN;
+      void main(){
+        float g=mix(texture2D(nightA,vUv).r, texture2D(nightB,vUv).r, f);           // the stretched radiance
+        float m=mix(texture2D(maskA,vUv).r, texture2D(maskB,vUv).r, f);             // 1 NOAA-20, .5 NPP fill, 0 nothing
+        vec3 b=texture2D(base,vUv).rgb;
+        float have=smoothstep(0.15,0.30,m);
+        vec3 night=vec3(g)*vec3(0.90,0.95,1.0);                                       // one channel; a cool cast, declared on the page
+        vec3 dim=b*0.07+vec3(0.006,0.012,0.028);                                      // where nothing was photographed: the basemap, barely
+        vec3 ns=mix(dim,night,have);
+        if(drawn>0.5){ ns=mix(ns, vec3(0.70,0.42,0.18), (1.0-have)*0.55); ns=mix(ns, vec3(0.25,0.55,0.75), smoothstep(0.30,0.15,abs(m-0.5))*have*0.45); }
+        float cs=dot(normalize(vN),sun);
+        float day=smoothstep(-0.10,0.14,cs)*light;
+        vec3 lit=b*(0.10+0.95*max(cs,0.0));
+        gl_FragColor=vec4(mix(ns,lit,day),1.0);
+      }`
+  });
+  const globe=new THREE.Mesh(new THREE.SphereGeometry(1,128,96), mat);
+  const atmo=new THREE.Mesh(new THREE.SphereGeometry(1.035,96,64), new THREE.ShaderMaterial({
+    side:THREE.BackSide, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false,
+    vertexShader:`varying vec3 vN; varying vec3 vP; void main(){ vN=normalize(normalMatrix*normal); vec4 p=modelViewMatrix*vec4(position,1.0); vP=p.xyz; gl_Position=projectionMatrix*p; }`,
+    fragmentShader:`varying vec3 vN; varying vec3 vP; void main(){ float d=clamp(-dot(normalize(vN), normalize(-vP))/0.26, 0.0, 1.0); float f=pow(d, 1.7); gl_FragColor=vec4(0.30,0.50,0.85,1.0)*f*0.45; }`
+  }));
+  const tiltG=new THREE.Group(); tiltG.add(globe); tiltG.add(atmo); scene.add(tiltG);
+  function size(){ const w=stage.clientWidth, h=stage.clientHeight; renderer.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix(); }
+  addEventListener('resize', size); size();
+
+  // ---- nights: textures are loaded on demand and kept; the crossfade is ~0.9 s
+  const cache={};
+  function nightTex(i){ const n=man.nights[i]; if(!cache[i]) cache[i]=Promise.all([tex(n.date+'.jpg'), tex(n.date+'.mask.png')]); return cache[i]; }
+  let fading=null;
+  async function show(i, instant){
+    if(!man) return; i=Math.max(0, Math.min(man.nights.length-1, i)); if(i===cur) return;
+    cur=i; mark(i);
+    const n=man.nights[i]; load.hidden=false; load.textContent=`loading ${fmt(n.date)}…`;
+    const [t,m]=await nightTex(i);
+    if(cur!==i) return;                     // stepped again while loading
+    load.hidden=true;
+    if(fading){ cancelAnimationFrame(fading); fading=null; U.nightA.value=U.nightB.value; U.maskA.value=U.maskB.value; U.f.value=0; }
+    if(instant || U.nightA.value===blank){ U.nightA.value=t; U.maskA.value=m; U.f.value=0; return; }
+    U.nightB.value=t; U.maskB.value=m; const t0=performance.now();
+    (function step(){ const x=Math.min(1,(performance.now()-t0)/900); U.f.value=x*x*(3-2*x);
+      if(x<1) fading=requestAnimationFrame(step); else { fading=null; U.nightA.value=t; U.maskA.value=m; U.f.value=0; } })();
+  }
+  function fmt(d){ return new Date(d+'T12:00:00Z').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'}); }
+  function mark(i){
+    const n=man.nights[i];
+    const kp=n.kp_max==null ? 'Kp not yet published' : `Kp <b>${n.kp_max.toFixed(1)}</b>${n.storm?' · <b>aurora</b>, geomagnetic storm':''}`;
+    clock.innerHTML=`<small>night of · ${i+1} of ${man.nights.length}</small>${fmt(n.date)} ${n.date.slice(0,4)}<span class="kp">${kp} · moon ${Math.round(n.moon*100)}% lit</span>`;
+    nightsEl.querySelectorAll('button').forEach((b,j)=>b.setAttribute('aria-pressed', j===i));
+    document.querySelectorAll('#tbl tbody tr').forEach((r,j)=>r.classList.toggle('pick', j===i));
+    flatimg.src=n.date+'.jpg';
+  }
+  function kpBars(n, svg){
+    const vals=n.kp.map(v=>v==null?0:v);
+    return vals.map((v,k)=>`<rect x="${k*12}" y="${22-v/9*22}" width="10" height="${v/9*22}" ${v>=man.storm_kp?'class="hi"':''}><title>${['00','03','06','09','12','15','18','21'][k]}:00 UTC · Kp ${n.kp[k]==null?'—':n.kp[k].toFixed(2)}</title></rect>`).join('');
+  }
+  fetch('night.json').then(r=>r.json()).then(m=>{
+    man=m; const N=m.nights.length;
+    const words=['','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen'];
+    document.getElementById('claim').textContent=(words[N]||N)[0].toUpperCase()+(words[N]||''+N).slice(1)+' nights';
+    document.getElementById('man').textContent=`${N} nights, ${m.nights[0].date} to ${m.nights[N-1].date}, ${(m.bytes/1e6).toFixed(0)} MB, built ${m.built.replace('T',' ')}`;
+    nightsEl.innerHTML=m.nights.map((n,i)=>`<button class="${n.storm?'storm':''}" data-i="${i}" title="${fmt(n.date)} · Kp ${n.kp_max==null?'—':n.kp_max.toFixed(1)} · moon ${Math.round(n.moon*100)}%"><span class="d">${+n.date.slice(8)}</span><span class="k"><i style="height:${Math.max(2,(n.kp_max||0)/9*22)}px"></i></span><span class="m">${n.date.slice(5,7)==='09'?'sep':n.date.slice(5,7)}</span></button>`).join('');
+    nightsEl.querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>show(+b.dataset.i)));
+    document.querySelector('#tbl tbody').innerHTML=m.nights.map((n,i)=>`<tr class="${n.storm?'storm':''}" data-i="${i}"><td class="n">${fmt(n.date)}</td><td><svg viewBox="0 0 96 22" preserveAspectRatio="none">${kpBars(n)}</svg></td><td class="n">${n.kp_max==null?'—':(n.storm?'<b>'+n.kp_max.toFixed(1)+'</b>':n.kp_max.toFixed(1))}</td><td class="n">${Math.round(n.moon*100)}%</td><td class="n">${Math.round(n.cover*100)}% of the globe${n.snpp_fill>0.002?`, ${(n.snpp_fill*100).toFixed(1)}% from NPP`:''}</td><td class="n">${n.storm?'aurora':''}</td></tr>`).join('');
+    document.querySelectorAll('#tbl tbody tr').forEach(r=>r.addEventListener('click', ()=>{ show(+r.dataset.i); document.getElementById('stage').scrollIntoView({behavior:'smooth'}); }));
+    // the aurora section: a still of the oval if a night reached STORM_KP, otherwise the brightest night by Kp
+    const storms=m.nights.filter(n=>n.storm), best=m.nights.reduce((a,b)=>(b.kp_max||0)>(a.kp_max||0)?b:a);
+    const h=document.getElementById('aurora-h'), p=document.getElementById('aurora-p');
+    if(storms.length){
+      const s=storms[storms.length-1]; const crop=(m.crops||[]).find(c=>c.includes(s.date));
+      const kk=s.kp.map((v,k)=>[v||0,k]).sort((a,b)=>b[0]-a[0])[0];
+      const hh=['00','03','06','09','12','15','18','21'][kk[1]];
+      h.textContent=`The aurora, ${fmt(s.date)}`;
+      p.innerHTML=`${storms.length===1?'One night':storms.length+' nights'} in this window reached Kp ${m.storm_kp.toFixed(0)}: ${storms.map(n=>fmt(n.date)+' (Kp '+n.kp_max.toFixed(1)+')').join(', ')}. On ${fmt(s.date)} the peak, Kp ${s.kp_max.toFixed(1)}, came in the ${hh}:00 to ${(+hh+3).toString().padStart(2,'0')}:00 UTC reading, which is the small hours across North America, just where the satellite was looking. Turn the globe to Canada on that night and the oval is the pale band across the top of the continent.`;
+      if(crop){ const fig=document.getElementById('aurora-fig'); fig.hidden=false; document.getElementById('aurora-img').src=crop;
+        document.getElementById('aurora-cap').textContent=`The oval on the night of ${fmt(s.date)} ${s.date.slice(0,4)}, 150°W to 50°W and 38°N to 72°N, at the band's full resolution. The broad pale arc from Alaska across Hudson Bay to Labrador is the aurora; the moon was ${Math.round(s.moon*100)}% lit, so the cloud tangled up in it is lit mostly by the aurora itself. Below, the lights of the United States; the black wedges at the top are where the Arctic twilight ends the picture.`; }
+    } else {
+      h.textContent='No aurora this fortnight';
+      p.textContent=`No night in this window reached Kp ${m.storm_kp.toFixed(0)}. The most disturbed was ${fmt(best.date)}, Kp ${(best.kp_max||0).toFixed(1)}; on a night like that the oval stays over the Arctic and Antarctic, where it is visible on the globe as a faint band at the edge of the twilight.`;
+    }
+    tex('base.jpg').then(t=>{ U.base.value=t; });
+    show(N-1, true).then(()=>{ (async()=>{ for(let i=N-2;i>=0;i--) await nightTex(i); })(); });   // the rest warm in the background, newest first
+  }).catch(e=>{ load.textContent='the night list failed to load'; });
+
+  // ---- interaction
+  document.getElementById('prev').addEventListener('click', ()=>show(cur-1));
+  document.getElementById('next').addEventListener('click', ()=>show(cur+1));
+  addEventListener('keydown', e=>{ if(e.target.tagName==='INPUT') return; if(e.key==='ArrowLeft'){ show(cur-1); e.preventDefault(); } if(e.key==='ArrowRight'){ show(cur+1); e.preventDefault(); } });
+  document.querySelectorAll('[data-light]').forEach(b=>b.addEventListener('click', ()=>{ light=+b.dataset.light; U.light.value=light; document.querySelectorAll('[data-light]').forEach(x=>x.setAttribute('aria-pressed', x===b)); }));
+  const drawnBtn=document.getElementById('drawn'); drawnBtn.addEventListener('click', ()=>{ drawn=1-drawn; U.drawn.value=drawn; drawnBtn.setAttribute('aria-pressed', !!drawn); });
+  const flatBtn=document.getElementById('flat'); flatBtn.addEventListener('click', ()=>{ flatwrap.hidden=!flatwrap.hidden; flatBtn.setAttribute('aria-pressed', !flatwrap.hidden); });
+  const cv=renderer.domElement; let px=0, py=0;
+  cv.addEventListener('pointerdown', e=>{ dragging=true; px=e.clientX; py=e.clientY; vSpin=vTilt=0; cv.setPointerCapture(e.pointerId); cv.classList.add('drag'); });
+  cv.addEventListener('pointermove', e=>{ if(!dragging) return; const dx=e.clientX-px, dy=e.clientY-py; px=e.clientX; py=e.clientY;
+    const k=0.0055*dist/4.1; vSpin=dx*k; vTilt=dy*k; spin+=vSpin; tilt=Math.max(-1.25, Math.min(1.25, tilt+vTilt)); });
+  const up=()=>{ dragging=false; cv.classList.remove('drag'); };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  cv.addEventListener('wheel', e=>{ e.preventDefault(); dist=Math.max(1.9, Math.min(8, dist*(1+Math.sign(e.deltaY)*0.08))); cam.position.z=dist; }, {passive:false});
+
+  // ---- loop: a slow turn while nobody is holding it; longitude -90 faces the camera at spin 0
+  let idleT=performance.now();
+  function tick(){
+    requestAnimationFrame(tick);
+    if(!dragging){ vSpin*=0.94; vTilt*=0.94; if(Math.abs(vSpin)>1e-4) spin+=vSpin; if(Math.abs(vTilt)>1e-4) tilt=Math.max(-1.25, Math.min(1.25, tilt+vTilt)); spin+=0.00045; }
+    globe.rotation.y=spin; tiltG.rotation.x=tilt;
+    renderer.render(scene, cam);
+  }
+  tick();
+})();
+</script>
+</body>
+</html>
