@@ -71,7 +71,8 @@ LAT_MAX = H / W * 180.0                       # 66.09
 ROOT = Path("data/clouds")
 VIS_SCALE, BT_SCALE = 40000.0, 100.0
 ZEN_FULL, ZEN_ZERO = 58.0, 66.0               # satellite zenith angle: full weight .. none
-DIURNAL_K = 14.0                              # clear-sky bt is never below (warmest of all - this)
+DIURNAL_K = 5.0                               # clear-sky bt over water is never below (warmest of all - this)
+DIURNAL_LAND_K = 32.0                         # over land (deserts cool 20-30 K overnight)
 R_EARTH, R_GEO = 6378.137, 42164.16
 
 SATS = {
@@ -325,7 +326,7 @@ def ahi_read(bucket: str, day: datetime, band: int, pool: int) -> np.ndarray | N
         rr.raise_for_status()
         return hsd_segment(bz2.decompress(rr.content))
 
-    with ThreadPoolExecutor(5) as pool_:
+    with ThreadPoolExecutor(3) as pool_:
         for r0, val, _ in pool_.map(one, keys):
             if pool > 1:
                 m = val.shape[0] // pool
@@ -530,7 +531,10 @@ def fetch_wms(sat, cfg, out, start, end, workers, log):
 
     def one(t):
         t0 = time.time()
-        return t, wms_grey(sat, "vis", t), wms_grey(sat, "ir", t), time.time() - t0
+        vis, ir = wms_grey(sat, "vis", t), wms_grey(sat, "ir", t)
+        if vis is None and ir is not None:                          # MTG's vis layer is transparent at night: dark, not missing
+            vis = np.where(np.isfinite(ir), 1.0, np.nan).astype(np.float32)
+        return t, vis, ir, time.time() - t0
 
     with ThreadPoolExecutor(workers) as pool:
         for t, vis, ir, dt in pool.map(one, todo):
@@ -567,15 +571,17 @@ def calibrate(sat, slots):
             v = load_band(ref, t, band)
             sel = both & np.isfinite(g) & np.isfinite(v)
             if cond == "day":
-                mu = cos_solar_zenith(t, lon, lat)
-                sel &= mu > 0.4
-                v = v / np.maximum(mu, 0.4)                       # compare sun-normalised, as opacity does
+                sel &= cos_solar_zenith(t, lon, lat) > 0.4        # same instant, same sun: raw grey against raw reflectance
             if sel.sum() < 5000:
                 continue
             gs.append(g[sel]); vs.append(v[sel])
         g, v = np.concatenate(gs), np.concatenate(vs)
         q = np.linspace(0, 1, 257)
-        gq, vq = np.quantile(g, q), np.quantile(v, q)
+        # quantile matching can only build an INCREASING map; an infrared grey is bright = cold, so
+        # check the sign first and match against the reversed quantiles when it is negative
+        sign = float(np.corrcoef(g, v)[0, 1])
+        gq, vq = np.quantile(g, q), np.quantile(v, q if sign >= 0 else 1 - q)
+        click.echo(f"   {band}: correlation {sign:+.2f} -> {'increasing' if sign >= 0 else 'DECREASING'} map")
         # collapse repeated grey quantiles so the table is a function
         grey, value = [], []
         for a, b in zip(gq, vq):
@@ -623,16 +629,24 @@ def clearsky(sat):
     # A place under cloud in every daytime frame has no clear glimpse, and its "darkest" is the cloud.
     # Cap the reference with a prior from Blue Marble: the red channel (0.64 um, the same band) linearised,
     # generous by 1.4x + 0.04 for relief shading and aerosol; open water is ~0.05 in band 2 away from glint.
-    prior = albedo_prior()
-    cap = np.maximum(prior * 1.4 + 0.04, 0.09).astype(np.float32)      # a floor, not a water branch: coast pixels are mixed
-    vmin = np.where(np.isfinite(vmin), np.minimum(vmin, cap), cap)
+    # Only for satellites that deliver calibrated reflectance: a WMS grey mapped by quantiles is not
+    # accurate enough over bright deserts for an absolute cap (the Sahara came out as solid cloud).
+    water = water_mask()
+    if SATS[sat]["kind"] == "wms":
+        cap = np.full((H, W), 0.09, np.float32)
+        vmin = np.where(np.isfinite(vmin), np.maximum(vmin, 0.0), cap)
+    else:
+        cap = np.maximum(albedo_prior() * 1.4 + 0.04, 0.09).astype(np.float32)   # a floor, not a water branch: coast pixels are mixed
+        vmin = np.where(np.isfinite(vmin), np.minimum(vmin, cap), cap)
     save16(out / "vis_clear.png", vmin, VIS_SCALE)
     save16(out / "bt_warmest.png", np.where(np.isfinite(bt_all), bt_all, np.nan), BT_SCALE)
+    # the floor under the per-time-of-day reference: the sea barely cools overnight, deserts cool 20-30 K
+    floor = np.where(water, bt_all - DIURNAL_K, bt_all - DIURNAL_LAND_K).astype(np.float32)
     for tod in range(144):
         near = [by_tod[(tod + k) % 144] for k in range(-6, 7) if (tod + k) % 144 in by_tod]
         if not near:
             continue
-        m = np.maximum(np.maximum.reduce(near), bt_all - DIURNAL_K)
+        m = np.maximum(np.maximum.reduce(near), floor)
         save16(out / f"bt_clear_{tod:03d}.png", np.where(np.isfinite(m), m, np.nan), BT_SCALE)
     click.echo("clear-sky maps written")
 
@@ -657,7 +671,7 @@ def albedo_prior() -> np.ndarray:
     return np.where(r <= 0.04045, r / 12.92, ((r + 0.055) / 1.055) ** 2.4).astype(np.float32)
 
 
-PARAMS = {"bt_margin": 3.0, "bt_k": 16.0, "vis_margin": 0.03, "vis_margin_mu": 0.012, "vis_k": 0.26,
+PARAMS = {"bt_margin": 3.0, "bt_k": 16.0, "vis_margin": 0.03, "vis_margin_mu": 0.012, "vis_margin_rel": 0.12, "vis_k": 0.26,
           "glint_in": 18.0, "glint_out": 36.0}
 
 
@@ -674,7 +688,9 @@ def opacity_frame(sat: str, t: datetime, lon, lat, vis_clear, water, clear_dir: 
     # so a marine stratocumulus deck (reflectance ~0.35, 6 K colder than the sea) reads as ~0.6, thick cloud as ~1
     ir = 1 - np.exp(-np.clip(bt_clear - bt - p["bt_margin"], 0, None) / p["bt_k"])
     rn = vis / np.maximum(mu, 0.08)
-    margin = p["vis_margin"] + p["vis_margin_mu"] / np.maximum(mu, 0.08)
+    # absolute + low-sun + relative: bright ground varies ~10-15% over the day (BRDF), and a one-day
+    # "darkest" reference sits at the bottom of that range
+    margin = p["vis_margin"] + p["vis_margin_mu"] / np.maximum(mu, 0.08) + p["vis_margin_rel"] * vis_clear
     vo = 1 - np.exp(-np.clip(rn - vis_clear - margin, 0, None) / p["vis_k"])
     wv = np.clip((mu - 0.10) / 0.20, 0, 1)
     wv = wv * wv * (3 - 2 * wv)
