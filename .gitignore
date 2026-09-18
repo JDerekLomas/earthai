@@ -25,3 +25,6 @@ _tmp-*
 scratch/
 docs/gallery/*.mp4
 data/goes/
+
+# regional cloud tiles: 260 MB of h264 built by scripts/cloud_tiles.py, deployed from disk, never in git
+site/globe/tiles/

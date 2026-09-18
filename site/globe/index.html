@@ -180,7 +180,7 @@
     <div class="note gate"><span class="status">the poles</span><h3>Nothing looks down on the poles</h3><p>Every geostationary satellite sits over the equator and sees the Earth edge-on past about 60° of latitude, so past 66° there is no cloud on this page at all. The polar caps are the basemap, lit but weatherless.</p></div>
     <div class="note maybe"><span class="status">the clear-sky guess</span><h3>Where the method is wrong</h3><p id="wrongp">"What this place looks like with no cloud" is taken from one day of pictures, so a place under cloud all day has no clear reference and its cloud reads thinner than it is. Bright ground (the Atacama, Greenland's ice) is handled by that reference and stays ground; the sun's glint on the sea is switched to the infrared reading alone, so a calm sea at noon is not white. Very cold ground at night, and thin high cloud after dark, are the known failures of an infrared-only night.</p></div>
     <div class="note have"><span class="status">between frames</span><h3>Ten minutes, in motion</h3><p>A real frame every ten minutes, twelve of them a second at full speed: two hours a second, a day in twelve seconds. Between two frames the cloud has moved, typically one to three pixels, and a cross-fade would show it fading from one place to the next. So the motion between each frame and the next is measured (optical flow, on the frames themselves) and travels with the clip, and the <em>Blend</em> button carries each frame along it: the older frame is pushed forward, the newer pulled back, and the two are mixed. Nothing is invented; where the motion estimate is wrong the cloud ghosts a little. Switch it off to see the frames step.</p></div>
-    <div class="note maybe"><span class="status">the resolution</span><h3>Ten kilometres per pixel</h3><p>The cloud is drawn at ten kilometres per pixel, 4096 of them around the equator, and the zoom stops where one of those would be two device pixels wide, so the cloud is never magnified into mush over a basemap that is still sharp; on a retina laptop that is only about one and a half times closer than the opening view. The satellites see finer, down to half a kilometre; this page does not yet.</p></div>
+    <div class="note have"><span class="status">the resolution</span><h3>Ten kilometres per pixel, and closer over the Americas</h3><p>The whole-Earth cloud is drawn at ten kilometres per pixel, 4096 of them around the equator. Zoom in over the Americas and the page switches to tiles cut from GOES-East at its own resolution, 2.4 kilometres per pixel, decoded in the browser only for the part of the world in view (each tile is its own small video, fetched a second at a time). The zoom stops where a pixel of the finest cloud available under the view would be two device pixels wide, so the cloud is never magnified into mush over a basemap that is still sharp: about two and a half times closer where the tiles exist than elsewhere. The other four satellites see just as finely; their tiles are not built yet, and a browser without WebCodecs stays on the whole-Earth clip.</p></div>
   </div>
 </section>
 
@@ -191,6 +191,7 @@
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.152.2/three.min.js"></script>
+<script src="tiles.js"></script>
 <script>
 (function(){
   const T0=performance.now();
@@ -235,7 +236,12 @@
     uSun:{value:new THREE.Vector3(1,0,0)}, uCam:{value:new THREE.Vector3(0,0,4)},
     uLatMax:{value:66.09}, uShowCover:{value:0}, uHasCloud:{value:0},
     uBicubic:{value:0},                        // 1 when a cloud texel is wider than a device pixel: Catmull-Rom instead of bilinear
-    uCloudK:{value:0.45}                       // the pipeline's vis_k: -k ln(1 - opacity) is the cloud's reflectance again
+    uCloudK:{value:0.45},
+    // the tile atlas (tiles.js): rect = (u of the west edge, v of the south edge, 1/width, 1/height) of the atlas window in
+    // lon/lat uv; flow = atlas uv per unit of coded flow; on = 0..1 fade; cubic = 1 when an atlas texel is magnified;
+    // sub = the tiles' satellite longitude in radians (GOES-East), for the same 58..66 deg view-angle fade the pipeline uses
+    uTileA:{value:blank}, uTileB:{value:blank}, uTileRect:{value:new THREE.Vector4(0,0,1,1)}, uTileFlow:{value:new THREE.Vector2(0,0)},
+    uTileOn:{value:0}, uTileCubic:{value:0}, uTileSub:{value:-75*Math.PI/180}                       // the pipeline's vis_k: -k ln(1 - opacity) is the cloud's reflectance again
   };
   const planet=new THREE.Mesh(new THREE.SphereGeometry(1,128,96), new THREE.ShaderMaterial({
     uniforms:U,
@@ -244,13 +250,14 @@
       void main(){ vUv=uv; vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
     fragmentShader:`
       precision highp float;
-      uniform sampler2D uBase, uLights, uCover, uCloudA, uCloudB;
-      uniform float uMix, uLatMax, uShowCover, uHasCloud, uBicubic, uCloudK;
+      uniform sampler2D uBase, uLights, uCover, uCloudA, uCloudB, uTileA, uTileB;
+      uniform float uMix, uLatMax, uShowCover, uHasCloud, uBicubic, uCloudK, uTileOn, uTileCubic, uTileSub;
+      uniform vec2 uTileFlow; uniform vec4 uTileRect;
       uniform vec2 uCloudTexel, uFlow; uniform vec3 uSun, uCam;
       varying vec2 vUv; varying vec3 vP;
       // Catmull-Rom in five bilinear taps (the four corner taps dropped, weights renormalised): when the cloud
       // is magnified, bilinear shows the 10 km texel grid as staircases; this gives a smooth contour instead.
-      float cubicR(sampler2D t, vec2 uv){
+      float cubicR(sampler2D t, vec2 uv, vec2 uCloudTexel){
         vec2 sp=uv/uCloudTexel, tc=floor(sp-0.5)+0.5, f=sp-tc;
         vec2 w0=f*(-0.5+f*(1.0-0.5*f)), w1=1.0+f*f*(-2.5+1.5*f), w2=f*(0.5+f*(2.0-1.5*f)), w3=f*f*(-0.5+0.5*f);
         vec2 w12=w1+w2, t12=(tc+w2/w12)*uCloudTexel, t0=(tc-1.0)*uCloudTexel, t3=(tc+2.0)*uCloudTexel;
@@ -271,10 +278,31 @@
         vec2 f=(texture2D(uCloudA,c).gb-0.5)*2.0*uFlow;
         vec2 ca=c-f*uMix, cb=c+f*(1.0-uMix);
         float a, b;
-        if(fine && uBicubic>0.5){ a=cubicR(uCloudA,ca); b=cubicR(uCloudB,cb); }
+        if(fine && uBicubic>0.5){ a=cubicR(uCloudA,ca,uCloudTexel); b=cubicR(uCloudB,cb,uCloudTexel); }
         else { a=texture2D(uCloudA,ca).r; b=texture2D(uCloudB,cb).r; }
         float edge=smoothstep(0.0,0.02,v)*smoothstep(1.0,0.98,v);
-        return mix(a,b,uMix)*edge*uHasCloud;
+        float o=mix(a,b,uMix)*edge*uHasCloud;
+        // zoomed in: the same field from the regional tiles (tiles.js), where the atlas has them (alpha), faded at the
+        // atlas window's edge and by the satellite's view angle (58..66 deg, exactly as the pipeline weights it), so the
+        // tiles hand back to the base clip's other satellites at their own edge instead of showing less cloud there
+        if(uTileOn>0.001){
+          vec2 t=vec2(fract(uv.x-uTileRect.x)*uTileRect.z, (uv.y-uTileRect.y)*uTileRect.w);
+          if(t.x<1.0 && t.y>=0.0 && t.y<1.0){
+            vec2 tf=(texture2D(uTileA,t).gb-0.5)*2.0*uTileFlow;
+            vec2 ta2=t-tf*uMix, tb2=t+tf*(1.0-uMix);
+            vec4 ta=texture2D(uTileA,ta2), tb=texture2D(uTileB,tb2);
+            float ra=ta.r, rb=tb.r;
+            if(fine && uTileCubic>0.5){ vec2 at=vec2(1.0/2048.0); ra=cubicR(uTileA,ta2,at); rb=cubicR(uTileB,tb2,at); }
+            float lonr=(uv.x-0.5)*6.28318531, latr=(uv.y-0.5)*3.14159265;
+            float cg=cos(latr)*cos(lonr-uTileSub);
+            float d=sqrt(42164.16*42164.16+6378.137*6378.137-2.0*42164.16*6378.137*cg);
+            float zen=degrees(acos(clamp((42164.16*cg-6378.137)/d,-1.0,1.0)));
+            float ef=smoothstep(0.0,0.12,t.x)*smoothstep(1.0,0.88,t.x)*smoothstep(0.0,0.12,t.y)*smoothstep(1.0,0.88,t.y);
+            float w=smoothstep(66.0,58.0,zen)*step(0.5,ta.a)*step(0.5,tb.a)*uTileOn*ef;
+            o=mix(o, mix(ra,rb,uMix), w);
+          }
+        }
+        return o;
       }
       void main(){
         vec3 n=normalize(vP);
@@ -340,6 +368,9 @@
     fragmentShader:`varying vec3 vN; varying vec3 vP; varying vec3 vW; uniform vec3 uSunV; void main(){ float d=clamp(-dot(normalize(vN), normalize(-vP))/0.26, 0.0, 1.0); float f=pow(d, 1.6); float lit=smoothstep(-0.35,0.25,dot(vW,uSunV)); gl_FragColor=vec4(0.40,0.62,0.92,1.0)*f*0.75*(0.15+0.85*lit); }`
   }));
   const tiltG=new THREE.Group(); tiltG.add(planet); tiltG.add(atmo); scene.add(tiltG);
+  // regional tiles (tiles.js): decoded with WebCodecs when the zoom needs them; without WebCodecs the page stays on the base clip
+  const tiles=window.CloudTiles ? CloudTiles({renderer, planet, cam, stage, U, base:'tiles/'}) : null;
+  perf.tiles=tiles ? tiles.stats : {supported:false};
 
   function size(){ const w=stage.clientWidth, h=stage.clientHeight; renderer.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix(); }
   addEventListener('resize', ()=>{ size(); zoomLimit(); }); size();
@@ -503,9 +534,10 @@
   // (Until 2026-09-19 the limit was 2 CSS pixels, i.e. 4 device pixels on a retina screen, and the grid showed.)
   // On a retina laptop the opening view is already ~1.3 device px per texel, so this allows only ~1.5x closer.
   const MAX_TEXEL_DEV=2.0; let minDist=1.35, zoomTarget=dist;
-  function texelPx(d){ const pr=Math.min(devicePixelRatio,2), Hpx=stage.clientHeight*pr, Wc=rtW||(man&&useSmall?man.width/2:0)||(man?man.width:4096);
+  function texelPx(d, W){ const pr=Math.min(devicePixelRatio,2), Hpx=stage.clientHeight*pr, Wc=W||rtW||(man&&useSmall?man.width/2:0)||(man?man.width:4096);
     return (2*Math.PI/Wc)*Hpx/(2*Math.tan(cam.fov/2*DEG)*(d-1)); }
-  function zoomLimit(){ minDist=Math.max(1.35, 1+texelPx(2)/MAX_TEXEL_DEV); perf.minDist=+minDist.toFixed(3);
+  // the cap follows the finest cloud under the view centre: the base clip, or a tile level 2-4x finer where tiles exist
+  function zoomLimit(){ const Wc=Math.max(rtW||4096, tiles&&tiles.supported ? tiles.finestWidth() : 0); minDist=Math.max(1.35, 1+texelPx(2, Wc)/MAX_TEXEL_DEV); perf.minDist=+minDist.toFixed(3);
     if(zoomTarget<minDist) zoomTarget=minDist; }
   function zoom(f){ zoomTarget=Math.max(minDist, Math.min(8, zoomTarget*f)); }
   cv.addEventListener('wheel', e=>{ e.preventDefault(); zoom(1+Math.sign(e.deltaY)*0.08); }, {passive:false});
@@ -516,7 +548,7 @@
   function setView(lon, lat, d, fi){ mode='earth'; document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed', x.dataset.mode==='earth'));
     spin=-(90+lon)*DEG; tilt=Math.max(-1.25, Math.min(1.25, lat*DEG)); vSpin=vTilt=0; if(d){ dist=zoomTarget=Math.max(minDist, Math.min(8, d)); cam.position.z=dist; } if(fi!=null) seek(fi); }
   window.__setView=setView;
-  window.__dbg={renderer, U, vid, vtex, rt:()=>rtB, presented:()=>presented, calibrate, code:()=>code, minDist:()=>minDist, dist:()=>dist,
+  window.__dbg={renderer, U, vid, vtex, tiles, rt:()=>rtB, presented:()=>presented, calibrate, code:()=>code, minDist:()=>minDist, dist:()=>dist,
     rafStats:()=>{ const n=Math.min(rafN,240), g=Array.from(rafGap.subarray(0,n)).sort((a,b)=>a-b), w=Array.from(rafWork.subarray(0,n)).sort((a,b)=>a-b);
       const q=(a,p)=>+a[Math.min(a.length-1,Math.floor(a.length*p))].toFixed(2); return {n, gap:{p50:q(g,.5),p95:q(g,.95),max:q(g,1)}, work:{p50:q(w,.5),p95:q(w,.95),max:q(w,1)}}; }};
   window.__pause=()=>{ wantPlay=false; sync(); playBtn.textContent='Play'; playBtn.setAttribute('aria-pressed','false'); };
@@ -525,7 +557,7 @@
   // ---- loop: no allocation per frame
   const sunObj=U.uSun.value, camObj=U.uCam.value, inv=new THREE.Matrix4(), rot3=new THREE.Matrix3();
   let frames=0, fpsT=performance.now(), lastNow=0; perf.fps=0;
-  const rafGap=new Float32Array(240), rafWork=new Float32Array(240); let rafN=0;   // a ring of recent frame intervals and render times, for measuring
+  const rafGap=new Float32Array(240), rafWork=new Float32Array(240); let rafN=0; let lastFinest=0;   // a ring of recent frame intervals and render times, for measuring
   function tick(now){
     requestAnimationFrame(tick);
     const t0=performance.now();
@@ -547,6 +579,8 @@
     atmo.material.uniforms.uSunV.value.set(s[0],s[2],-s[1]).applyMatrix3(rot3.setFromMatrix4(planet.matrixWorld));
     // cross-fade from the older frame to the newest over the measured gap between presents
     U.uMix.value = window.__mix!=null ? window.__mix : blend && presented>1 && !vid.paused ? Math.max(0, Math.min(1, (performance.now()-lastPresent)/1000/Math.max(frameGap,1e-3))) : 1;
+    if(tiles&&tiles.supported){ tiles.update(i, dt); const fw=tiles.finestWidth(); if(fw!==lastFinest){ lastFinest=fw; zoomLimit(); }
+      const L=tiles.stats.level; U.uTileCubic.value=(L && tpx/(1<<(L-3))>1.15)?1:0; }
     renderer.render(scene, cam);
     rafWork[rafN%240]=performance.now()-t0; rafN++;
     frames++; if(now-fpsT>1000){ perf.fps=Math.round(frames*1000/(now-fpsT)); frames=0; fpsT=now; }
