@@ -29,7 +29,7 @@ clearsky  What each pixel looks like with NO cloud, from the frames themselves.
           bt:  per time of day, the warmest temperature seen within +/-1 h of that time on any
                day, but never colder than (warmest of all - DIURNAL_K), so cloud that sits still
                for hours is not mistaken for the ground.
-opacity   vis: (refl/mu - clear - margin) scaled; bt: (clear - bt - margin) scaled; the visible
+opacity   vis: 1-exp(-(refl/mu - clear - margin)/k); bt: 1-exp(-(clear - bt - margin)/k); the visible
           term fades out through twilight (mu 0.30 -> 0.10) and inside the sun's glint on water,
           so the field is continuous across the terminator: night and glint are infrared-only.
           Weighted to zero from 58 to 66 degrees of satellite zenith angle.
@@ -69,7 +69,18 @@ R_EARTH, R_GEO = 6378.137, 42164.16
 SATS = {
     "goes19": {"bucket": "noaa-goes19", "lon": -75.0, "kind": "abi", "name": "GOES-East"},
     "goes18": {"bucket": "noaa-goes18", "lon": -137.0, "kind": "abi", "name": "GOES-West"},
+    "himawari9": {"bucket": "noaa-himawari9", "lon": 140.7, "kind": "ahi", "name": "Himawari-9"},
+    # EUMETView serves contrast-stretched 8-bit greys, not numbers: `calibrate` maps them onto a
+    # neighbour's physical values by quantile matching in the overlap (mtg <- goes19, iodc <- mtg)
+    "mtg": {"lon": 0.0, "kind": "wms", "name": "Meteosat MTG-I1", "step": 10, "ref": "goes19",
+            "vis": ("mtg_fd:vis06_hrfi", ""), "ir": ("mtg_fd:ir105_hrfi", "mtg_fd:mtg_fd_ir105_hrfi_grayscale")},
+    "iodc": {"lon": 45.5, "kind": "wms", "name": "Meteosat-9", "step": 15, "ref": "mtg",
+             "vis": ("msg_iodc:vis006", ""), "ir": ("msg_iodc:ir108", "")},
 }
+WMS = ("https://view.eumetsat.int/geoserver/wms?service=WMS&version=1.3.0&request=GetMap"
+       "&layers={layer}&styles={style}&crs=EPSG:4326&bbox={s},{w},{n},{e}&width={W}&height={H}"
+       "&format=image/png&transparent=true&time={t}")
+GREY_SCALE = 100.0                            # WMS greys are stored x100 in the same 16-bit PNGs; 0 = no data
 
 
 # ---------------------------------------------------------------- the grid
@@ -124,27 +135,38 @@ def glint_cos(t: datetime, lon: np.ndarray, lat: np.ndarray, sub_lon: float) -> 
 
 # ---------------------------------------------------------------- ABI by byte range
 
-class AbiGeometry:
-    """Fractional (row, col) in the 2x2-averaged ABI fixed grid of every output pixel."""
+class DiskGeometry:
+    """Fractional (row, col) in a 2x2-averaged geostationary fixed grid of every output pixel.
+    `colrow(ax, ay)` turns scan angles (radians, x east, y north) into fractional 0-based native
+    (col, row); ABI and AHI differ only in that function and the sweep axis."""
 
-    def __init__(self, sub_lon: float, scale: float = 5.6e-05, off: float = 0.151844):
+    def __init__(self, sub_lon: float, sweep: str, n: int, colrow):
         from pyproj import Transformer
         h = 35786023.0
         lon, lat = grid_lonlat()
-        geos = f"+proj=geos +h={h} +lon_0={sub_lon} +sweep=x +a=6378137 +b=6356752.31414 +units=m +no_defs"
+        geos = f"+proj=geos +h={h} +lon_0={sub_lon} +sweep={sweep} +a=6378137 +b=6356752.31414 +units=m +no_defs"
         gx, gy = Transformer.from_crs("EPSG:4326", geos, always_xy=True).transform(lon.astype(np.float64), lat.astype(np.float64))
         ok = np.isfinite(gx) & np.isfinite(gy)
-        cols = (np.where(ok, gx, 0) / h + off) / scale
-        rows = (off - np.where(ok, gy, 0) / h) / scale
+        cols, rows = colrow(np.where(ok, gx, 0) / h, np.where(ok, gy, 0) / h)
         ok &= sat_zenith(lon, lat, sub_lon) < ZEN_ZERO + 1
-        self.ok = ok
+        self.ok, self.n = ok, n
         self.rows = ((rows - 0.5) / 2).astype(np.float32)
         self.cols = ((cols - 0.5) / 2).astype(np.float32)
 
+    @classmethod
+    def abi(cls, sub_lon: float, scale: float = 5.6e-05, off: float = 0.151844):
+        return cls(sub_lon, "x", 5424, lambda ax, ay: ((ax + off) / scale, (off - ay) / scale))
+
+    @classmethod
+    def ahi(cls, sub_lon: float, cfac: float = 20466275, coff: float = 2750.5):
+        f = cfac / 65536 * 180 / math.pi                       # HSD: pixel = COFF + angle_deg * CFAC / 2^16, 1-based
+        return cls(sub_lon, "y", 5500, lambda ax, ay: (coff + ax * f - 1, coff - ay * f - 1))
+
     def sample(self, raw: np.ndarray) -> np.ndarray:
-        """raw: (5424, 5424) float32 with NaN for fill. Returns the output grid, NaN where unseen."""
+        """raw: (n, n) float32 with NaN for fill. Returns the output grid, NaN where unseen."""
         from scipy.ndimage import gaussian_filter, map_coordinates
-        a = raw.reshape(2712, 2, 2712, 2)
+        m = self.n // 2
+        a = raw.reshape(m, 2, m, 2)
         good = np.isfinite(a)
         cnt = good.sum((1, 3))
         pooled = np.where(good, a, 0).sum((1, 3)) / np.maximum(cnt, 1)
@@ -243,6 +265,128 @@ def abi_read(url: str, names: tuple[str, ...]) -> tuple[dict[str, np.ndarray], i
     return out, fetched
 
 
+# ---------------------------------------------------------------- AHI (Himawari) HSD segments
+
+def hsd_segment(raw: bytes) -> tuple[int, np.ndarray, dict]:
+    """One decompressed HSD segment -> (first line, calibrated float32 block with NaN, header)."""
+    import struct
+    pos, blocks, hdr_len = 0, {}, None
+    while True:
+        num, length = raw[pos], struct.unpack_from("<H", raw, pos + 1)[0]
+        blocks[num] = raw[pos:pos + length]
+        pos += length
+        if num == 1:
+            hdr_len = struct.unpack_from("<I", blocks[1], 70)[0]
+        if pos >= hdr_len:
+            break
+    _, cols, lines = struct.unpack_from("<HHH", blocks[2], 3)
+    sub_lon, cfac, lfac, coff, loff = struct.unpack_from("<dIIff", blocks[3], 3)
+    band, wl, _, err, outside, gain, const = struct.unpack_from("<HdHHHdd", blocks[5], 3)
+    _, _, first_line = struct.unpack_from("<BBH", blocks[7], 3)
+    data = np.frombuffer(raw, "<u2", count=cols * lines, offset=pos).reshape(lines, cols)
+    good = (data != err) & (data != outside)
+    rad = gain * data.astype(np.float32) + const
+    if band <= 6:
+        val = rad * struct.unpack_from("<d", blocks[5], 35)[0]              # radiance -> reflectance factor
+    else:
+        c0, c1, c2 = struct.unpack_from("<3d", blocks[5], 35)
+        c, h, k = struct.unpack_from("<3d", blocks[5], 83)
+        lam = wl * 1e-6
+        r = rad.astype(np.float64) * 1e6
+        te = (h * c / (k * lam)) / np.log(1 + 2 * h * c ** 2 / (lam ** 5 * np.maximum(r, 1e-9)))
+        val = (c0 + c1 * te + c2 * te ** 2).astype(np.float32)
+    val[~good] = np.nan
+    return first_line - 1, val, {"sub_lon": sub_lon, "cfac": cfac, "coff": coff, "cols": cols}
+
+
+def ahi_read(bucket: str, day: datetime, band: int, pool: int) -> np.ndarray | None:
+    """All ten segments of one band at one slot, assembled and box-averaged `pool`x so both bands land
+    on the 5500 grid (B03 is 0.5 km = 22000 px; B13 is 2 km = 5500)."""
+    import bz2
+    prefix = f"AHI-L1b-FLDK/{day:%Y/%m/%d/%H%M}/"
+    r = requests.get(f"https://{bucket}.s3.amazonaws.com/?list-type=2&prefix={prefix}", headers=UA, timeout=60)
+    r.raise_for_status()
+    import re
+    keys = [k for k in re.findall(r"<Key>([^<]+)</Key>", r.text) if f"_B{band:02d}_" in k]
+    if len(keys) != 10:
+        return None
+    full = np.full((5500, 5500), np.nan, np.float32)
+
+    def one(key):
+        rr = requests.get(f"https://{bucket}.s3.amazonaws.com/{key}", headers=UA, timeout=300)
+        rr.raise_for_status()
+        return hsd_segment(bz2.decompress(rr.content))
+
+    with ThreadPoolExecutor(5) as pool_:
+        for r0, val, _ in pool_.map(one, keys):
+            if pool > 1:
+                m = val.shape[0] // pool
+                a = val.reshape(m, pool, val.shape[1] // pool, pool)
+                good = np.isfinite(a)
+                cnt = good.sum((1, 3))
+                val = np.where(cnt > 0, np.where(good, a, 0).sum((1, 3)) / np.maximum(cnt, 1), np.nan).astype(np.float32)
+                r0 //= pool
+            full[r0:r0 + val.shape[0]] = val
+    return full
+
+
+# ---------------------------------------------------------------- EUMETView WMS greys
+
+def wms_columns(sub_lon: float) -> tuple[int, int]:
+    """Grid columns spanned by a disk (+/- 81 deg of longitude), wrapped later if needed."""
+    px = W / 360
+    c0 = int(math.floor((sub_lon - 81 + 180) * px))
+    c1 = int(math.ceil((sub_lon + 81 + 180) * px))
+    return c0, c1
+
+
+def wms_grey(sat: str, band: str, t: datetime) -> np.ndarray | None:
+    """One band as served, on the full cloud grid: float32 grey 0..255, NaN where transparent/absent."""
+    layer, style = SATS[sat][band]
+    c0, c1 = wms_columns(SATS[sat]["lon"])
+    w, e = -180 + c0 * 360 / W, -180 + c1 * 360 / W
+    url = WMS.format(layer=layer, style=style, s=-LAT_MAX, w=w, n=LAT_MAX, e=e, W=c1 - c0, H=H, t=t.strftime("%Y-%m-%dT%H:%M:00.000Z"))
+    import io
+    for attempt in range(3):
+        try:
+            r = requests.get(url, headers=UA, timeout=240)
+            if r.status_code == 200 and r.content[:2] == b"\x89P":
+                break
+        except requests.RequestException:
+            pass
+        time.sleep(5)
+    else:
+        return None
+    im = Image.open(io.BytesIO(r.content)).convert("RGBA")
+    a = np.asarray(im).astype(np.float32)
+    g = a[..., :3].mean(-1)
+    g[a[..., 3] < 128] = np.nan
+    if np.isfinite(g).mean() < 0.2 or np.nanstd(g) < 2:                 # a blank slot
+        return None
+    out = np.full((H, W), np.nan, np.float32)
+    out[:, c0:c1] = g
+    return out
+
+
+def lut_apply(lut: dict, band: str, grey: np.ndarray) -> np.ndarray:
+    return np.interp(grey, lut[band]["grey"], lut[band]["value"]).astype(np.float32)
+
+
+def load_band(sat: str, t: datetime, band: str, lut: dict | None = None) -> np.ndarray | None:
+    """Physical values (reflectance or K) for any satellite, NaN = no data."""
+    p = ROOT / "raw" / sat / f"{slot_name(t)}_{band}.png"
+    if not p.exists():
+        return None
+    if SATS[sat]["kind"] != "wms":
+        return load16(p, VIS_SCALE if band == "vis" else BT_SCALE)
+    g = load16(p, GREY_SCALE)
+    if lut is None:
+        lut = json.loads((ROOT / f"lut_{sat}.json").read_text())
+    v = lut_apply(lut, band, np.nan_to_num(g, nan=0.0))
+    v[~np.isfinite(g)] = np.nan
+    return v
+
+
 def save16(path: Path, a: np.ndarray, scale: float) -> None:
     q = np.clip(np.nan_to_num(a, nan=0.0) * scale, 1, 65535).round().astype(np.uint16)
     q[~np.isfinite(a)] = 0
@@ -277,6 +421,18 @@ def cli():
     pass
 
 
+def slots_between(start: str, end: str, step: int = 10) -> list[datetime]:
+    t, t1, out = utc(start), utc(end), []
+    while t <= t1:
+        out.append(t)
+        t += timedelta(minutes=step)
+    return out
+
+
+def have(out: Path, slot: datetime) -> bool:
+    return (out / f"{slot_name(slot)}_vis.png").exists() and (out / f"{slot_name(slot)}_bt.png").exists()
+
+
 @cli.command()
 @click.option("--sat", required=True, type=click.Choice(sorted(SATS)))
 @click.option("--start", required=True)
@@ -286,17 +442,21 @@ def fetch(sat, start, end, workers):
     cfg = SATS[sat]
     out = ROOT / "raw" / sat
     out.mkdir(parents=True, exist_ok=True)
+    log = open(ROOT / "fetch.jsonl", "a")
+    if cfg["kind"] == "ahi":
+        return fetch_ahi(sat, cfg, out, start, end, workers, log)
+    if cfg["kind"] == "wms":
+        return fetch_wms(sat, cfg, out, start, end, workers, log)
     keys = list_keys(cfg["bucket"], "ABI-L2-MCMIPF", utc(start), utc(end) + timedelta(minutes=9), None)
     todo = []
     for ts, key, size in keys:
         slot = ts.replace(minute=ts.minute // 10 * 10, second=0)
-        if not ((out / f"{slot_name(slot)}_vis.png").exists() and (out / f"{slot_name(slot)}_bt.png").exists()):
+        if not have(out, slot):
             todo.append((slot, key, size))
     click.echo(f"{sat}: {len(keys)} slots listed, {len(todo)} to fetch ({sum(s for *_, s in todo) / 1e9:.1f} GB if taken whole)")
     if not todo:
         return
-    geo = AbiGeometry(cfg["lon"])
-    log = open(ROOT / "fetch.jsonl", "a")
+    geo = DiskGeometry.abi(cfg["lon"])
 
     def one(item):
         slot, key, size = item
@@ -326,6 +486,102 @@ def fetch(sat, start, end, workers):
     click.echo(f"fetched {total / 1e9:.2f} GB")
 
 
+def fetch_ahi(sat, cfg, out, start, end, workers, log):
+    todo = [t for t in slots_between(start, end) if not have(out, t)]
+    click.echo(f"{sat}: {len(todo)} slots to fetch")
+    geo = DiskGeometry.ahi(cfg["lon"])
+
+    def one(t):
+        for attempt in range(3):
+            try:
+                t0 = time.time()
+                vis = ahi_read(cfg["bucket"], t, 3, 4)
+                bt = ahi_read(cfg["bucket"], t, 13, 1)
+                return t, vis, bt, time.time() - t0
+            except Exception as e:                                  # noqa: BLE001
+                click.echo(f"   retry {attempt + 1} {slot_name(t)}: {e}")
+                time.sleep(5)
+        return t, None, None, 0.0
+
+    with ThreadPoolExecutor(workers) as pool:
+        for t, vis, bt, dt in pool.map(one, todo):
+            if vis is None or bt is None:
+                click.echo(f"   MISSING {slot_name(t)}")
+                continue
+            save16(out / f"{slot_name(t)}_vis.png", geo.sample(vis), VIS_SCALE)
+            save16(out / f"{slot_name(t)}_bt.png", geo.sample(bt), BT_SCALE)
+            log.write(json.dumps({"sat": sat, "slot": slot_name(t), "seconds": round(dt, 1)}) + "\n")
+            log.flush()
+            click.echo(f"   {slot_name(t)}  {dt:.0f}s")
+
+
+def fetch_wms(sat, cfg, out, start, end, workers, log):
+    step = cfg["step"]
+    todo = [t for t in slots_between(start, end, step) if not have(out, t)]
+    click.echo(f"{sat}: {len(todo)} slots to fetch")
+
+    def one(t):
+        t0 = time.time()
+        return t, wms_grey(sat, "vis", t), wms_grey(sat, "ir", t), time.time() - t0
+
+    with ThreadPoolExecutor(workers) as pool:
+        for t, vis, ir, dt in pool.map(one, todo):
+            if vis is None or ir is None:
+                click.echo(f"   MISSING {slot_name(t)} vis={vis is not None} ir={ir is not None}")
+                continue
+            save16(out / f"{slot_name(t)}_vis.png", vis, GREY_SCALE)
+            save16(out / f"{slot_name(t)}_bt.png", ir, GREY_SCALE)
+            log.write(json.dumps({"sat": sat, "slot": slot_name(t), "seconds": round(dt, 1)}) + "\n")
+            log.flush()
+            click.echo(f"   {slot_name(t)}  {dt:.0f}s")
+
+
+@cli.command()
+@click.option("--sat", required=True)
+@click.option("--slots", default=8, show_default=True, help="how many slots, spread over what is on disk")
+def calibrate(sat, slots):
+    """Quantile-match this WMS satellite's greys onto its reference's physical values in their overlap:
+    a monotonic grey -> reflectance (day pixels) and grey -> kelvin (all pixels) table."""
+    cfg = SATS[sat]
+    ref = cfg["ref"]
+    lon, lat = grid_lonlat()
+    both = (sat_zenith(lon, lat, cfg["lon"]) < 55) & (sat_zenith(lon, lat, SATS[ref]["lon"]) < 55)
+    mine = raw_slots(sat)
+    theirs = set(raw_slots(ref))
+    common = [t for t in mine if t in theirs]
+    pick = common[:: max(1, len(common) // slots)][:slots]
+    click.echo(f"{sat} <- {ref}: {len(common)} common slots, using {len(pick)}; overlap {both.mean() * 100:.1f}% of grid")
+    lut = {}
+    for band, cond in (("vis", "day"), ("bt", "all")):
+        gs, vs = [], []
+        for t in pick:
+            g = load16(ROOT / "raw" / sat / f"{slot_name(t)}_{band}.png", GREY_SCALE)
+            v = load_band(ref, t, band)
+            sel = both & np.isfinite(g) & np.isfinite(v)
+            if cond == "day":
+                mu = cos_solar_zenith(t, lon, lat)
+                sel &= mu > 0.4
+                v = v / np.maximum(mu, 0.4)                       # compare sun-normalised, as opacity does
+            if sel.sum() < 5000:
+                continue
+            gs.append(g[sel]); vs.append(v[sel])
+        g, v = np.concatenate(gs), np.concatenate(vs)
+        q = np.linspace(0, 1, 257)
+        gq, vq = np.quantile(g, q), np.quantile(v, q)
+        # collapse repeated grey quantiles so the table is a function
+        grey, value = [], []
+        for a, b in zip(gq, vq):
+            if grey and a <= grey[-1]:
+                value[-1] = (value[-1] + b) / 2
+            else:
+                grey.append(float(a)); value.append(float(b))
+        key = "vis" if band == "vis" else "bt"
+        lut[key] = {"grey": grey, "value": value, "n": int(len(g)), "slots": [slot_name(t) for t in pick]}
+        click.echo(f"   {band}: {len(g)} pixels, grey {grey[0]:.0f}..{grey[-1]:.0f} -> {value[0]:.3f}..{value[-1]:.3f}")
+    (ROOT / f"lut_{sat}.json").write_text(json.dumps(lut))
+    click.echo(f"wrote {ROOT / f'lut_{sat}.json'}")
+
+
 def raw_slots(sat: str) -> list[datetime]:
     return sorted(parse_slot(p.name) for p in (ROOT / "raw" / sat).glob("*_bt.png"))
 
@@ -343,12 +599,13 @@ def clearsky(sat):
     vmin = np.full((H, W), np.inf, np.float32)
     bt_all = np.full((H, W), -np.inf, np.float32)
     by_tod: dict[int, np.ndarray] = {}
+    lut = json.loads((ROOT / f"lut_{sat}.json").read_text()) if SATS[sat]["kind"] == "wms" else None
     for i, t in enumerate(slots):
         mu = cos_solar_zenith(t, lon, lat).astype(np.float32)
-        vis = load16(raw / f"{slot_name(t)}_vis.png", VIS_SCALE)
+        vis = load_band(sat, t, "vis", lut)
         rn = np.where((mu > 0.35) & np.isfinite(vis), vis / np.maximum(mu, 0.35), np.inf)
         np.minimum(vmin, rn, out=vmin)
-        bt = np.nan_to_num(load16(raw / f"{slot_name(t)}_bt.png", BT_SCALE), nan=-np.inf)
+        bt = np.nan_to_num(load_band(sat, t, "bt", lut), nan=-np.inf)
         np.maximum(bt_all, bt, out=bt_all)
         tod = (t.hour * 60 + t.minute) // 10
         by_tod[tod] = np.maximum(by_tod[tod], bt) if tod in by_tod else bt
@@ -392,25 +649,25 @@ def albedo_prior() -> np.ndarray:
     return np.where(r <= 0.04045, r / 12.92, ((r + 0.055) / 1.055) ** 2.4).astype(np.float32)
 
 
-PARAMS = {"bt_margin": 4.0, "bt_span": 42.0, "vis_margin": 0.03, "vis_margin_mu": 0.012, "vis_span": 0.72,
-          "vis_gamma": 0.85, "glint_in": 18.0, "glint_out": 36.0}
+PARAMS = {"bt_margin": 3.0, "bt_k": 16.0, "vis_margin": 0.03, "vis_margin_mu": 0.012, "vis_k": 0.26,
+          "glint_in": 18.0, "glint_out": 36.0}
 
 
-def opacity_frame(sat: str, t: datetime, lon, lat, vis_clear, water, clear_dir: Path, p: dict) -> np.ndarray | None:
-    raw = ROOT / "raw" / sat
-    f_bt = raw / f"{slot_name(t)}_bt.png"
-    if not f_bt.exists():
+def opacity_frame(sat: str, t: datetime, lon, lat, vis_clear, water, clear_dir: Path, p: dict, lut=None) -> np.ndarray | None:
+    bt = load_band(sat, t, "bt", lut)
+    vis = load_band(sat, t, "vis", lut)
+    if bt is None or vis is None:
         return None
-    bt = load16(f_bt, BT_SCALE)
-    vis = load16(raw / f"{slot_name(t)}_vis.png", VIS_SCALE)
     tod = (t.hour * 60 + t.minute) // 10
     bt_clear = load16(clear_dir / f"bt_clear_{tod:03d}.png", BT_SCALE)
     mu = cos_solar_zenith(t, lon, lat).astype(np.float32)
 
-    ir = np.clip((bt_clear - bt - p["bt_margin"]) / p["bt_span"], 0, 1)
+    # saturating curves, not ramps: reflectance and the temperature deficit both saturate with optical depth,
+    # so a marine stratocumulus deck (reflectance ~0.35, 6 K colder than the sea) reads as ~0.6, thick cloud as ~1
+    ir = 1 - np.exp(-np.clip(bt_clear - bt - p["bt_margin"], 0, None) / p["bt_k"])
     rn = vis / np.maximum(mu, 0.08)
     margin = p["vis_margin"] + p["vis_margin_mu"] / np.maximum(mu, 0.08)
-    vo = np.clip((rn - vis_clear - margin) / p["vis_span"], 0, 1) ** p["vis_gamma"]
+    vo = 1 - np.exp(-np.clip(rn - vis_clear - margin, 0, None) / p["vis_k"])
     wv = np.clip((mu - 0.10) / 0.20, 0, 1)
     wv = wv * wv * (3 - 2 * wv)
     c_in, c_out = math.cos(math.radians(p["glint_in"])), math.cos(math.radians(p["glint_out"]))
@@ -436,9 +693,10 @@ def opacity(sat, start, end, workers):
     slots = [t for t in raw_slots(sat) if (not start or t >= utc(start)) and (not end or t <= utc(end))]
     wgt = view_weight(SATS[sat]["lon"])
     Image.fromarray((wgt * 255).round().astype(np.uint8)).save(ROOT / f"weight_{sat}.png")
+    lut = json.loads((ROOT / f"lut_{sat}.json").read_text()) if SATS[sat]["kind"] == "wms" else None
 
     def one(t):
-        op = opacity_frame(sat, t, lon, lat, vis_clear, water, clear_dir, PARAMS)
+        op = opacity_frame(sat, t, lon, lat, vis_clear, water, clear_dir, PARAMS, lut)
         q = (np.nan_to_num(op, nan=0.0) * 254).round().astype(np.uint8) + 1          # 0 = no data
         q[~np.isfinite(op)] = 0
         Image.fromarray(q).save(out / f"{slot_name(t)}.png", compress_level=3)
@@ -463,25 +721,37 @@ def blend(start, end, sats, hold_min):
     weights = {s: view_weight(SATS[s]["lon"]) for s in names}
     cover = np.clip(sum(weights.values()), 0, 1)
     Image.fromarray((cover * 255).round().astype(np.uint8)).save(ROOT / "coverage.png")
+    # where two satellites both weigh at least half, their opacities should agree: measure it
+    pairs = [(a, b, (weights[a] > 0.5) & (weights[b] > 0.5)) for i, a in enumerate(names) for b in names[i + 1:]]
+    pairs = [(a, b, m) for a, b, m in pairs if m.sum() > 1000]
     t, t1 = utc(start), utc(end)
     log = open(ROOT / "frames.jsonl", "a")
     while t <= t1:
         num = np.zeros((H, W), np.float32)
         den = np.zeros((H, W), np.float32)
-        row = {"t": slot_name(t), "held": {}}
+        row = {"t": slot_name(t), "held": {}, "seam": {}}
+        ops = {}
         for s in names:
-            for back in range(0, hold_min + 1, 10):
+            for back in range(0, hold_min + 1, 5):
                 f = ROOT / "op" / s / f"{slot_name(t - timedelta(minutes=back))}.png"
                 if f.exists():
                     q = np.asarray(Image.open(f)).astype(np.float32)
                     w = weights[s] * (q > 0)
-                    num += w * (q - 1) / 254.0
+                    o = (q - 1) / 254.0
+                    num += w * o
                     den += w
+                    ops[s] = np.where(q > 0, o, np.nan)
                     if back:
                         row["held"][s] = back
                     break
             else:
                 row["held"][s] = None
+        for a, b, m in pairs:
+            if a in ops and b in ops:
+                d = (ops[a] - ops[b])[m]
+                d = d[np.isfinite(d)]
+                if d.size:
+                    row["seam"][f"{a}-{b}"] = {"bias": round(float(d.mean()), 4), "mad": round(float(np.abs(d).mean()), 4)}
         op = np.where(den > 0, num / np.maximum(den, 1e-6), 0) * np.clip(den, 0, 1)
         row["mean"] = round(float(op.mean()), 4)
         Image.fromarray((op * 255).round().astype(np.uint8)).save(out / f"{slot_name(t)}.png", compress_level=3)
