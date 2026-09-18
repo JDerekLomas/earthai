@@ -790,8 +790,8 @@ def blend(start, end, sats, hold_min):
 @click.option("--start", default=None)
 @click.option("--end", default=None)
 @click.option("--fps", default=12, show_default=True, help="real frames per second of playback")
-@click.option("--crf", default=20, show_default=True)
-@click.option("--crf-small", default=22, show_default=True)
+@click.option("--crf", default=26, show_default=True, help="26 keeps the Chile cloud streets; measured 1% mean error vs the PNGs")
+@click.option("--crf-small", default=26, show_default=True)
 def encode(out, name, start, end, fps, crf, crf_small):
     out.mkdir(parents=True, exist_ok=True)
     frames = sorted(p for p in (ROOT / "frames").glob("*.png")
