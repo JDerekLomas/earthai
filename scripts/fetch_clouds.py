@@ -42,7 +42,8 @@ opacity   vis: 1-exp(-(refl/mu - clear - margin)/k); bt: 1-exp(-(clear - bt - ma
           so the field is continuous across the terminator: night and glint are infrared-only.
           Weighted to zero from 58 to 66 degrees of satellite zenith angle.
 blend     Weighted mean of every satellite's opacity on the common grid (weights as above).
-encode    Grey H.264 clips for the page, plus a poster frame and a manifest.
+encode    Grey H.264 clips for the page (opacity in luma, optical flow to the next frame in the
+          otherwise-empty chroma planes, a calibration strip along the bottom), a poster, a manifest.
 """
 from __future__ import annotations
 
@@ -789,6 +790,70 @@ def blend(start, end, sats, hold_min):
     click.echo(f"frames in {out}")
 
 
+# ---------------------------------------------------------------- encode: opacity in luma, motion in chroma
+
+# The clip is grey, so its two chroma planes are empty: they carry the optical flow to the NEXT frame,
+# and the page warps each frame along it instead of dissolving. Three things about the browser decide
+# the numbers below (measured 2026-09-18 in Chrome on macOS, `docs/globe-2026-09-18/roundtrip.md`):
+#   1. the page only ever sees RGB, after the browser's own YUV->RGB, which CLAMPS to 0..255: chroma
+#      survives only while the luma stays away from black and white, so opacity is coded into luma
+#      levels Y_LO..Y_HI and the flow into +/-CHROMA levels around 128;
+#   2. the browser ignored the range/matrix tags (every variant decoded as limited-range BT.601), so
+#      the last STRIP rows of every frame hold eight known patches and the page solves the actual
+#      RGB->YUV matrix from them instead of assuming one;
+#   3. the clip is encoded limited-range (16..235) so that the browser's expansion is at least the
+#      intended one where it is honoured.
+Y_LO, Y_HI, CHROMA, STRIP = 60, 190, 24, 16
+PATCHES = ((Y_LO, 128, 128), ((Y_LO + Y_HI) // 2, 128, 128), (Y_HI, 128, 128),
+           ((Y_LO + Y_HI) // 2, 128 + CHROMA, 128), ((Y_LO + Y_HI) // 2, 128 - CHROMA, 128),
+           ((Y_LO + Y_HI) // 2, 128, 128 + CHROMA), ((Y_LO + Y_HI) // 2, 128, 128 - CHROMA),
+           ((Y_LO + Y_HI) // 2, 128 + CHROMA, 128 + CHROMA))
+FLOW_W, FLOW_PAD = 1024, 64                   # flow is estimated at a quarter width; the seam at lon 180 is padded by wrapping
+
+
+def flow_fields(frames: list[Path]) -> tuple[np.ndarray, float]:
+    """DIS optical flow from each frame to the next, (n, 376, 1024, 2) float16 in pixels AT 4096 WIDE,
+    x to the right and y DOWN the image; the last frame's is zero. Returns it and the 99th-percentile
+    magnitude over every pixel of every frame."""
+    import cv2
+    dis = cv2.DISOpticalFlow_create(cv2.DISOPTICAL_FLOW_PRESET_MEDIUM)
+    h = H * FLOW_W // W
+
+    def small(p):
+        a = cv2.resize(cv2.imread(str(p), cv2.IMREAD_GRAYSCALE), (FLOW_W, h), interpolation=cv2.INTER_AREA)
+        return np.concatenate([a[:, -FLOW_PAD:], a, a[:, :FLOW_PAD]], axis=1)
+
+    out = np.zeros((len(frames), h, FLOW_W, 2), np.float16)
+    prev = small(frames[0])
+    for i in range(1, len(frames)):
+        cur = small(frames[i])
+        f = dis.calc(prev, cur, None)[:, FLOW_PAD:-FLOW_PAD] * (W / FLOW_W)
+        out[i - 1] = cv2.GaussianBlur(f, (0, 0), 1.2)
+        prev = cur
+    mag = np.hypot(out[..., 0].astype(np.float32), out[..., 1].astype(np.float32))
+    return out, float(np.percentile(mag, 99))
+
+
+def yuv_frame(op: np.ndarray, flow: np.ndarray, p99: float, width: int) -> bytes:
+    """One raw yuv420p frame of the clip at `width`: luma = opacity coded Y_LO..Y_HI, chroma = flow
+    coded 128 +/- CHROMA at the 99th percentile, plus the calibration strip along the bottom."""
+    import cv2
+    h = H * width // W
+    y = np.empty((h + STRIP, width), np.uint8)
+    y[:h] = np.rint(Y_LO + op.astype(np.float32) * ((Y_HI - Y_LO) / 255.0)).astype(np.uint8)
+    cw, ch = width // 2, h // 2
+    f = cv2.resize(flow.astype(np.float32), (cw, ch), interpolation=cv2.INTER_LINEAR)
+    lv = np.clip(np.rint(128 + f * (CHROMA / max(p99, 1e-6))), 128 - CHROMA - 4, 128 + CHROMA + 4).astype(np.uint8)
+    u = np.empty((ch + STRIP // 2, cw), np.uint8); v = np.empty_like(u)
+    u[:ch] = lv[..., 0]; v[:ch] = lv[..., 1]
+    pw = width // len(PATCHES)
+    for i, (py, pu, pv) in enumerate(PATCHES):
+        y[h:, i * pw:(i + 1) * pw] = py
+        u[ch:, i * pw // 2:(i + 1) * pw // 2] = pu
+        v[ch:, i * pw // 2:(i + 1) * pw // 2] = pv
+    return y.tobytes() + u.tobytes() + v.tobytes()
+
+
 @cli.command()
 @click.option("--out", required=True, type=click.Path(path_type=Path))
 @click.option("--name", default="clouds", show_default=True)
@@ -797,23 +862,45 @@ def blend(start, end, sats, hold_min):
 @click.option("--fps", default=12, show_default=True, help="real frames per second of playback")
 @click.option("--crf", default=26, show_default=True, help="26 keeps the Chile cloud streets; measured 1% mean error vs the PNGs")
 @click.option("--crf-small", default=26, show_default=True)
-def encode(out, name, start, end, fps, crf, crf_small):
+@click.option("--flow-cache", default=None, type=click.Path(path_type=Path), help="reuse/save the flow fields (.npz)")
+def encode(out, name, start, end, fps, crf, crf_small, flow_cache):
+    import cv2
     out.mkdir(parents=True, exist_ok=True)
     frames = sorted(p for p in (ROOT / "frames").glob("*.png")
                     if (not start or parse_slot(p.name) >= utc(start)) and (not end or parse_slot(p.name) <= utc(end)))
-    lst = ROOT / "_encode.txt"
-    lst.write_text("".join(f"file '{p.resolve()}'\nduration {1 / fps}\n" for p in frames))
+    t0 = time.time()
+    if flow_cache and flow_cache.exists():
+        z = np.load(flow_cache); flow, p99 = z["flow"], float(z["p99"])
+    else:
+        flow, p99 = flow_fields(frames)
+        if flow_cache:
+            np.savez(flow_cache, flow=flow, p99=p99)
+    mag = np.hypot(flow[..., 0].astype(np.float32), flow[..., 1].astype(np.float32))
+    click.echo(f"flow: {len(frames)} frames in {time.time() - t0:.0f}s; |flow| p50 {np.percentile(mag, 50):.2f} p90 {np.percentile(mag, 90):.2f} "
+               f"p99 {p99:.2f} p99.9 {np.percentile(mag, 99.9):.2f} px at {W}; coded +/-{CHROMA} levels = +/-{p99:.2f} px")
     sizes = {}
     for width, c, suffix in ((W, crf, ""), (W // 2, crf_small, "_2k")):
         dest = out / f"{name}{suffix}.mp4"
-        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", str(lst),
-                        "-vf", f"scale={width}:{H * width // W}:flags=area,format=yuv420p", "-r", str(fps),
-                        "-c:v", "libx264", "-preset", "slow", "-crf", str(c),
-                        "-g", str(fps * 2), "-keyint_min", str(fps * 2), "-sc_threshold", "0", "-bf", "0",
-                        "-color_range", "pc", "-movflags", "+faststart", "-an", str(dest)], check=True)
+        h = H * width // W
+        ff = subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "yuv420p", "-s", f"{width}x{h + STRIP}",
+                               "-r", str(fps), "-i", "-", "-c:v", "libx264", "-preset", "slow", "-crf", str(c),
+                               "-g", str(fps * 2), "-keyint_min", str(fps * 2), "-sc_threshold", "0", "-bf", "0", "-pix_fmt", "yuv420p",
+                               "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
+                               "-x264-params", "colorprim=bt709:transfer=bt709:colormatrix=bt709:range=tv",
+                               "-movflags", "+faststart+write_colr", "-an", str(dest)], stdin=subprocess.PIPE)
+        for i, p in enumerate(frames):
+            op = np.asarray(Image.open(p).convert("L"))
+            if width != W:
+                op = cv2.resize(op, (width, h), interpolation=cv2.INTER_AREA)
+            ff.stdin.write(yuv_frame(op, flow[i], p99, width))
+        ff.stdin.close(); ff.wait()
+        if ff.returncode:
+            raise RuntimeError(f"ffmpeg failed on {dest}")
         sizes[dest.name] = dest.stat().st_size
-        click.echo(f"{dest}  {dest.stat().st_size / 1e6:.1f} MB")
-    Image.open(frames[0]).resize((2048, H // 2), Image.LANCZOS).save(out / f"{name}_poster.webp", quality=80)
+        click.echo(f"{dest}  {dest.stat().st_size / 1e6:.1f} MB  ({time.time() - t0:.0f}s)")
+    # the poster is the first frame in the page's decoded form: r = opacity (full 0..255), g = b = 128 (no motion)
+    op = Image.open(frames[0]).convert("L").resize((2048, H // 2), Image.LANCZOS)
+    Image.merge("RGB", (op, Image.new("L", op.size, 128), Image.new("L", op.size, 128))).save(out / f"{name}_poster.webp", quality=80)
     # the seam numbers and hold counts from the blend, averaged over these frames
     names = {p.stem for p in frames}
     rows = [json.loads(l) for l in (ROOT / "frames.jsonl").read_text().splitlines() if l.strip()]
@@ -828,7 +915,10 @@ def encode(out, name, start, end, fps, crf, crf_small):
     seam = {k: {"bias": round(float(np.mean([a for a, _ in v])), 4), "mad": round(float(np.mean([b for _, b in v])), 4), "frames": len(v)} for k, v in seam.items()}
     sats = sorted({s for k in seam for s in k.split("-")} | set(held))
     manifest = {"frames": [p.stem for p in frames], "fps": fps, "width": W, "height": H, "lat_max": LAT_MAX,
-                "sizes": sizes, "poster": f"{name}_poster.webp", "seam": seam, "held": held, "sats": sats}
+                "sizes": sizes, "poster": f"{name}_poster.webp", "seam": seam, "held": held, "sats": sats,
+                "code": {"y_lo": Y_LO, "y_hi": Y_HI, "chroma": CHROMA, "strip": STRIP, "patches": PATCHES,
+                         "flow_p99_px": round(p99, 3), "flow_width": W,
+                         "flow_stats_px": {k: round(float(np.percentile(mag, q)), 3) for k, q in (("p50", 50), ("p90", 90), ("p99", 99), ("p999", 99.9))}}}
     (out / f"{name}.json").write_text(json.dumps(manifest))
     click.echo(f"manifest {out / (name + '.json')}")
 

@@ -51,3 +51,25 @@ Same repo rules as the parent brief (`2026-09-18-cloud-layer-globe.md`): work on
 box (DIS runs on the CPU in minutes for 144 frames), deploy with `cd site && npx vercel --prod --yes`
 after `pgrep -f vercel`, curl-check, look at it. Append a short numbered report here and SendMessage
 "earth-7e" one line DONE/BLOCKED + URL.
+
+## Report (2026-09-19, shipped by session earthai-46; built by the motion session, which left it uncommitted)
+
+1. **Shipped:** https://earthai-scales.vercel.app/globe/ — optical flow rides in the clip's chroma planes and the
+   planet shader warps the older frame forward and the newer one back before mixing. Code: `scripts/fetch_clouds.py`
+   (`flow_fields`, `yuv_frame`, the `--flow-cache` option on `encode`), `site/globe/index.html`.
+2. **Flow, measured (DIS medium preset at 1024 wide, 144 frames):** |flow| p50 0.51, p90 1.67, p99 2.91, p99.9 12.5 px
+   at 4096. Coded ±24 chroma levels = ±2.91 px; anything faster saturates (the p99.9 tail: fronts and cirrus jets).
+3. **Round trip:** Chrome ignores the range/matrix tags and decodes limited-range BT.601 whatever the clip says, and
+   its YUV→RGB clamps, so opacity lives in luma 60..190 and the flow in 128±24. A 16-row strip of eight known
+   patches along the bottom of every frame lets the page SOLVE the actual RGB→YUV inverse at load. Measured in
+   headless Chrome on the local build: check error on the held-out (+U,+V) patch = 1 level of 256 (accept ≤ 3).
+4. **Clip bytes:** 4k 42.1 MB, 2k 12.4 MB (down from 62.9 / 18.8: the narrower luma range costs nothing visible
+   and compresses better). Poster now RGB (r = opacity, g = b = 128).
+5. **Page, headless Chrome 1440×900 dpr 2:** first paint 84 ms, first moving frame 373 ms, 60 fps, rAF work p95
+   0.7 ms. Zoom cap engaged at dist 2.056 for a 900 px-tall stage (one texel = 2 CSS px); wheel/pinch ease into it.
+   Auto-spin and momentum are now per second of wall clock (0.027 rad/s), so 120 Hz screens no longer spin twice as fast.
+6. **Looked at:** Chile cloud streets, frame 118, uMix 0.5: the warp is nearly as crisp as the real frame B;
+   the dissolve (uFlow forced to 0) shows the double edges Derek called jerky. Plates in the session scratchpad only.
+7. **Not done:** a real-Chrome 120 Hz measurement on Derek's machine (headless swiftshader is not representative);
+   the shadow sample warps through `cloudAt` like everything else, no separate path. `docs/globe-2026-09-18/roundtrip.md`
+   referenced in the code comment was never written; the numbers are in this report instead.

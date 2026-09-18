@@ -133,7 +133,7 @@
           <button data-mode="earth" aria-pressed="true">Earth-fixed</button><button data-mode="sun">Sun-fixed</button>
         </div>
         <button id="cover" aria-pressed="false" title="where the satellites can see">Coverage</button>
-        <button id="blendBtn" aria-pressed="true" title="cross-fade between the ten-minute frames">Blend</button>
+        <button id="blendBtn" aria-pressed="true" title="move the cloud between the ten-minute frames along its measured motion">Blend</button>
       </div>
     </div>
   </div>
@@ -162,7 +162,7 @@
     <table>
       <thead><tr><th>layer</th><th>what it is</th><th>where it comes from</th></tr></thead>
       <tbody>
-        <tr><td>cloud</td><td>opacity, 0 to 1, every ten minutes, 4096 pixels around the equator (about 10 km each), latitudes 66°S to 66°N</td><td id="srcrow">GOES-East and GOES-West (bands 2 and 13, NOAA's archive on AWS), Himawari-9 (bands 3 and 13, the raw HSD segments on AWS), Meteosat MTG-I1 and Meteosat-9 (0.6 µm and 10.5/10.8 µm through EUMETView)</td></tr>
+        <tr><td>cloud</td><td>opacity, 0 to 1, every ten minutes, 4096 pixels around the equator (about 10 km each), latitudes 66°S to 66°N; with it, the motion of the cloud from each frame to the next</td><td id="srcrow">GOES-East and GOES-West (bands 2 and 13, NOAA's archive on AWS), Himawari-9 (bands 3 and 13, the raw HSD segments on AWS), Meteosat MTG-I1 and Meteosat-9 (0.6 µm and 10.5/10.8 µm through EUMETView)</td></tr>
         <tr><td>land and sea</td><td>NASA Blue Marble with shaded relief and bathymetry, 8192 pixels around, sharp at any zoom</td><td>NASA GIBS</td></tr>
         <tr><td>night</td><td>VIIRS city lights, shown only on the night side and only where the cloud is thin</td><td>NASA GIBS</td></tr>
         <tr><td>light</td><td>the sun's position for the moment being shown; day and night, a warm terminator, glint off the sea, the cloud's shadow, the blue rim of the air</td><td>computed on your graphics card</td></tr>
@@ -179,7 +179,8 @@
     <div class="note have"><span class="status">the seams</span><h3 id="satsh">Five satellites, checked with arithmetic</h3><p id="satsp">Where two satellites both see a place at a decent angle, each has its own opinion of the cloud there, and because both opinions are the same physical number they can be compared: the mean difference in opacity across each overlap is printed below, measured over every frame. The two Meteosats come through EUMETSAT's map server as pictures rather than numbers, so their greys are calibrated against a neighbour (MTG against GOES-East over the Atlantic, Meteosat-9 against MTG over Africa) by matching distributions before they are used. Everywhere no satellite sees is drawn honestly clear: the <em>Coverage</em> button shows where that is.</p><p id="seams" class="mono" style="font-size:12px"></p></div>
     <div class="note gate"><span class="status">the poles</span><h3>Nothing looks down on the poles</h3><p>Every geostationary satellite sits over the equator and sees the Earth edge-on past about 60° of latitude, so past 66° there is no cloud on this page at all. The polar caps are the basemap, lit but weatherless.</p></div>
     <div class="note maybe"><span class="status">the clear-sky guess</span><h3>Where the method is wrong</h3><p id="wrongp">"What this place looks like with no cloud" is taken from one day of pictures, so a place under cloud all day has no clear reference and its cloud reads thinner than it is. Bright ground (the Atacama, Greenland's ice) is handled by that reference and stays ground; the sun's glint on the sea is switched to the infrared reading alone, so a calm sea at noon is not white. Very cold ground at night, and thin high cloud after dark, are the known failures of an infrared-only night.</p></div>
-    <div class="note have"><span class="status">between frames</span><h3>Ten minutes, cross-faded</h3><p>A real frame every ten minutes, twelve of them a second at full speed: two hours a second, a day in twelve seconds. The <em>Blend</em> button cross-fades each frame into the next so the motion is continuous; nothing between the frames is invented, only mixed. Switch it off to see the frames step.</p></div>
+    <div class="note have"><span class="status">between frames</span><h3>Ten minutes, in motion</h3><p>A real frame every ten minutes, twelve of them a second at full speed: two hours a second, a day in twelve seconds. Between two frames the cloud has moved, typically one to three pixels, and a cross-fade would show it fading from one place to the next. So the motion between each frame and the next is measured (optical flow, on the frames themselves) and travels with the clip, and the <em>Blend</em> button carries each frame along it: the older frame is pushed forward, the newer pulled back, and the two are mixed. Nothing is invented; where the motion estimate is wrong the cloud ghosts a little. Switch it off to see the frames step.</p></div>
+    <div class="note maybe"><span class="status">the resolution</span><h3>Ten kilometres per pixel</h3><p>The cloud is drawn at ten kilometres per pixel, 4096 of them around the equator, and the zoom stops where one of those would be two screen pixels wide, so the cloud is never magnified into mush over a basemap that is still sharp. The satellites see finer, down to half a kilometre; this page does not yet.</p></div>
   </div>
 </section>
 
@@ -230,6 +231,7 @@
   const U={
     uBase:{value:blank}, uLights:{value:blank}, uCover:{value:blank},
     uCloudA:{value:blank}, uCloudB:{value:blank}, uMix:{value:0}, uCloudTexel:{value:new THREE.Vector2(1/4096,1/1504)},
+    uFlow:{value:new THREE.Vector2(0,0)},      // uv per unit of coded flow (x east, y north); zero until the clip's manifest says
     uSun:{value:new THREE.Vector3(1,0,0)}, uCam:{value:new THREE.Vector3(0,0,4)},
     uLatMax:{value:66.09}, uShowCover:{value:0}, uHasCloud:{value:0}
   };
@@ -242,15 +244,18 @@
       precision highp float;
       uniform sampler2D uBase, uLights, uCover, uCloudA, uCloudB;
       uniform float uMix, uLatMax, uShowCover, uHasCloud;
-      uniform vec2 uCloudTexel; uniform vec3 uSun, uCam;
+      uniform vec2 uCloudTexel, uFlow; uniform vec3 uSun, uCam;
       varying vec2 vUv; varying vec3 vP;
-      // cloud opacity at a lon/lat uv: the clip covers only +/- uLatMax
+      // cloud opacity at a lon/lat uv: the clip covers only +/- uLatMax. Each frame carries the motion to the
+      // next frame (r = opacity, gb = flow); the older frame is warped forward along it and the newer one
+      // backward, by uMix, then mixed: motion between the ten-minute frames rather than a dissolve.
       float cloudAt(vec2 uv){
         float lat=(uv.y-0.5)*180.0;
         float v=(lat+uLatMax)/(2.0*uLatMax);
         if(v<0.0||v>1.0) return 0.0;
         vec2 c=vec2(uv.x, v);
-        float a=texture2D(uCloudA,c).r, b=texture2D(uCloudB,c).r;
+        vec2 f=(texture2D(uCloudA,c).gb-0.5)*2.0*uFlow;
+        float a=texture2D(uCloudA, c-f*uMix).r, b=texture2D(uCloudB, c+f*(1.0-uMix)).r;
         float edge=smoothstep(0.0,0.02,v)*smoothstep(1.0,0.98,v);
         return mix(a,b,uMix)*edge*uHasCloud;
       }
@@ -306,25 +311,67 @@
   const tiltG=new THREE.Group(); tiltG.add(planet); tiltG.add(atmo); scene.add(tiltG);
 
   function size(){ const w=stage.clientWidth, h=stage.clientHeight; renderer.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix(); }
-  addEventListener('resize', size); size();
+  addEventListener('resize', ()=>{ size(); zoomLimit(); }); size();
 
   // ---- the cloud frames: the video is copied into one of two render targets only when it presents a new frame,
   // and the planet shader cross-fades from the older to the newer. Nothing is uploaded on frames the video did not change.
   const isGL2=renderer.capabilities.isWebGL2;
-  function makeRT(w,h){ return new THREE.WebGLRenderTarget(w,h,{format:isGL2?THREE.RedFormat:THREE.RGBAFormat, type:THREE.UnsignedByteType, minFilter:THREE.LinearFilter, magFilter:THREE.LinearFilter, depthBuffer:false, stencilBuffer:false, generateMipmaps:false}); }
+  function makeRT(w,h){ const rt=new THREE.WebGLRenderTarget(w,h,{format:THREE.RGBAFormat, type:THREE.UnsignedByteType, minFilter:THREE.LinearFilter, magFilter:THREE.LinearFilter, depthBuffer:false, stencilBuffer:false, generateMipmaps:false});
+    rt.texture.wrapS=THREE.RepeatWrapping; return rt; }      // the warp may reach across lon 180
   let rtA=null, rtB=null, rtW=0, rtH=0;
   // a VideoTexture, because a plain Texture reads video.width (0) not videoWidth; its update() marks needsUpdate on
   // every render it takes part in, and it only takes part in the copy pass, which only runs when a frame is presented
   const vtex=new THREE.VideoTexture(vid); vtex.minFilter=THREE.LinearFilter; vtex.magFilter=THREE.LinearFilter; vtex.generateMipmaps=false; vtex.colorSpace=THREE.NoColorSpace;
   const copyScene=new THREE.Scene(), copyCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
-  const copyMat=new THREE.ShaderMaterial({uniforms:{t:{value:vtex}}, depthTest:false, depthWrite:false,
+  // The clip codes opacity into luma levels y_lo..y_hi and the flow to the next frame into the two chroma planes
+  // (128 +/- chroma levels), with a strip of known patches along the bottom. The browser hands us RGB after its own
+  // YUV->RGB, whose matrix and range it chooses (Chrome on a Mac ignored the tags and used limited-range BT.601), so
+  // the patches are read back once and the actual RGB->YUV inverse is solved from them. The copy pass then writes
+  // r = opacity 0..1, g,b = flow 0..1 (0.5 = still).
+  let code={y_lo:60, y_hi:190, chroma:24, strip:16};
+  const copyMat=new THREE.ShaderMaterial({uniforms:{t:{value:vtex}, uInv:{value:new THREE.Matrix3()}, uRgb0:{value:new THREE.Vector3(0.5,0.5,0.5)},
+      uOp:{value:new THREE.Vector2(1,0)}, uFl:{value:1}, uCrop:{value:new THREE.Vector2(0,1)}}, depthTest:false, depthWrite:false,
     vertexShader:`varying vec2 u; void main(){ u=uv; gl_Position=vec4(position.xy,0.0,1.0); }`,
-    fragmentShader:`uniform sampler2D t; varying vec2 u; void main(){ gl_FragColor=vec4(texture2D(t,u).rrr,1.0); }`});
+    fragmentShader:`uniform sampler2D t; uniform mat3 uInv; uniform vec3 uRgb0; uniform vec2 uOp, uCrop; uniform float uFl; varying vec2 u;
+      void main(){ vec3 yuv=uInv*(texture2D(t, vec2(u.x, uCrop.x+u.y*uCrop.y)).rgb-uRgb0);
+        gl_FragColor=vec4(clamp(yuv.x*uOp.x+uOp.y,0.0,1.0), clamp(yuv.yz*uFl+0.5,0.0,1.0), 1.0); }`});
   copyScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2), copyMat));
+  // the calibration strip, read at its centre row into 64 pixels (8 per patch)
+  const calRT=new THREE.WebGLRenderTarget(64,1,{format:THREE.RGBAFormat, type:THREE.UnsignedByteType, depthBuffer:false, stencilBuffer:false, generateMipmaps:false});
+  const calMat=new THREE.ShaderMaterial({uniforms:{t:{value:vtex}, uV:{value:0}}, depthTest:false, depthWrite:false,
+    vertexShader:`varying vec2 u; void main(){ u=uv; gl_Position=vec4(position.xy,0.0,1.0); }`,
+    fragmentShader:`uniform sampler2D t; uniform float uV; varying vec2 u; void main(){ gl_FragColor=vec4(texture2D(t, vec2(u.x,uV)).rgb,1.0); }`});
+  const calScene=new THREE.Scene(); calScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2), calMat));
+  const calPx=new Uint8Array(64*4);
+  function setInverse(M, rgb0){                  // M: forward columns (dY, dU, dV) -> dRGB in levels; rgb0: RGB of the mid patch
+    const inv=new THREE.Matrix3().set(M[0][0],M[0][1],M[0][2], M[1][0],M[1][1],M[1][2], M[2][0],M[2][1],M[2][2]).invert();
+    copyMat.uniforms.uInv.value.copy(inv); copyMat.uniforms.uRgb0.value.set(rgb0[0]/255, rgb0[1]/255, rgb0[2]/255);
+    const mid=(code.y_lo+code.y_hi)/2;
+    copyMat.uniforms.uOp.value.set(255/(code.y_hi-code.y_lo), (mid-code.y_lo)/(code.y_hi-code.y_lo));
+    copyMat.uniforms.uFl.value=255/(2*code.chroma);
+  }
+  // until the strip is read: limited-range BT.601, which is what Chrome did with every tagging tried
+  (function(){ const mid=(code.y_lo+code.y_hi)/2, y0=1.1644*(mid-16);
+    setInverse([[1.1644,0,1.5960],[1.1644,-0.3918,-0.8130],[1.1644,2.0172,0]], [y0,y0,y0]); })();
+  function calibrate(){
+    if(!code.patches) return;
+    const hTot=vid.videoHeight, strip=code.strip;
+    calMat.uniforms.uV.value=(strip/2)/hTot;      // flipY: the strip is the bottom of the image, v near 0
+    renderer.setRenderTarget(calRT); renderer.render(calScene, copyCam); renderer.readRenderTargetPixels(calRT,0,0,64,1,calPx); renderer.setRenderTarget(null);
+    const P=[]; for(let i=0;i<8;i++){ const c=[0,0,0]; for(let x=i*8+2;x<i*8+6;x++){ c[0]+=calPx[x*4]/4; c[1]+=calPx[x*4+1]/4; c[2]+=calPx[x*4+2]/4; } P.push(c); }
+    const pv=code.patches, dY=pv[2][0]-pv[0][0], dU=pv[3][1]-pv[4][1], dV=pv[5][2]-pv[6][2];
+    const M=[0,1,2].map(k=>[(P[2][k]-P[0][k])/dY, (P[3][k]-P[4][k])/dU, (P[5][k]-P[6][k])/dV]);
+    // the eighth patch (+U,+V) is the independent check: predict it from the fitted model
+    const pred=[0,1,2].map(k=>P[1][k]+M[k][1]*(pv[7][1]-128)+M[k][2]*(pv[7][2]-128));
+    const err=Math.max(...[0,1,2].map(k=>Math.abs(pred[k]-P[7][k])));
+    if(err<12 && Math.abs(M[0][0])>0.5){ setInverse(M, P[1]); perf.calib={M:M.map(r=>r.map(x=>+x.toFixed(4))), rgb0:P[1].map(x=>+x.toFixed(1)), checkErr:+err.toFixed(2), patches:P.map(c=>c.map(x=>Math.round(x)))}; }
+    else perf.calib={rejected:true, checkErr:+err.toFixed(2), patches:P.map(c=>c.map(x=>Math.round(x)))};
+  }
   let lastPresent=0, frameGap=1/12, presented=0;
   function present(){                    // the video has a new frame: upload it once, into the older target
     if(vid.videoWidth===0) return;
-    if(rtW!==vid.videoWidth){ rtW=vid.videoWidth; rtH=vid.videoHeight; if(rtA){rtA.dispose(); rtB.dispose();} rtA=makeRT(rtW,rtH); rtB=makeRT(rtW,rtH); U.uCloudTexel.value.set(1/rtW,1/rtH); }
+    if(rtW!==vid.videoWidth){ rtW=vid.videoWidth; rtH=vid.videoHeight-code.strip; if(rtA){rtA.dispose(); rtB.dispose();} rtA=makeRT(rtW,rtH); rtB=makeRT(rtW,rtH); U.uCloudTexel.value.set(1/rtW,1/rtH);
+      copyMat.uniforms.uCrop.value.set(code.strip/vid.videoHeight, rtH/vid.videoHeight); vtex.needsUpdate=true; calibrate(); zoomLimit(); }
     vtex.needsUpdate=true;
     const tmp=rtA; rtA=rtB; rtB=tmp;     // B becomes the newest
     renderer.setRenderTarget(rtB); renderer.render(copyScene, copyCam); renderer.setRenderTarget(null);
@@ -332,7 +379,7 @@
     const now=performance.now(); if(lastPresent) frameGap=Math.min(0.5, (now-lastPresent)/1000); lastPresent=now; presented++;
     if(perf.videoFirstFrame===null){ perf.videoFirstFrame=Math.round(now-T0); load.textContent=''; load.style.opacity=0; }
   }
-  if('requestVideoFrameCallback' in vid){ const cb=()=>{ present(); vid.requestVideoFrameCallback(cb); }; vid.requestVideoFrameCallback(cb); }
+  if('requestVideoFrameCallback' in vid){ const cb=(t,md)=>{ perf.mediaTime=md&&md.mediaTime; present(); vid.requestVideoFrameCallback(cb); }; vid.requestVideoFrameCallback(cb); }
   else { let lt=-1; vid.addEventListener('timeupdate', ()=>{}); setInterval(()=>{ if(!vid.paused && vid.currentTime!==lt){ lt=vid.currentTime; present(); } }, 16); }
 
   // ---- loading order: basemap 2048 + poster cloud first (paint), then the video, then the 8192 basemap
@@ -340,7 +387,7 @@
   const t2k=loader.load('base_2048.jpg', t=>{ U.uBase.value=srgb(t); firstPaint(); });
   loader.load('lights_4096.jpg', t=>{ U.uLights.value=t; });
   loader.load('coverage.png', t=>{ t.colorSpace=THREE.NoColorSpace; U.uCover.value=t; });
-  loader.load('clouds_poster.webp', t=>{ posterTex=t; t.colorSpace=THREE.NoColorSpace; if(!U.uHasCloud.value){ U.uCloudA.value=t; U.uCloudB.value=t; U.uHasCloud.value=1; U.uMix.value=0; } });
+  loader.load('clouds_poster.webp', t=>{ posterTex=t; t.colorSpace=THREE.NoColorSpace; t.wrapS=THREE.RepeatWrapping; if(!U.uHasCloud.value){ U.uCloudA.value=t; U.uCloudB.value=t; U.uHasCloud.value=1; U.uMix.value=0; } });
   function firstPaint(){ if(perf.firstPaint!==null) return; renderer.render(scene,cam); perf.firstPaint=Math.round(performance.now()-T0); }
 
   const small=Math.max(screen.width, innerWidth)*Math.min(devicePixelRatio,2) < 1900;     // a phone, or a small 1x screen: the 2048 clip is enough
@@ -350,6 +397,8 @@
 
   fetch('clouds.json').then(r=>r.json()).then(m=>{
     man=m; scrub.max=m.frames.length-1;
+    if(m.code){ code=m.code; U.uFlow.value.set(code.flow_p99_px/m.width, -code.flow_p99_px/m.height); }   // flow y is down the image; v is up
+    zoomLimit();
     times=m.frames.map(s=>new Date(s.slice(0,4)+'-'+s.slice(5,7)+'-'+s.slice(8,10)+'T'+s.slice(11,13)+':'+s.slice(13,15)+':00Z'));
     suns=times.map(sunVec);
     const days=m.frames.length/144;
@@ -415,29 +464,44 @@
     const k=0.0055*dist/4.3; vSpin=dx*k; vTilt=dy*k; if(mode==='earth') spin+=vSpin; else offset+=vSpin; tilt=Math.max(-1.25, Math.min(1.25, tilt+vTilt)); });
   const up=()=>{ dragging=false; cv.classList.remove('drag'); };
   cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
-  function zoom(f){ dist=Math.max(1.35, Math.min(8, dist*f)); cam.position.z=dist; }
+  // Zoom stops where a cloud texel at the centre of the disc would be wider than MAX_TEXEL_CSS screen pixels: the
+  // clip is ~10 km per texel, and past that the cloud is magnified into mush over a basemap that is still sharp.
+  // Camera at dist d, fov 30 deg: a texel (2pi/W world units) at the disc centre, depth d-1, covers
+  // (2pi/W) * Hpx / (2 tan(fov/2) (d-1)) device pixels. Recomputed on resize and when the clip's width is known.
+  const MAX_TEXEL_CSS=2.0; let minDist=1.35, zoomTarget=dist;
+  function zoomLimit(){ const pr=Math.min(devicePixelRatio,2), Hpx=stage.clientHeight*pr, Wc=rtW||(man&&useSmall?man.width/2:0)||(man?man.width:4096);
+    minDist=Math.max(1.35, 1+(2*Math.PI/Wc)*Hpx/(2*Math.tan(cam.fov/2*DEG)*MAX_TEXEL_CSS*pr)); perf.minDist=+minDist.toFixed(3);
+    if(zoomTarget<minDist) zoomTarget=minDist; }
+  function zoom(f){ zoomTarget=Math.max(minDist, Math.min(8, zoomTarget*f)); }
   cv.addEventListener('wheel', e=>{ e.preventDefault(); zoom(1+Math.sign(e.deltaY)*0.08); }, {passive:false});
   cv.addEventListener('touchstart', e=>{ if(e.touches.length===2) pinch=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); }, {passive:true});
   cv.addEventListener('touchmove', e=>{ if(e.touches.length===2 && pinch){ const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); zoom(pinch/d); pinch=d; dragging=false; } }, {passive:true});
 
   // ---- a view can be set from outside (the measurement script) or from the URL: #lon=-75&lat=-30&zoom=2.2&frame=90
   function setView(lon, lat, d, fi){ mode='earth'; document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed', x.dataset.mode==='earth'));
-    spin=-(90+lon)*DEG; tilt=Math.max(-1.25, Math.min(1.25, lat*DEG)); vSpin=vTilt=0; if(d){ dist=Math.max(1.35, Math.min(8, d)); cam.position.z=dist; } if(fi!=null) seek(fi); }
+    spin=-(90+lon)*DEG; tilt=Math.max(-1.25, Math.min(1.25, lat*DEG)); vSpin=vTilt=0; if(d){ dist=zoomTarget=Math.max(minDist, Math.min(8, d)); cam.position.z=dist; } if(fi!=null) seek(fi); }
   window.__setView=setView;
-  window.__dbg={renderer, U, vid, vtex, rt:()=>rtB, presented:()=>presented};
+  window.__dbg={renderer, U, vid, vtex, rt:()=>rtB, presented:()=>presented, calibrate, code:()=>code, minDist:()=>minDist, dist:()=>dist,
+    rafStats:()=>{ const n=Math.min(rafN,240), g=Array.from(rafGap.subarray(0,n)).sort((a,b)=>a-b), w=Array.from(rafWork.subarray(0,n)).sort((a,b)=>a-b);
+      const q=(a,p)=>+a[Math.min(a.length-1,Math.floor(a.length*p))].toFixed(2); return {n, gap:{p50:q(g,.5),p95:q(g,.95),max:q(g,1)}, work:{p50:q(w,.5),p95:q(w,.95),max:q(w,1)}}; }};
   window.__pause=()=>{ wantPlay=false; sync(); playBtn.textContent='Play'; playBtn.setAttribute('aria-pressed','false'); };
   (function(){ const h=new URLSearchParams(location.hash.slice(1)); if(h.has('lon')) setView(+h.get('lon'), +(h.get('lat')||0), +(h.get('zoom')||0)||null, null); })();
 
   // ---- loop: no allocation per frame
   const sunObj=U.uSun.value, camObj=U.uCam.value, inv=new THREE.Matrix4(), rot3=new THREE.Matrix3();
-  let frames=0, fpsT=performance.now(); perf.fps=0;
+  let frames=0, fpsT=performance.now(), lastNow=0; perf.fps=0;
+  const rafGap=new Float32Array(240), rafWork=new Float32Array(240); let rafN=0;   // a ring of recent frame intervals and render times, for measuring
   function tick(now){
     requestAnimationFrame(tick);
+    const t0=performance.now();
+    const dt=lastNow?Math.min(0.1,(now-lastNow)/1000):1/60; if(lastNow){ rafGap[rafN%240]=now-lastNow; } lastNow=now;
+    const k60=dt*60;                                       // motion is designed per 1/60 s and scaled by wall clock, so a 120 Hz screen is not twice as fast
     const i=frame();
     if(i!==lastFrame){ lastFrame=i; showClock(i); }
-    if(!dragging){ vSpin*=0.94; vTilt*=0.94; if(Math.abs(vSpin)>1e-4){ if(mode==='earth') spin+=vSpin; else offset+=vSpin; } if(Math.abs(vTilt)>1e-4) tilt=Math.max(-1.25, Math.min(1.25, tilt+vTilt)); }
+    if(!dragging){ const decay=Math.pow(0.94,k60); if(Math.abs(vSpin)>1e-4){ if(mode==='earth') spin+=vSpin*k60; else offset+=vSpin*k60; } if(Math.abs(vTilt)>1e-4) tilt=Math.max(-1.25, Math.min(1.25, tilt+vTilt*k60)); vSpin*=decay; vTilt*=decay; }
+    if(Math.abs(zoomTarget-dist)>1e-4){ dist+=(zoomTarget-dist)*(1-Math.exp(-dt/0.12)); cam.position.z=dist; }
     const s=sunNow();
-    if(mode==='earth'){ if(!dragging && !vid.paused) spin+=0.00045; planet.rotation.y=spin; }
+    if(mode==='earth'){ if(!dragging && !vid.paused) spin+=0.027*dt; planet.rotation.y=spin; }
     else { planet.rotation.y=-Math.PI/2 - Math.atan2(s[1],s[0]) + offset; }
     atmo.rotation.y=planet.rotation.y;
     tiltG.rotation.x=tilt;
@@ -446,8 +510,9 @@
     planet.updateMatrixWorld(); inv.copy(planet.matrixWorld).invert(); camObj.copy(cam.position).applyMatrix4(inv);
     atmo.material.uniforms.uSunV.value.set(s[0],s[2],-s[1]).applyMatrix3(rot3.setFromMatrix4(planet.matrixWorld));
     // cross-fade from the older frame to the newest over the measured gap between presents
-    U.uMix.value = blend && presented>1 && !vid.paused ? Math.max(0, Math.min(1, (performance.now()-lastPresent)/1000/Math.max(frameGap,1e-3))) : 1;
+    U.uMix.value = window.__mix!=null ? window.__mix : blend && presented>1 && !vid.paused ? Math.max(0, Math.min(1, (performance.now()-lastPresent)/1000/Math.max(frameGap,1e-3))) : 1;
     renderer.render(scene, cam);
+    rafWork[rafN%240]=performance.now()-t0; rafN++;
     frames++; if(now-fpsT>1000){ perf.fps=Math.round(frames*1000/(now-fpsT)); frames=0; fpsT=now; }
   }
   requestAnimationFrame(tick);
