@@ -354,8 +354,11 @@
     suns=times.map(sunVec);
     const days=m.frames.length/144;
     document.getElementById('claim').textContent=days>=1.5?`${Math.round(days)} days`:'One day';
-    if(m.seam){ const NAMES={goes19:'GOES-East',goes18:'GOES-West',himawari9:'Himawari-9',mtg:'MTG-I1',iodc:'Meteosat-9'};
-      document.getElementById('seams').textContent=Object.entries(m.seam).map(([k,v])=>{ const [a,b]=k.split('-'); return `${NAMES[a]||a} vs ${NAMES[b]||b}: mean |difference| ${v.mad.toFixed(3)}, bias ${v.bias>=0?'+':''}${v.bias.toFixed(3)}`; }).join(' · '); }
+    const NAMES={goes19:'GOES-East',goes18:'GOES-West',himawari9:'Himawari-9',mtg:'MTG-I1',iodc:'Meteosat-9'};
+    if(m.sats){ const all=['goes18','goes19','himawari9','mtg','iodc'], missing=all.filter(s=>!m.sats.includes(s));
+      document.getElementById('satsh').textContent=`${m.sats.length} of five satellites, checked with arithmetic`;
+      if(missing.length) document.getElementById('satsp').insertAdjacentHTML('afterbegin', `<b>In this clip: ${m.sats.map(s=>NAMES[s]).join(', ')}. Not yet: ${missing.map(s=>NAMES[s]).join(', ')}, so its part of the world is drawn clear.</b> `); }
+    if(m.seam){ document.getElementById('seams').textContent=Object.entries(m.seam).map(([k,v])=>{ const [a,b]=k.split('-'); return `${NAMES[a]||a} vs ${NAMES[b]||b}: mean |difference| ${v.mad.toFixed(3)}, bias ${v.bias>=0?'+':''}${v.bias.toFixed(3)}`; }).join(' · '); }
     const bytes=m.sizes[perf.clip]; perf.bytes.clip=bytes;
     document.getElementById('man').textContent=`${m.frames.length} frames, ${m.frames[0].replace('T',' ')} to ${m.frames[m.frames.length-1].replace('T',' ')} · ${(m.sizes['clouds.mp4']/1e6).toFixed(1)} MB (4k) / ${(m.sizes['clouds_2k.mp4']/1e6).toFixed(1)} MB (2k)`;
     load.textContent=`streaming ${(bytes/1e6).toFixed(0)} MB of cloud…`;

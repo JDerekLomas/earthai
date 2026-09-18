@@ -499,12 +499,17 @@ def fetch_ahi(sat, cfg, out, start, end, workers, log):
     todo = [t for t in slots_between(start, end) if not have(out, t)]
     click.echo(f"{sat}: {len(todo)} slots to fetch")
     geo = DiskGeometry.ahi(cfg["lon"])
+    lon, lat = grid_lonlat()
+    seen = sat_zenith(lon, lat, cfg["lon"]) < ZEN_ZERO
 
     def one(t):
         for attempt in range(6):
             try:
                 t0 = time.time()
-                vis = ahi_read(cfg["bucket"], t, 3, 4)
+                if cos_solar_zenith(t, lon, lat)[seen].max() < 0.12:     # the whole disk is dark: band 3 (129 MB) is never used
+                    vis = np.full((5500, 5500), np.nan, np.float32)
+                else:
+                    vis = ahi_read(cfg["bucket"], t, 3, 4)
                 bt = ahi_read(cfg["bucket"], t, 13, 1)
                 return t, vis, bt, time.time() - t0
             except Exception as e:                                  # noqa: BLE001
