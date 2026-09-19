@@ -21,7 +21,7 @@ Derek unless the box dies.
   (`ssh root@51.15.76.176 rm /root/.earthai-secrets.json`) and say so in the report.
 
 ## Definition of done
-1. `sh scripts/ops/official_tenday_finish.sh` from a worktree on branch `official-products` (it waits for the box, rsyncs
+1. `sh scripts/ops/official_tenday_finish.sh` from your own worktree (any branch off main; it waits for the box, rsyncs
    `days/` to `data/clouds/official/days10/`, uploads the clips to R2, merges the ten days into `site/globe/clouds.json`,
    commits and pushes). If the box's encode wrote fewer than ten days, say which and why (check `tenday.log`).
 2. `scripts/official_compare.py --legacy data/clouds/tenday --official <rsynced tree or the box's> --date <each day>` is
