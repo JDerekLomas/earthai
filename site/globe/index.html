@@ -115,7 +115,9 @@
     <div class="load" id="load">lighting the Earth…</div>
     <div class="clock" id="clock"><small>UTC</small>—</div>
     <div class="hint">drag to turn · scroll to zoom</div>
-    <video class="src" id="vid" muted loop playsinline preload="auto" crossorigin="anonymous" aria-hidden="true"></video>
+    <!-- two players: the day being shown and the next day preloaded, swapped at midnight (see "the days" in the script) -->
+    <video class="src" id="vid0" muted playsinline preload="auto" crossorigin="anonymous" aria-hidden="true"></video>
+    <video class="src" id="vid1" muted playsinline preload="none" crossorigin="anonymous" aria-hidden="true"></video>
   </div>
   <div class="controls">
     <input class="scrub" id="scrub" type="range" min="0" max="0" value="0" step="1" aria-label="time">
@@ -145,6 +147,7 @@
   <div class="eyebrow">earthai · the cloud layer · weather as the only video</div>
   <h1>The cloud layer</h1>
   <p class="claim"><b id="claim">One day</b> of real cloud, every ten minutes, over an Earth that is lit by arithmetic.</p>
+  <p class="mono" id="daysline" style="font-size:12px;color:var(--muted)"></p>
   <p class="lede">The only thing on this globe that changes from one ten-minute picture to the next is the cloud, so the cloud is the only thing that is a video. Everything else you see, the land and sea, the day and the night, the line of dusk, the city lights, the shadow a cloud throws on the ground by its own measured height, is computed while you watch from where the sun is. Drag to turn it, scroll to zoom. Switch to <em>sun-fixed</em> and the daylight stands still while the Earth turns through it.</p>
   <div class="links">
     <a class="xl" href="../earth/">the earlier version, for comparison &rarr;</a>
@@ -182,7 +185,7 @@
     <div class="note maybe"><span class="status">the clear-sky guess</span><h3>Where the method is wrong</h3><p id="wrongp">"What this place looks like with no cloud" is taken from one day of pictures, so a place under cloud all day has no clear reference and its cloud reads thinner than it is. Bright ground (the Atacama, Greenland's ice) is handled by that reference and stays ground; the sun's glint on the sea is switched to the infrared reading alone, so a calm sea at noon is not white. Very cold ground at night, and thin high cloud after dark, are the known failures of an infrared-only night.</p></div>
     <div class="note maybe"><span class="status">the height</span><h3 id="hgth">Every cloud has a top, and it is measured</h3><p id="hgtp">The infrared band reads the temperature of whatever it sees, and the air cools by about 6.5 °C for every kilometre up, so a cloud top 65 °C colder than the ground beneath it is about ten kilometres high. That number, 0 to 16 km for every cloudy pixel, rides in the same clip as the opacity and does three things here: the shadow a cloud throws is as long as its height and the sun's angle say (drawn at three times its true length, because at ten kilometres a pixel a true one is under a pixel for all but the tallest storms); high cloud is a little cooler in colour and keeps the sun for some minutes after the ground below it has gone dark, by the geometry of being higher; and where the top steps up toward the sun, that edge is lit. Two things are wrong with it, and stay wrong: thin cirrus reads too low, because its temperature is a mix of the cold cloud and the warm ground showing through, so a veil at twelve kilometres can come out at five; and a real atmosphere is not a standard one, so the heights are good to a kilometre or two, not a hundred metres.</p></div>
     <div class="note have"><span class="status">between frames</span><h3>Ten minutes, in motion</h3><p>A real frame every ten minutes, twelve of them a second at full speed: two hours a second, a day in twelve seconds. Between two frames the cloud has moved, typically one to three pixels, and a cross-fade would show it fading from one place to the next. So the motion between each frame and the next is measured (optical flow, on the frames themselves) and travels with the clip, and the <em>Blend</em> button carries each frame along it: the older frame is pushed forward, the newer pulled back, and the two are mixed. Nothing is invented; where the motion estimate is wrong the cloud ghosts a little. Switch it off to see the frames step.</p></div>
-    <div class="note have"><span class="status">the resolution</span><h3>Ten kilometres per pixel, and closer over the Americas</h3><p>The whole-Earth cloud is drawn at ten kilometres per pixel, 4096 of them around the equator. Zoom in over the Americas and the page switches to tiles cut from GOES-East at its own resolution, 2.4 kilometres per pixel, decoded in the browser only for the part of the world in view (each tile is its own small video, fetched a second at a time). The zoom stops where a pixel of the finest cloud available under the view would be two device pixels wide, so the cloud is never magnified into mush over a basemap that is still sharp: about two and a half times closer where the tiles exist than elsewhere. The other four satellites see just as finely; their tiles are not built yet, and a browser without WebCodecs stays on the whole-Earth clip.</p></div>
+    <div class="note have"><span class="status">the resolution</span><h3>Ten kilometres per pixel, and closer over the Americas</h3><p>The whole-Earth cloud is drawn at ten kilometres per pixel, 4096 of them around the equator. Zoom in over the Americas and the page switches to tiles cut from GOES-East at its own resolution, 2.4 kilometres per pixel, decoded in the browser only for the part of the world in view (each tile is its own small video, fetched a second at a time). The zoom stops where a pixel of the finest cloud available under the view would be two device pixels wide, so the cloud is never magnified into mush over a basemap that is still sharp: about two and a half times closer where the tiles exist than elsewhere. <span id="tiledays"></span>The other four satellites see just as finely; their tiles are not built yet, and a browser without WebCodecs stays on the whole-Earth clip.</p></div>
   </div>
 </section>
 
@@ -198,7 +201,8 @@
 (function(){
   const T0=performance.now();
   const stage=document.getElementById('stage'), load=document.getElementById('load'), clock=document.getElementById('clock');
-  const vid=document.getElementById('vid'), scrub=document.getElementById('scrub'), playBtn=document.getElementById('play');
+  const V=[document.getElementById('vid0'), document.getElementById('vid1')], scrub=document.getElementById('scrub'), playBtn=document.getElementById('play');
+  let vid=V[0], cur=0;          // the player being shown; the other one holds the next day, preloaded and paused
   const coverBtn=document.getElementById('cover'), blendBtn=document.getElementById('blendBtn');
   const DEG=Math.PI/180;
   document.getElementById('threev').textContent='r'+THREE.REVISION;
@@ -433,7 +437,8 @@
   }));
   const tiltG=new THREE.Group(); tiltG.add(planet); tiltG.add(atmo); scene.add(tiltG);
   // regional tiles (tiles.js): decoded with WebCodecs when the zoom needs them; without WebCodecs the page stays on the base clip
-  const tiles=window.CloudTiles ? CloudTiles({renderer, planet, cam, stage, U, base:'tiles/'}) : null;
+  // the indexes are fetched once the manifest says where the assets live (tiles.start, below)
+  const tiles=window.CloudTiles ? CloudTiles({renderer, planet, cam, stage, U}) : null;
   perf.tiles=tiles ? tiles.stats : {supported:false};
 
   function size(){ const w=stage.clientWidth, h=stage.clientHeight; renderer.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix(); }
@@ -447,7 +452,8 @@
   let rtA=null, rtB=null, rtW=0, rtH=0;
   // a VideoTexture, because a plain Texture reads video.width (0) not videoWidth; its update() marks needsUpdate on
   // every render it takes part in, and it only takes part in the copy pass, which only runs when a frame is presented
-  const vtex=new THREE.VideoTexture(vid); vtex.minFilter=THREE.LinearFilter; vtex.magFilter=THREE.LinearFilter; vtex.generateMipmaps=false; vtex.colorSpace=THREE.NoColorSpace;
+  const VT=V.map(v=>{ const t=new THREE.VideoTexture(v); t.minFilter=THREE.LinearFilter; t.magFilter=THREE.LinearFilter; t.generateMipmaps=false; t.colorSpace=THREE.NoColorSpace; return t; });
+  let vtex=VT[0];
   const copyScene=new THREE.Scene(), copyCam=new THREE.OrthographicCamera(-1,1,1,-1,0,1);
   // The clip codes opacity into luma levels y_lo..y_hi and the flow to the next frame into the two chroma planes
   // (128 +/- chroma levels), with a strip of known patches along the bottom. The browser hands us RGB after its own
@@ -499,40 +505,84 @@
     if(err<12 && Math.abs(M[0][0])>0.5){ setInverse(M, P[1]); perf.calib={M:M.map(r=>r.map(x=>+x.toFixed(4))), rgb0:P[1].map(x=>+x.toFixed(1)), checkErr:+err.toFixed(2), patches:P.map(c=>c.map(x=>Math.round(x)))}; }
     else perf.calib={rejected:true, checkErr:+err.toFixed(2), patches:P.map(c=>c.map(x=>Math.round(x)))};
   }
-  let lastPresent=0, frameGap=1/12, presented=0;
-  function present(){                    // the video has a new frame: upload it once, into the older target
+  let lastPresent=0, frameGap=1/12, presented=0, hRowsNow=0, posterOn=false, lastMT=-1, lastMTvid=null;
+  function present(mt){                  // the video has a new frame: upload it once, into the older target
     if(vid.videoWidth===0) return;
+    if(mt!=null){ if(lastMTvid===vid && mt===lastMT) return; lastMT=mt; lastMTvid=vid; }   // the same frame offered twice (a day swap presents frame 0 by hand)
     if(rtW!==vid.videoWidth){ rtW=vid.videoWidth;
       const hRows=code.height_rows ? Math.round(code.height_rows*vid.videoWidth/(man?man.width:4096)) : 0;   // the height field's rows at this clip's width
-      rtH=vid.videoHeight-code.strip-hRows; if(rtA){rtA.dispose(); rtB.dispose();} rtA=makeRT(rtW,rtH); rtB=makeRT(rtW,rtH); U.uCloudTexel.value.set(1/rtW,1/rtH);
+      rtH=vid.videoHeight-code.strip-hRows; if(rtA){rtA.dispose(); rtB.dispose();} rtA=makeRT(rtW,rtH); rtB=makeRT(rtW,rtH);
       // flipY: v=0 is the bottom of the frame, so from the bottom up: the strip, then the height rows, then the opacity
       copyMat.uniforms.uCrop.value.set((code.strip+hRows)/vid.videoHeight, rtH/vid.videoHeight);
       copyMat.uniforms.uHCrop.value.set(code.strip/vid.videoHeight, hRows/vid.videoHeight); copyMat.uniforms.uHasH.value=hRows?1:0;
-      U.uHasHeight.value=hRows?1:0; if(code.height_km_max) U.uHeightKm.value=code.height_km_max; perf.heightRows=hRows;
+      if(code.height_km_max) U.uHeightKm.value=code.height_km_max; hRowsNow=hRows; perf.heightRows=hRows;
       vtex.needsUpdate=true; calibrate(); zoomLimit(); }
+    if(posterOn || presented===0){ posterOn=false; U.uCloudTexel.value.set(1/rtW,1/rtH); U.uHasHeight.value=hRowsNow?1:0; }   // back from a poster (no height, 2048 wide)
     vtex.needsUpdate=true;
     const tmp=rtA; rtA=rtB; rtB=tmp;     // B becomes the newest
     renderer.setRenderTarget(rtB); renderer.render(copyScene, copyCam); renderer.setRenderTarget(null);
     U.uCloudA.value=rtA.texture; U.uCloudB.value=rtB.texture; U.uHasCloud.value=1;
     const now=performance.now(); if(lastPresent) frameGap=Math.min(0.5, (now-lastPresent)/1000); lastPresent=now; presented++;
+    if(perf.lastSwap && perf.lastSwap.firstPresent===null) perf.lastSwap.firstPresent=Math.round(now);
     if(perf.videoFirstFrame===null){ perf.videoFirstFrame=Math.round(now-T0); load.textContent=''; load.style.opacity=0; }
   }
-  if('requestVideoFrameCallback' in vid){ const cb=(t,md)=>{ perf.mediaTime=md&&md.mediaTime; present(); vid.requestVideoFrameCallback(cb); }; vid.requestVideoFrameCallback(cb); }
-  else { let lt=-1; vid.addEventListener('timeupdate', ()=>{}); setInterval(()=>{ if(!vid.paused && vid.currentTime!==lt){ lt=vid.currentTime; present(); } }, 16); }
+  // both players report their presented frames; only the one being shown is uploaded (the other is paused on its first frame)
+  if('requestVideoFrameCallback' in V[0]) V.forEach(v=>{ const cb=(t,md)=>{ if(v===vid){ perf.mediaTime=md&&md.mediaTime; present(md?md.mediaTime:null); } v.requestVideoFrameCallback(cb); }; v.requestVideoFrameCallback(cb); });
+  else { let lt=-1, lv=null; setInterval(()=>{ if(!vid.paused && (vid.currentTime!==lt || vid!==lv)){ lt=vid.currentTime; lv=vid; present(); } }, 16); }
+
+  // ---- the days: one clip per UTC day (fetch_clouds.py encode --per-day), listed in the manifest's `days` with each
+  // day's first frame `off` in the set. The scrubber and the clock run over the whole set; the player shows one day's
+  // clip and the other player holds the next day, loaded once the current one has buffered, so at midnight the swap is
+  // a handover between two ready elements: the last frame of one day is still in the older cloud target when the first
+  // frame of the next goes into the newer, and the warp crosses midnight like any other ten minutes. A scrub to another
+  // day swaps at once; if that day's first frame has not presented within a moment, its poster stands in until it does.
+  // `assets` in the manifest is where the clips and tiles live (Cloudflare R2); a clip that fails there is retried
+  // relative to the page, which is where the one day kept on Vercel is.
+  let days=[], dayOf=null, dayIdx=0, rate=1, swappedAt=0, posterTimer=0;
+  const loadedDay=[-1,-1], srcName=['',''], posters={}, posterReq={};
+  function A(n){ return man&&man.assets ? man.assets+n : n; }
+  function clipKey(){ return useSmall?'2k':'4k'; }
+  function setSrc(k, d){ const v=V[k]; v.pause(); v.loop=days.length===1; v.preload='auto'; srcName[k]=days[d].clips[clipKey()]; v.src=A(srcName[k]); loadedDay[k]=d; v.load(); }
+  function showPoster(d){
+    const tex=posters[d];
+    if(!tex){ if(!posterReq[d]){ posterReq[d]=true; loader.load(A(days[d].poster), t=>{ t.colorSpace=THREE.NoColorSpace; t.wrapS=THREE.RepeatWrapping; posters[d]=t; if(dayIdx===d && lastPresent<swappedAt) showPoster(d); }); } return; }
+    U.uCloudA.value=tex; U.uCloudB.value=tex; U.uHasCloud.value=1; U.uCloudTexel.value.set(1/tex.image.width, 1/tex.image.height); U.uHasHeight.value=0; posterOn=true;
+    if(perf.lastSwap) perf.lastSwap.poster=true;
+  }
+  function switchDay(d, t){                 // show day d from local time t (seconds into its clip)
+    if(d===dayIdx && loadedDay[cur]===d){ vid.currentTime=t; return; }
+    const o=1-cur;
+    if(loadedDay[o]!==d) setSrc(o, d);
+    vid.pause();
+    cur=o; vid=V[o]; vtex=VT[o]; copyMat.uniforms.t.value=vtex; calMat.uniforms.t.value=vtex; dayIdx=d;
+    vid.playbackRate=rate; vid.loop=days.length===1;
+    if(vid.currentTime!==t) vid.currentTime=t;
+    lastMT=-1; swappedAt=performance.now(); perf.swaps=(perf.swaps||0)+1;
+    perf.lastSwap={day:d, t, at:Math.round(swappedAt), prevPresent:Math.round(lastPresent), firstPresent:null, ready:vid.readyState, poster:false};   // for the measurement script
+    if(t===0 && vid.readyState>=2) present(0);           // the preloaded first frame goes straight in: the warp crosses midnight
+    clearTimeout(posterTimer); posterTimer=setTimeout(()=>{ if(dayIdx===d && lastPresent<swappedAt) showPoster(d); }, 250);
+    sync();
+  }
+  function bufferedToEnd(v){ const b=v.buffered; return v.duration>0 && b.length>0 && b.end(b.length-1)>=v.duration-0.25; }
+  function preloadNext(i){                  // the next day, once this one is in hand (buffered, or three quarters played)
+    if(days.length<2) return;
+    const nd=(dayIdx+1)%days.length, o=1-cur;
+    if(loadedDay[o]!==nd && (bufferedToEnd(vid) || i-days[dayIdx].off>days[dayIdx].n*0.75)) setSrc(o, nd);
+    else if(loadedDay[o]===nd && V[o].ended) V[o].currentTime=0;         // a two-day set: the clip that just ended is the next one; rewind it now, not at midnight
+  }
+  V.forEach(v=>v.addEventListener('ended', ()=>{ if(v===vid && days.length>1) switchDay((dayIdx+1)%days.length, 0); }));
 
   // ---- loading order: basemap 2048 + poster cloud first (paint), then the video, then the 8192 basemap
   let posterTex=null;
   const t2k=loader.load('base_2048.jpg', t=>{ U.uBase.value=srgb(t); firstPaint(); });
   loader.load('lights_4096.jpg', t=>{ U.uLights.value=t; });
   loader.load('coverage.png', t=>{ t.colorSpace=THREE.NoColorSpace; U.uCover.value=t; });
-  loader.load('clouds_poster.webp', t=>{ posterTex=t; t.colorSpace=THREE.NoColorSpace; t.wrapS=THREE.RepeatWrapping; if(!U.uHasCloud.value){ U.uCloudA.value=t; U.uCloudB.value=t; U.uHasCloud.value=1; U.uMix.value=0; U.uCloudTexel.value.set(1/t.image.width, 1/t.image.height); } });
+  loader.load('clouds_poster.webp', t=>{ posterTex=t; t.colorSpace=THREE.NoColorSpace; t.wrapS=THREE.RepeatWrapping; posters[0]=t; if(!U.uHasCloud.value){ U.uCloudA.value=t; U.uCloudB.value=t; U.uHasCloud.value=1; U.uMix.value=0; U.uCloudTexel.value.set(1/t.image.width, 1/t.image.height); posterOn=true; } });
   function firstPaint(){ if(perf.firstPaint!==null) return; renderer.render(scene,cam); perf.firstPaint=Math.round(performance.now()-T0); }
 
   const small=Math.max(screen.width, innerWidth)*Math.min(devicePixelRatio,2) < 1900;     // a phone, or a small 1x screen: the 2048 clip is enough
   const slow=navigator.connection && (navigator.connection.saveData || /2g|3g/.test(navigator.connection.effectiveType||''));
   const useSmall=small||slow;
-  perf.clip=useSmall?'clouds_2k.mp4':'clouds.mp4';
-
   fetch('clouds.json').then(r=>r.json()).then(m=>{
     man=m; scrub.max=m.frames.length-1;
     if(m.code){ code=m.code; U.uFlow.value.set(code.flow_p99_px/m.width, -code.flow_p99_px/m.height); }   // flow y is down the image; v is up
@@ -540,23 +590,39 @@
     zoomLimit();
     times=m.frames.map(s=>new Date(s.slice(0,4)+'-'+s.slice(5,7)+'-'+s.slice(8,10)+'T'+s.slice(11,13)+':'+s.slice(13,15)+':00Z'));
     suns=times.map(sunVec);
-    const days=m.frames.length/144;
-    document.getElementById('claim').textContent=days>=1.5?`${Math.round(days)} days`:'One day';
+    // a one-clip manifest is one "day" of however many frames it has
+    days=m.days || [{date:m.frames[0].slice(0,10), off:0, n:m.frames.length, frames:m.frames, clips:{'4k':'clouds.mp4','2k':'clouds_2k.mp4'}, poster:m.poster||'clouds_poster.webp', sizes:{'4k':m.sizes['clouds.mp4'],'2k':m.sizes['clouds_2k.mp4']}}];
+    dayOf=new Uint16Array(m.frames.length); days.forEach((d,k)=>{ for(let i=d.off;i<d.off+d.n;i++) dayOf[i]=k; });
+    perf.clip=days[0].clips[clipKey()]; perf.days=days.length;
+    const nDays=Math.max(days.length, Math.round(m.frames.length/144));
+    document.getElementById('claim').textContent=nDays>=2?`${nDays} days`:'One day';
+    const dstr=d=>new Date(d+'T00:00:00Z').toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'});
+    const first=days[0].date, last=days[days.length-1].date;
+    document.getElementById('daysline').textContent = days.length>1
+      ? `${days.length} days, ${dstr(first)} to ${dstr(last)} ${last.slice(0,4)}, ${m.frames.length} frames · one clip a day, swapped at midnight`
+      : `${dstr(first)} ${first.slice(0,4)}, ${m.frames.length} frames`;
+    if(tiles&&tiles.supported) tiles.start({base:A('tiles/'), fallback:'tiles/', frames:m.frames, onReady:c=>{ const el=document.getElementById('tiledays'); perf.tileDays=c;
+      if(!c.n) el.textContent='The tiles are not built for these days yet, so the zoom stops at the whole-Earth clip. ';
+      else if(c.n<m.frames.length) el.textContent=`The tiles are built for ${dstr(c.first.slice(0,10))} to ${dstr(c.last.slice(0,10))} (${Math.round(c.n/144)} of the ${days.length} days); the other days stop at ten kilometres. `;
+      else el.textContent=''; }});
     const NAMES={goes19:'GOES-East',goes18:'GOES-West',himawari9:'Himawari-9',mtg:'MTG-I1',iodc:'Meteosat-9'};
     if(m.sats){ const all=['goes18','goes19','himawari9','mtg','iodc'], missing=all.filter(s=>!m.sats.includes(s));
       document.getElementById('satsh').textContent=`${m.sats.length} of five satellites, checked with arithmetic`;
       if(missing.length) document.getElementById('satsp').insertAdjacentHTML('afterbegin', `<b>In this clip: ${m.sats.map(s=>NAMES[s]).join(', ')}. Not yet: ${missing.map(s=>NAMES[s]).join(', ')}, so its part of the world is drawn clear.</b> `); }
     if(m.seam){ document.getElementById('seams').textContent=Object.entries(m.seam).map(([k,v])=>{ const [a,b]=k.split('-'); return `${NAMES[a]||a} vs ${NAMES[b]||b}: mean |difference| ${v.mad.toFixed(3)}, bias ${v.bias>=0?'+':''}${v.bias.toFixed(3)}`; }).join(' · '); }
-    const bytes=m.sizes[perf.clip]; perf.bytes.clip=bytes;
-    document.getElementById('man').textContent=`${m.frames.length} frames, ${m.frames[0].replace('T',' ')} to ${m.frames[m.frames.length-1].replace('T',' ')} · ${(m.sizes['clouds.mp4']/1e6).toFixed(1)} MB (4k) / ${(m.sizes['clouds_2k.mp4']/1e6).toFixed(1)} MB (2k)`;
+    const bytes=days[0].sizes[clipKey()]; perf.bytes.clip=bytes;
+    const perDay=days.length>1 ? ` · ${(m.sizes['clouds.mp4']/1e6/days.length).toFixed(0)} MB (4k) / ${(m.sizes['clouds_2k.mp4']/1e6/days.length).toFixed(0)} MB (2k) a day` : '';
+    document.getElementById('man').textContent=`${m.frames.length} frames, ${m.frames[0].replace('T',' ')} to ${m.frames[m.frames.length-1].replace('T',' ')} · ${(m.sizes['clouds.mp4']/1e6).toFixed(1)} MB (4k) / ${(m.sizes['clouds_2k.mp4']/1e6).toFixed(1)} MB (2k)${perDay}${m.assets?' · clips and tiles from Cloudflare R2':''}`;
     load.textContent=`streaming ${(bytes/1e6).toFixed(0)} MB of cloud…`;
-    vid.src=perf.clip; vid.load(); vid.play().catch(()=>{});
+    setSrc(0, 0); vid.play().catch(()=>{});
     // the big basemap after the video has started, if the card can hold it and the screen can use it
     const want=(maxTex>=8192 && !useSmall)?8192:4096;
     const start=()=>{ loader.load(`base_${want}.jpg`, t=>{ U.uBase.value=srgb(t); t2k.dispose(); perf.baseLoaded=Math.round(performance.now()-T0); perf.base=want; }); };
     vid.addEventListener('playing', start, {once:true}); setTimeout(()=>{ if(!perf.base) start(); }, 4000);
   });
-  vid.addEventListener('error', ()=>{ load.textContent='the cloud video failed to load'; load.style.opacity=1; });
+  V.forEach((v,k)=>v.addEventListener('error', ()=>{
+    if(man&&man.assets && srcName[k] && v.src.startsWith(man.assets)){ v.src=srcName[k]; v.load(); perf.fellBack=(perf.fellBack||0)+1; if(v===vid) sync(); return; }   // R2 failed: the copy beside the page
+    if(v===vid){ load.textContent='the cloud video failed to load'; load.style.opacity=1; } }));
 
   // pause when nobody is looking
   let onscreen=true;
@@ -566,8 +632,8 @@
   function sync(){ const should=wantPlay && onscreen && !document.hidden; if(should && vid.paused && vid.src) vid.play().catch(()=>{}); else if(!should && !vid.paused) vid.pause(); }
 
   // ---- time
-  function pos(){ return man ? vid.currentTime*man.fps : 0; }
-  function seek(x){ if(man) vid.currentTime=x/man.fps; }
+  function pos(){ return man ? days[dayIdx].off + Math.min(vid.currentTime*man.fps, days[dayIdx].n-1e-3) : 0; }
+  function seek(x){ if(!man) return; x=Math.max(0, Math.min(times.length-1, x)); const d=dayOf[Math.floor(x)]; switchDay(d, (x-days[d].off)/man.fps); }
   function frame(){ if(!man) return 0; return Math.max(0, Math.min(times.length-1, Math.floor(pos()+1e-4))); }
   function sunNow(){                         // interpolated between real frames, so the light moves continuously
     if(!man) return [1,0,0];
@@ -578,7 +644,7 @@
     if(!man) return;
     const d=times[i];
     const day=d.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'});
-    clock.innerHTML=`<small>UTC · frame ${i+1} of ${times.length}</small>${day} · ${man.frames[i].slice(11,13)}:${man.frames[i].slice(13,15)}`;
+    clock.innerHTML=`<small>UTC · frame ${i+1} of ${times.length}${days.length>1?` · day ${dayOf[i]+1} of ${days.length}`:''}</small>${day} · ${man.frames[i].slice(11,13)}:${man.frames[i].slice(13,15)}`;
     if(!scrubbing) scrub.value=i;
   }
 
@@ -587,7 +653,7 @@
   scrub.addEventListener('input', ()=>{ scrubbing=true; seek(+scrub.value); });
   scrub.addEventListener('change', ()=>{ scrubbing=false; });
   playBtn.addEventListener('click', ()=>{ wantPlay=vid.paused; sync(); playBtn.textContent=wantPlay?'Pause':'Play'; playBtn.setAttribute('aria-pressed', wantPlay); });
-  document.querySelectorAll('[data-rate]').forEach(b=>b.addEventListener('click', ()=>{ vid.playbackRate=+b.dataset.rate; document.querySelectorAll('[data-rate]').forEach(x=>x.setAttribute('aria-pressed', x===b)); }));
+  document.querySelectorAll('[data-rate]').forEach(b=>b.addEventListener('click', ()=>{ rate=+b.dataset.rate; V.forEach(v=>{ v.playbackRate=rate; }); document.querySelectorAll('[data-rate]').forEach(x=>x.setAttribute('aria-pressed', x===b)); }));
   document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click', ()=>{
     const m=b.dataset.mode;
     if(m!==mode){ if(m==='sun'){ offset=0; } else { spin=planet.rotation.y; } mode=m; vSpin=0; }
@@ -624,7 +690,8 @@
   function setView(lon, lat, d, fi){ mode='earth'; document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed', x.dataset.mode==='earth'));
     spin=-(90+lon)*DEG; tilt=Math.max(-1.25, Math.min(1.25, lat*DEG)); vSpin=vTilt=0; if(d){ dist=zoomTarget=Math.max(minDist, Math.min(8, d)); cam.position.z=dist; } if(fi!=null) seek(fi); }
   window.__setView=setView;
-  window.__dbg={renderer, U, vid, vtex, tiles, rt:()=>rtB, presented:()=>presented, calibrate, code:()=>code, minDist:()=>minDist, dist:()=>dist,
+  window.__dbg={renderer, U, vid:()=>vid, V, vtex:()=>vtex, tiles, rt:()=>rtB, presented:()=>presented, calibrate, code:()=>code, minDist:()=>minDist, dist:()=>dist,
+    days:()=>({dayIdx, cur, loadedDay:loadedDay.slice(), ready:V.map(v=>v.readyState), t:V.map(v=>+v.currentTime.toFixed(3)), swappedAt, lastPresent, posterOn}), seek, switchDay,
     rafStats:()=>{ const n=Math.min(rafN,240), g=Array.from(rafGap.subarray(0,n)).sort((a,b)=>a-b), w=Array.from(rafWork.subarray(0,n)).sort((a,b)=>a-b);
       const q=(a,p)=>+a[Math.min(a.length-1,Math.floor(a.length*p))].toFixed(2); return {n, gap:{p50:q(g,.5),p95:q(g,.95),max:q(g,1)}, work:{p50:q(w,.5),p95:q(w,.95),max:q(w,1)}}; }};
   window.__pause=()=>{ wantPlay=false; sync(); playBtn.textContent='Play'; playBtn.setAttribute('aria-pressed','false'); };
@@ -640,7 +707,7 @@
     const dt=lastNow?Math.min(0.1,(now-lastNow)/1000):1/60; if(lastNow){ rafGap[rafN%240]=now-lastNow; } lastNow=now;
     const k60=dt*60;                                       // motion is designed per 1/60 s and scaled by wall clock, so a 120 Hz screen is not twice as fast
     const i=frame();
-    if(i!==lastFrame){ lastFrame=i; showClock(i); }
+    if(i!==lastFrame){ lastFrame=i; showClock(i); if(man && (i&7)===0) preloadNext(i); }
     if(!dragging){ const decay=Math.pow(0.94,k60); if(Math.abs(vSpin)>1e-4){ if(mode==='earth') spin+=vSpin*k60; else offset+=vSpin*k60; } if(Math.abs(vTilt)>1e-4) tilt=Math.max(-1.25, Math.min(1.25, tilt+vTilt*k60)); vSpin*=decay; vTilt*=decay; }
     if(Math.abs(zoomTarget-dist)>1e-4){ dist+=(zoomTarget-dist)*(1-Math.exp(-dt/0.12)); cam.position.z=dist; }
     const tpx=texelPx(dist); U.uBicubic.value=tpx>1.15?1:0; perf.texelPx=+tpx.toFixed(2);   // magnified: bicubic; minified: bilinear is right

@@ -20,27 +20,51 @@
   const TILE = 512, G = 4, GOP = 12, MAX_DEC = 16, RING = 3, FADE_MS = 300, LINGER_MS = 2500, BUF_CAP = 160e6;
 
   window.CloudTiles = function (o) {
-    const renderer = o.renderer, planet = o.planet, cam = o.cam, stage = o.stage, U = o.U, base = o.base || 'tiles/';
+    const renderer = o.renderer, planet = o.planet, cam = o.cam, stage = o.stage, U = o.U;
+    let base = o.base || 'tiles/', fallback = null, frames = null, onReady = null;
     const levels = o.levels || [5, 4];
     const supported = !!(window.VideoDecoder && window.EncodedVideoChunk && window.VideoFrame && VideoFrame.prototype.copyTo && renderer.capabilities.isWebGL2);
-    const st = { tiles: 0, decoders: 0, bytes: 0, decoded: 0, dropped: 0, sharpMs: null, level: 0, on: 0, err: null, formats: {}, updMax: 0, compMax: 0, makeMax: 0, feedMax: 0 };
-    const api = { supported, stats: st, idx: {}, finestWidth: () => 4096, update: () => {}, view: () => null };
+    const st = { tiles: 0, decoders: 0, bytes: 0, decoded: 0, dropped: 0, sharpMs: null, level: 0, on: 0, err: null, formats: {}, updMax: 0, compMax: 0, makeMax: 0, feedMax: 0, base: base };
+    const api = { supported, stats: st, idx: {}, coverage: null, finestWidth: () => 4096, update: () => {}, view: () => null, start: () => {} };
     if (!supported) return api;
 
-    // ---- the indexes
+    // ---- the indexes. One index per level covers every frame the tiles were built for, which need not be the frames
+    // the page plays: the tile set may be one day of a ten-day page (or, later, more days than the page has). `start`
+    // gets the page's frame names and builds `map`, page frame -> tile frame (-1 = no tile that frame); the page's
+    // clock index goes through it. The indexes and streams come from `base` (the manifest's asset host) and, if that
+    // fails, from `fallback` (the copy beside the page).
     const idx = api.idx;
     const loading = {};
+    let map = null;
+    function fetchIndex(b, L) { return fetch(`${b}L${L}.json`).then(r => r.ok ? r.json() : null); }
     function loadIndex(L) {
       if (loading[L]) return loading[L];
-      loading[L] = fetch(`${base}L${L}.json`).then(r => r.ok ? r.json() : null).then(j => {
-        if (j) { j.keySet = {}; for (const k in j.tiles) j.keySet[k] = new Set(j.tiles[k].keys); j.N = 1 << L; }
-        idx[L] = j;
-        if (j && j.codec) VideoDecoder.isConfigSupported({ codec: j.codec }).then(s => { if (!s.supported) { st.err = `codec ${j.codec} unsupported`; idx[L] = null; } });
-        return j;
-      }).catch(() => { idx[L] = null; });
+      loading[L] = fetchIndex(base, L).catch(() => null)
+        .then(j => (j || !fallback || fallback === base) ? j : fetchIndex(fallback, L).then(j2 => { if (j2) { base = fallback; st.base = base; } return j2; }).catch(() => null))
+        .then(j => {
+          if (j) { j.keySet = {}; for (const k in j.tiles) j.keySet[k] = new Set(j.tiles[k].keys); j.N = 1 << L; }
+          idx[L] = j;
+          if (j && j.codec) VideoDecoder.isConfigSupported({ codec: j.codec }).then(s => { if (!s.supported) { st.err = `codec ${j.codec} unsupported`; idx[L] = null; } });
+          if (j && frames && !map) mapFrames(j);
+          return j;
+        }).catch(() => { idx[L] = null; });
       return loading[L];
     }
-    levels.forEach(loadIndex);
+    function mapFrames(j) {
+      const pos = {}; j.frames.forEach((n, k) => { pos[n] = k; });
+      map = new Int32Array(frames.length).fill(-1);
+      let n = 0, first = null, last = null;
+      frames.forEach((name, i) => { if (name in pos) { map[i] = pos[name]; n++; if (first === null) first = name; last = name; } });
+      api.coverage = { n, first, last, tileFrames: j.frames.length };
+      st.frames = n;
+      if (onReady) onReady(api.coverage);
+    }
+    api.start = function (s) {
+      if (s.base) { base = s.base; st.base = base; }
+      fallback = s.fallback || null; frames = s.frames || null; onReady = s.onReady || null;
+      levels.forEach(loadIndex);
+    };
+    if (o.base) levels.forEach(loadIndex);                    // the older calling convention: everything relative to the page
     function has(L, tx, ty) { const j = idx[L]; return !!(j && j.tiles[`${((tx % j.N) + j.N) % j.N}_${ty}`]); }
 
     // ---- the atlas: G x G tiles, r = opacity, gb = flow, a = 1 where a tile has been drawn
@@ -205,7 +229,9 @@
       const vy0 = Math.max(0, Math.floor((90 - view.lat1) / tdeg)), vy1 = Math.min(N / 2 - 1, Math.floor((90 - view.lat0) / tdeg));
       return { L, N, tx0, ty0, w: G, h: G, vx0, vx1, vy0, vy1 };
     }
-    api.finestWidth = function () {                          // for the zoom cap: the finest level with a tile under the view centre
+    let lastGi = 0;
+    api.finestWidth = function () {                          // for the zoom cap: the finest level with a tile under the view centre, on a frame the tiles cover
+      if (map && (lastGi >= map.length || map[lastGi] < 0)) return 4096;
       for (const L of levels) { const j = idx[L]; if (!j) continue; const tdeg = 360 / j.N;
         if (has(L, Math.floor((view.lon + 180) / tdeg), Math.floor((90 - view.lat) / tdeg))) return TILE << L; }
       return 4096;
@@ -217,12 +243,14 @@
     // ---- the loop
     let active = null;                                       // {L, N, tx0, ty0, w, h, ids:Set}
     let dirty = false, dirtyFeed = false, lastI = -1, on = 0, wantOn = false, changedAt = 0;
-    api.update = function (i, dt) {
+    api.update = function (gi, dt) {
       const tU = performance.now();
+      const i = map ? (gi < map.length ? map[gi] : -1) : gi;   // the page's frame -> the tiles' frame; -1 = the tiles do not cover this frame
+      lastGi = gi;
       measureView();
       // which level: the finest whose texel is not much smaller than a CSS pixel and whose tiles fit
       let rect = null;
-      if (view.texel3 > 1.25) for (const L of levels) {
+      if (view.texel3 > 1.25 && i >= 0) for (const L of levels) {
         if (view.texel3 / (1 << (L - 3)) < 0.6) continue;                 // a level may be minified up to ~1.7x; finer than that is wasted decoding
         rect = rectFor(L); if (rect) break;
       }

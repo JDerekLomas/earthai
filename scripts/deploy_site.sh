@@ -8,7 +8,9 @@
 #   Use it when another session has regenerated an asset for a page change that is not in HEAD yet
 #   (2026-09-19: the cloud-height session rewrote clouds.mp4 4096x1520 -> 4096x2272 while HEAD's page
 #   still read the 1520-tall layout; deploying the working tree would have shipped mush).
-# The globe clip is checked against clouds.json before upload: the frame height must be height + code.strip.
+# The globe clip is checked against clouds.json before upload: the frame height must be height + code.height_rows
+# + code.strip. With a per-day manifest (`days`), the first day's 4k clip is the one checked, if it is on disk; the
+# other days' clips and the ten-day tiles live on R2 (scripts/r2_sync.py), not under site/.
 set -e
 cd "$(dirname "$0")/.."
 SITE=${SITE:-https://earthai-scales.vercel.app}
@@ -25,10 +27,15 @@ for p in $KEEP_LIVE; do
   echo "kept live $p ($(wc -c < "$D/site/$p") bytes)"
 done
 rsync -a --files-from="$D/assets.txt" . "$D/"
-if [ -f "$D/site/globe/clouds.json" ] && [ -f "$D/site/globe/clouds.mp4" ] && command -v ffprobe >/dev/null; then
-  want=$(python3 -c "import json; c=json.load(open('$D/site/globe/clouds.json')); print(c['height']+c['code'].get('strip',0))")
-  have=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$D/site/globe/clouds.mp4")
-  [ "$want" = "$have" ] || { echo "globe/clouds.mp4 is $have px tall but clouds.json says $want: another session's clip? use KEEP_LIVE"; rm -rf "$D"; exit 1; }
+if [ -f "$D/site/globe/clouds.json" ] && command -v ffprobe >/dev/null; then
+  clip=$(python3 -c "import json; c=json.load(open('$D/site/globe/clouds.json')); print(c['days'][0]['clips']['4k'] if c.get('days') else 'clouds.mp4')")
+  if [ -f "$D/site/globe/$clip" ]; then
+    want=$(python3 -c "import json; c=json.load(open('$D/site/globe/clouds.json')); print(c['height']+c['code'].get('height_rows',0)+c['code'].get('strip',0))")
+    have=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of csv=p=0 "$D/site/globe/$clip")
+    [ "$want" = "$have" ] || { echo "globe/$clip is $have px tall but clouds.json says $want: another session's clip? use KEEP_LIVE"; rm -rf "$D"; exit 1; }
+  else
+    echo "note: globe/$clip is not under site/ (the clips are on R2); no clip-height check"
+  fi
 fi
 echo "deploying $(git rev-parse --short HEAD) from $D ($(du -sh "$D" | cut -f1))"
 cd "$D/site" && npx vercel --prod --yes 2>&1 | grep -E "Production|Aliased|Error|error" | head -5
