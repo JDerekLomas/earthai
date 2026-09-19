@@ -269,9 +269,10 @@ def ptree_clp(t: datetime) -> tuple[dict[str, np.ndarray], int] | None:
     for k in ("CLOT", "CLTH", "CLTT", "CLTYPE", "QA"):
         d = h[k]
         a = d[()]
-        fill = d.attrs["missing_value"][0]
         v = a.astype(np.float32) * float(d.attrs["scale_factor"][0]) + float(d.attrs["add_offset"][0])
-        v[a == fill] = np.nan
+        # missing_value says -32768 but the files hold -32766/-32767 (and 255 for the type): anything under
+        # valid_min (0 for every one of these) is no retrieval
+        v[(a == d.attrs["missing_value"][0]) | (a < 0)] = np.nan
         out[k] = v
     h.close()
     return out, buf.tell()
@@ -520,10 +521,12 @@ class S3Range(Reads):
         return r.content
 
 
-def goes_l2(bucket: str, product: str, var: str, t: datetime) -> tuple[np.ndarray, np.ndarray, int] | None:
-    """One GOES ABI L2 full-disc product variable (2 km fixed grid, 5424 x 5424) and its DQF for the slot
-    starting at `t`, by byte range. Returns (value, dqf, bytes) or None when the slot is absent."""
+def goes_l2(bucket: str, product: str, var: str, t: datetime) -> dict | None:
+    """One GOES ABI L2 full-disc product variable and its DQF for the slot starting at `t`, by byte range,
+    with the fixed-grid packing of that product's own resolution (COD is 4 km, ACHA 10 km, ACTP 2 km).
+    Returns {var, dqf, pack: {xscale, xoff, yscale, yoff}, bytes} or None when the slot is absent."""
     import sys
+    import h5py
     sys.path.insert(0, str(Path(__file__).parent))
     from fetch_goes_aws import list_keys
     keys = list_keys(bucket, product, t - timedelta(seconds=30), t + timedelta(minutes=9, seconds=30), None)
@@ -531,5 +534,146 @@ def goes_l2(bucket: str, product: str, var: str, t: datetime) -> tuple[np.ndarra
         return None
     url = f"https://{bucket}.s3.amazonaws.com/{keys[0][1]}"
     f = S3Range(url)
+    h = h5py.File(f, "r")
+    pack = {"xscale": float(h["x"].attrs["scale_factor"][0]), "xoff": float(h["x"].attrs["add_offset"][0]),
+            "yscale": float(h["y"].attrs["scale_factor"][0]), "yoff": float(h["y"].attrs["add_offset"][0])}
+    h.close()
     v, n = read_vars(f, (var, "DQF"))
-    return v[var], v["DQF"], n
+    return {"value": v[var], "dqf": v["DQF"], "pack": pack, "bytes": n}
+
+
+# ---------------------------------------------------------------- cloud products, one shape for every agency
+#
+# Each `*_products(t)` returns None (no product for the slot) or a dict of fields on the SOURCE grid, each
+# float32 with NaN where the retrieval says nothing:
+#   cod    cloud optical thickness (0.55-0.64 um), 0 where the product classifies the pixel as clear
+#   cth    cloud-top height in metres; NaN where clear or not retrieved
+#   clear  1 where the classification is clear sky, 0 where cloud, NaN where unclassified
+#   ice    1 where the top is ice (or mixed / multilayer with ice above), 0 where water, NaN where unclassified
+# plus `geom`, what fetch_clouds needs to place it: ("abi", pack) / ("fci", pack) / ("latlon", grid) /
+# ("area", satpy_area), one per field when the fields sit on different grids.
+
+def goes_products(bucket: str, t: datetime) -> tuple[dict, int] | None:
+    """NOAA's ABI L2: COD (4 km, daytime), ACHA height (10 km), ACTP phase (2 km: 0 clear, 1 liquid,
+    2 supercooled, 3 mixed, 4 ice, 5 unknown). ~16 MB a slot by byte range."""
+    cod = goes_l2(bucket, "ABI-L2-CODF", "COD", t)
+    ht = goes_l2(bucket, "ABI-L2-ACHAF", "HT", t)
+    ph = goes_l2(bucket, "ABI-L2-ACTPF", "Phase", t)
+    if ht is None or ph is None:
+        return None
+    out, n = {}, ht["bytes"] + ph["bytes"]
+    phase = ph["value"]
+    known = np.isfinite(phase) & (phase != 5)
+    out["clear"] = np.where(known, (phase == 0).astype(np.float32), np.nan).astype(np.float32)
+    out["ice"] = np.where(known & (phase > 0), (phase >= 3).astype(np.float32), np.nan).astype(np.float32)
+    out["cth"] = np.where(np.isfinite(ht["value"]) & (ht["dqf"] == 0), ht["value"], np.nan).astype(np.float32)
+    geom = {"clear": ("abi", ph["pack"]), "ice": ("abi", ph["pack"]), "cth": ("abi", ht["pack"])}
+    if cod is not None:
+        n += cod["bytes"]
+        # DQF 0 = good retrieval; the product leaves clear pixels at 0 with a non-zero DQF, keep those as 0
+        c = cod["value"]
+        out["cod"] = np.where(np.isfinite(c), c, np.nan).astype(np.float32)
+        geom["cod"] = ("abi", cod["pack"])
+    out["geom"] = geom
+    return out, n
+
+
+def clp_products(t: datetime) -> tuple[dict, int] | None:
+    """JAXA's CLP: optical thickness, top height (km -> m), ISCCP type (0 clear; 1-3 Ci/Cs/Dc high, 4-6 Ac/As/Ns
+    mid, 7-9 Cu/Sc/St low). Daytime only; at night the fields are all missing and None is returned."""
+    got = ptree_clp(t)
+    if got is None:
+        return None
+    d, n = got
+    ty = d["CLTYPE"]
+    if np.isfinite(d["CLOT"]).mean() < 0.01:
+        return None
+    known = np.isfinite(ty)
+    out = {"cod": np.where(known & (ty == 0), 0.0, d["CLOT"]).astype(np.float32),
+           "cth": np.where(known & (ty > 0), d["CLTH"] * 1000.0, np.nan).astype(np.float32),
+           "clear": np.where(known, (ty == 0).astype(np.float32), np.nan).astype(np.float32),
+           "ice": np.where(known & (ty > 0), (ty <= 3).astype(np.float32), np.nan).astype(np.float32)}
+    out["geom"] = {k: ("latlon", CLP_GRID) for k in ("cod", "cth", "clear", "ice")}
+    return out, n
+
+
+def oca_products(t: datetime) -> tuple[dict, int] | None:
+    """EUMETSAT's Optimal Cloud Analysis for MTG-I1 (2 km, day and night): COT in log10 for up to two layers
+    (summed), top height in m, phase (0 none, 1 water, 2 ice, 3 multilayer ice over water, 4 other). The file
+    interleaves its variables' chunks, so it comes whole (~167 MB)."""
+    import h5py
+    feats = [f for f in eum_search(FCI_OCA, t - timedelta(minutes=1), t + timedelta(minutes=9))
+             if abs((eum_product_start(f) - t).total_seconds()) < 300]
+    if not feats:
+        return None
+    ents = eum_entries(feats[0], r"OCA--FD------NC4E.*\.nc$")
+    if not ents:
+        return None
+    raw = eum_download(ents[0]["href"])
+    h = h5py.File(io.BytesIO(raw), "r")
+    cot = h["retrieved_cloud_optical_thickness"]
+    c = cot[()]
+    fill = cot.attrs["_FillValue"][0]
+    tau = np.zeros(c.shape[:2], np.float32)
+    seen = np.zeros(c.shape[:2], bool)
+    for layer in range(c.shape[2]):
+        v = c[..., layer]
+        ok = v != fill
+        tau[ok] += 10.0 ** (v[ok].astype(np.float32) * float(cot.attrs["scale_factor"][0]))
+        seen |= ok
+    cth = h["retrieved_cloud_top_height"][()].astype(np.float32)
+    cth[h["retrieved_cloud_top_height"][()] == 65535] = np.nan
+    phase = h["retrieved_cloud_phase"][()].astype(np.int16)
+    pack = {"xscale": float(h["x"].attrs["scale_factor"][0]), "xoff": float(h["x"].attrs["add_offset"][0]),
+            "yscale": float(h["y"].attrs["scale_factor"][0]), "yoff": float(h["y"].attrs["add_offset"][0])}
+    h.close()
+    # phase 0 is "no retrieval": clear sky, or a pixel the scheme could not process (off the disc, bad data).
+    # Inside the disc, 0 with no COT is read as clear.
+    clear = np.where(phase == 0, 1.0, 0.0).astype(np.float32)
+    out = {"cod": np.where(seen, tau, np.where(phase == 0, 0.0, np.nan)).astype(np.float32),
+           "cth": np.where(seen, cth, np.nan).astype(np.float32),
+           "clear": clear,
+           "ice": np.where(phase > 0, ((phase == 2) | (phase == 3)).astype(np.float32), np.nan).astype(np.float32)}
+    out["geom"] = {k: ("fci", pack) for k in ("cod", "cth", "clear", "ice")}
+    return out, len(raw)
+
+
+def iodc_products(t: datetime, workdir: Path | None = None) -> tuple[dict, int] | None:
+    """EUMETSAT's Meteosat-9 (IODC) cloud-top height (GRIB, 9 km, 320 m steps) and cloud mask (GRIB, 3 km:
+    0 clear over water, 1 clear over land, 2 cloud, 3 no data), read by satpy's seviri_l2_grib. No optical
+    thickness exists for the Indian Ocean service; `cod` is absent and fetch_clouds keeps its own opacity."""
+    import warnings
+    warnings.filterwarnings("ignore")
+    from satpy import Scene
+    got, n = {}, 0
+    d = Path(tempfile.mkdtemp(prefix="iodc_", dir=str(workdir) if workdir else None))
+    try:
+        for col, name, key in ((IODC_CTH, "cloud_top_height", "cth"), (IODC_CLM, "cloud_mask", "clm")):
+            feats = [f for f in eum_search(col, t - timedelta(minutes=1), t + timedelta(minutes=14))
+                     if 0 <= (eum_product_start(f) - t).total_seconds() < 900]
+            if not feats:
+                continue
+            ents = eum_entries(feats[0], r"\.grb$")
+            if not ents:
+                continue
+            dest = eum_download(ents[0]["href"], d / ents[0]["title"])
+            n += dest.stat().st_size
+            sc = Scene(filenames=[str(dest)], reader="seviri_l2_grib")
+            sc.load([name])
+            got[key] = (sc[name].values.astype(np.float32), sc[name].attrs["area"])
+    finally:
+        for p in d.glob("*"):
+            p.unlink()
+        d.rmdir()
+    if "clm" not in got:
+        return None
+    clm, clm_area = got["clm"]
+    known = np.isfinite(clm) & (clm != 3)
+    out = {"clear": np.where(known, (clm <= 1).astype(np.float32), np.nan).astype(np.float32)}
+    geom = {"clear": ("area", clm_area)}
+    if "cth" in got:
+        cth, cth_area = got["cth"]
+        out["cth"] = np.where(np.isfinite(cth) & (cth > 0), cth, np.nan).astype(np.float32)
+        geom["cth"] = ("area", cth_area)
+    out["geom"] = geom
+    return out, n

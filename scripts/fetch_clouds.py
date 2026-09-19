@@ -712,6 +712,151 @@ def fetch_official(sat, cfg, out, start, end, workers, log, range_reads):
     click.echo(f"fetched {total / 1e9:.2f} GB")
 
 
+# ---------------------------------------------------------------- cloud products (Stage B): the agencies' retrievals
+
+# The page's opacity from an optical thickness. The brief's 1 - exp(-0.75 tau) saturates a tau-2 cloud at 0.78,
+# where the two-band field puts a marine stratocumulus deck (tau ~10) at ~0.5, and no single exponential fits
+# (best g 0.07, rmse 0.139). The two-stream reflectance A x/(1+x), x = (1-g) tau, does: fitted on GOES-East
+# 12 Sep 17Z against the two-band opacity, A 0.88, g 0.86 (the droplet asymmetry parameter; textbook 0.85),
+# rmse 0.123, within 0.05 of the bin medians from tau 3 to tau 70. So the scale of the field is kept and only
+# the PATTERN comes from the retrieval, which is the point: every satellite's tau is the same physical quantity.
+PRODUCTS = {"cod_a": 0.88, "cod_asym": 0.86,                          # opacity = A x/(1+x), x = (1-asym) tau (see cod_opacity)
+            "cod_mu_lo": 0.25, "cod_mu_hi": 0.45,                    # COD is daytime-only: it takes over from the two-band
+            "clear_damp": 0.25}                                      # opacity through this cos(solar zenith) ramp; a confident
+                                                                     # clear classification scales the two-band opacity by this
+
+
+def products_geometry(sat: str, kind: str, info, cache: dict) -> DiskGeometry:
+    """A DiskGeometry for one product field's source grid, cached by (kind, packing)."""
+    key = (kind, json.dumps(info, sort_keys=True, default=str) if kind != "area" else (str(info.area_extent), info.shape))
+    if key in cache:
+        return cache[key]
+    sub_lon = SATS[sat]["lon"]
+    if kind == "abi":
+        px = abs(info["xscale"])                                    # 5.6e-5 rad = 2 km, 1.12e-4 = 4 km, 2.8e-4 = 10 km
+        pool, blur = (2, 1.0) if px < 8e-5 else (1, 1.0) if px < 2e-4 else (1, 0.5)
+        g = DiskGeometry.geos(sub_lon, "x", lambda ax, ay: ((ax - info["xoff"]) / info["xscale"], (ay - info["yoff"]) / info["yscale"]), pool)
+        g.blur = blur
+    elif kind == "fci":
+        g = DiskGeometry.fci(sub_lon, info["xscale"], info["xoff"], info["yscale"], info["yoff"], pool=2)
+    elif kind == "latlon":
+        g = DiskGeometry.latlon(sub_lon, **info)
+    elif kind == "area":
+        g = DiskGeometry.area(sub_lon, info, pool=1, blur=0.8 if info.shape[0] > 2000 else 0.5)
+    else:
+        raise ValueError(kind)
+    cache[key] = g
+    return g
+
+
+def products_paths(sat: str, t: datetime) -> dict[str, Path]:
+    d = ROOT / "products" / sat
+    return {k: d / f"{slot_name(t)}_{k}.png" for k in ("cod", "cth", "cls")}
+
+
+def load_products(sat: str, t: datetime) -> dict | None:
+    """The sampled products for one satellite slot, or None. cod: tau (NaN = none); cth: metres (NaN = none);
+    clear / ice: fractions 0..1 (NaN = unclassified)."""
+    p = products_paths(sat, t)
+    if not p["cls"].exists():
+        return None
+    out = {}
+    cls = np.asarray(Image.open(p["cls"])).astype(np.float32)
+    valid = cls[..., 2] > 0
+    out["clear"] = np.where(valid, cls[..., 0] / 255.0, np.nan).astype(np.float32)
+    out["ice"] = np.where(valid, cls[..., 1] / 255.0, np.nan).astype(np.float32)
+    out["cod"] = load16(p["cod"], 100.0) if p["cod"].exists() else None
+    out["cth"] = (load16(p["cth"], 1.0) - 1.0) if p["cth"].exists() else None
+    return out
+
+
+@cli.command()
+@click.option("--sat", required=True, type=click.Choice(sorted(SATS)))
+@click.option("--start", required=True)
+@click.option("--end", required=True)
+@click.option("--workers", default=4, show_default=True)
+def products(sat, start, end, workers):
+    """The agency's cloud retrievals for this satellite onto the grid, data/clouds/products/<sat>/<slot>_{cod,cth,cls}.png:
+    cod = optical thickness x 100 (uint16, 0 = no retrieval; 0.01 is written for a retrieved zero), cth = top height in
+    metres + 1 (uint16, 0 = none), cls = RGB: clear fraction x 255, ice-top fraction x 255, 255 where classified.
+    GOES: NOAA ABI-L2 CODF/ACHAF/ACTPF (no key). Himawari: JAXA CLP (daytime). MTG: EUMETSAT OCA (day and night).
+    Meteosat-9: EUMETSAT CTH + cloud mask (GRIB), no optical thickness exists for that service."""
+    import official_sources as osrc
+    cfg = SATS[sat]
+    out = ROOT / "products" / sat
+    out.mkdir(parents=True, exist_ok=True)
+    (ROOT / "tmp").mkdir(exist_ok=True)
+    step = cfg.get("step", 10)
+    todo = [t for t in slots_between(start, end, step) if not products_paths(sat, t)["cls"].exists()]
+    click.echo(f"{sat} products: {len(todo)} slots")
+    log = open(ROOT / "fetch.jsonl", "a")
+    geoms: dict = {}
+    glock = __import__("threading").Lock()
+
+    def source(t):
+        if cfg["kind"] == "abi":
+            return osrc.goes_products(cfg["bucket"], t)
+        if sat == "himawari9":
+            return osrc.clp_products(t)
+        if sat == "mtg":
+            return osrc.oca_products(t)
+        if sat == "iodc":
+            return osrc.iodc_products(t, workdir=ROOT / "tmp")
+        raise click.ClickException(f"no product source for {sat}")
+
+    def one(t):
+        for attempt in range(4):
+            try:
+                t0 = time.time()
+                got = source(t)
+                if got is None:
+                    return t, None, 0, 0.0
+                d, n = got
+                fields = {}
+                for k in ("cod", "cth", "clear", "ice"):
+                    if k in d:
+                        kind, info = d["geom"][k]
+                        with glock:
+                            g = products_geometry(sat, kind, info, geoms)
+                        fields[k] = g.sample(d[k])
+                return t, fields, n, time.time() - t0
+            except Exception as e:                                  # noqa: BLE001
+                click.echo(f"   retry {attempt + 1} {slot_name(t)}: {type(e).__name__}: {e}")
+                time.sleep(15 * (attempt + 1))
+        return t, None, 0, 0.0
+
+    total = 0
+    with ThreadPoolExecutor(workers) as pool:
+        for t, f, nbytes, dt in pool.map(one, todo):
+            p = products_paths(sat, t)
+            if f is None:
+                click.echo(f"   none {slot_name(t)}")
+                continue
+            clear = f.get("clear")
+            if clear is None:
+                click.echo(f"   no classification {slot_name(t)}")
+                continue
+            ice = f.get("ice", np.full_like(clear, np.nan))
+            valid = np.isfinite(clear)
+            cls = np.zeros((H, W, 3), np.uint8)
+            cls[..., 0] = np.clip(np.nan_to_num(clear) * 255, 0, 255).round()
+            cls[..., 1] = np.clip(np.nan_to_num(ice) * 255, 0, 255).round()
+            cls[..., 2] = valid * 255
+            Image.fromarray(cls).save(p["cls"].with_suffix(".tmp.png"), compress_level=3)
+            p["cls"].with_suffix(".tmp.png").rename(p["cls"])
+            if "cod" in f:
+                cod = f["cod"]
+                cod = np.where(np.isnan(cod) & (clear > 0.5), 0.0, cod)          # a clear pixel has tau 0, not "none"
+                save16(p["cod"], np.clip(cod, 0, 655.0), 100.0)                   # save16 floors a stored value at 1, so a true 0 reads 0.01
+            if "cth" in f:
+                save16(p["cth"], np.clip(f["cth"], 0, 65000) + 1.0, 1.0)
+            total += nbytes
+            log.write(json.dumps({"sat": sat, "slot": slot_name(t), "products": list(f), "fetched_bytes": nbytes, "seconds": round(dt, 1)}) + "\n")
+            log.flush()
+            click.echo(f"   {slot_name(t)}  {nbytes / 1e6:.1f} MB  {dt:.0f}s  {' '.join(sorted(f))}")
+    click.echo(f"fetched {total / 1e9:.2f} GB")
+
+
 @cli.command()
 @click.option("--sat", required=True)
 @click.option("--slots", default=8, show_default=True, help="how many slots, spread over what is on disk")
@@ -867,8 +1012,37 @@ def opacity_frame(sat: str, t: datetime, lon, lat, vis_clear, water, clear_dir: 
     g = np.clip((c_in - glint_cos(t, lon, lat, SATS[sat]["lon"])) / (c_in - c_out), 0, 1)
     wv = np.where(water, wv * g, wv)
     op = ir + wv * np.clip(np.nan_to_num(vo, nan=0.0) - ir, 0, None)
+    op = apply_products(sat, t, op, mu)
     op[~np.isfinite(bt)] = np.nan
     return op
+
+
+def cod_opacity(tau: np.ndarray) -> np.ndarray:
+    """Opacity from an optical thickness: the two-stream reflectance of a non-absorbing cloud, A x / (1 + x)
+    with x = (1 - g) tau. g is the droplet asymmetry parameter (fitted 0.86; textbook 0.85) and A the ceiling
+    a very thick cloud reaches on the page (0.88, where the two-band field puts one). See `fit-products`."""
+    x = (1 - PRODUCTS["cod_asym"]) * tau
+    return (PRODUCTS["cod_a"] * x / (1 + x)).astype(np.float32)
+
+
+def apply_products(sat: str, t: datetime, op: np.ndarray, mu: np.ndarray) -> np.ndarray:
+    """Where the agency's retrieval exists for this slot, the optical thickness takes over the daytime opacity
+    through the cos(solar zenith) ramp cod_mu_lo..cod_mu_hi (COD is retrieved by day only; night keeps the
+    two-band field, blended through twilight as before), and a confident clear classification scales the
+    remaining two-band opacity by clear_damp (mostly the infrared night term over cooling deserts, which the
+    mask sees as ground). Without products the field is untouched."""
+    pr = load_products(sat, t)
+    if pr is None:
+        return op
+    if pr["cod"] is not None:
+        tau = pr["cod"]
+        has = np.isfinite(tau)
+        wc = np.clip((mu - PRODUCTS["cod_mu_lo"]) / (PRODUCTS["cod_mu_hi"] - PRODUCTS["cod_mu_lo"]), 0, 1)
+        wc = wc * wc * (3 - 2 * wc) * has
+        op = op * (1 - wc) + cod_opacity(np.nan_to_num(tau)) * wc
+    clear = pr["clear"]
+    damp = 1 - (1 - PRODUCTS["clear_damp"]) * np.clip(np.nan_to_num(clear, nan=0.0), 0, 1)
+    return (op * damp).astype(np.float32)
 
 
 @cli.command()
@@ -971,6 +1145,10 @@ def height_frame(sat: str, t: datetime, clear_dir: Path, lut=None) -> np.ndarray
     tod = (t.hour * 60 + t.minute) // 10
     bt_clear = load16(clear_dir / f"bt_clear_{tod:03d}.png", BT_SCALE)
     h = np.clip((bt_clear - bt) / LAPSE_K_PER_KM, 0, HEIGHT_MAX_KM)
+    pr = load_products(sat, t)
+    if pr is not None and pr["cth"] is not None:                # the agency's retrieved top where it has one
+        cth = pr["cth"]
+        h = np.where(np.isfinite(cth), np.clip(cth / 1000.0, 0, HEIGHT_MAX_KM), h)
     h[~np.isfinite(bt)] = np.nan
     return h.astype(np.float32)
 
