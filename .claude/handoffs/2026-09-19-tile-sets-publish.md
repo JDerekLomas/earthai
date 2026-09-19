@@ -44,3 +44,36 @@ on S3), codec avc1.640016, gop 12, tv-range, ten-day clear-sky reference. Satell
 ## Report back
 Append here: prefixes, bytes uploaded, upload rate, the three probe timings, anything that popped. SendMessage
 `earthai-46` one line DONE/BLOCKED + URL after each set.
+
+## Report — set 1, GOES-East ten-day (2026-09-19, session tile-sets, commit 9de5321)
+1. **Prefix** `globe/tiles_goes19_2026-09-06_2026-09-15/` on `earthai-clouds`: 148 files, **2,059 MB** (L5 112 streams 1.5 GB,
+   L4 34 streams 559 MB, `L5.json` 1.39 MB, `L4.json` 0.44 MB), `r2_sync.py --workers 6`, **1.1 MB/s, 30.9 min** (the more-days
+   report's 3–4 MB/s was not reached; six parallel wrangler puts of 10–28 MB files, so the uplink, not the per-file overhead).
+   Verified on `https://clouds.sourcelibrary.org/...`: `L5.json` 200 (MISS then HIT), a Range GET on `L5/10_10.h264` 206 with
+   `Content-Range: bytes 0-100/16082608` and the CORS headers; MISS then HIT.
+2. **Manifest** `site/globe/clouds.json` (hand-edited, single line, json roundtrip verified byte-identical first): `tiles` =
+   `["tiles_goes19_2026-09-06_2026-09-15/", "tiles/"]`. Deployed with `sh scripts/deploy_site.sh` (from HEAD, so the manifest
+   must be committed BEFORE deploying).
+3. **Probe, live page, headless Chrome (Metal, 1440x900 dpr 2), Chile (−75, −25), set 0 chosen, level 5, 8 tiles, `on` = 1:**
+   8 Sep 19:30Z **tiles-to-sharp 2,000 / 2,162 ms** (two runs; 2.4–2.9 MB); 14 Sep 11:00Z (page frame 1218 → set frame 1217,
+   the slot after the unscanned 10:40Z) **1,099 / 2,053 ms** (4.0–5.3 MB); 12 Sep 19:40Z **1,600 / 1,483 ms** (8.6 MB). First
+   run of each is an edge MISS. Coverage after both indexes arrive: n = 1439 of 1440, sets = 2, and the sentence reads
+   "The tiles are built for all 10 days; one ten-minute slot the satellite did not scan falls back to the whole-Earth clip."
+   (The old branch would have said "10 of the 10 days, with gaps ... the other days stop at ten kilometres" for 1439/1440, so
+   that copy was changed for the covers-every-day case; the partial-days branch is unchanged.)
+4. **What popped.** (a) The set choice was per FRAME (one set per frame, first listed wins), so a GOES-West set listed after
+   GOES-East would never have been drawn on the frames both cover. `tiles.js` now keeps a per-set frame map and, on a frame
+   several sets cover, draws the first listed set that has a tile under the view centre (the overlap goes to whoever is listed
+   first; a pan across it is a new tile set like any pan). (b) `uTileSub` WAS hardcoded to −75 in `index.html`; it is now set
+   by `tiles.js` from the drawn set's index `sats[0]` through a table that copies `fetch_clouds.py` SATS (goes19 −75.0,
+   goes18 −137.0, himawari9 140.7, mtg 0, iodc 45.5); the page's initial value stays −75 until a set draws. Probe confirms
+   −75.0 with the GOES-East set. (c) The probe's first coverage read must wait for the LARGE index: `tiles/L5.json` (12 Sep,
+   180 KB) arrives before the ten-day set's 1.39 MB one, so `coverage` is briefly the 12 Sep set alone and the sentence
+   briefly says one day; it corrects itself when the ten-day index lands (~1 s). (d) A HEAD on a not-yet-uploaded key
+   returned 404 `cf-cache-status: DYNAMIC`, not cached — but do not probe keys before they exist anyway. (e) `stats.base`
+   still reports the first set's construction-time default (`tiles/`) — cosmetic, unchanged. (f) puppeteer: `waitUntil:
+   'load'` never resolves on this page (the clip keeps streaming); use `domcontentloaded` and end with `process.exit(0)`.
+   Probe script: `~/.claude/jobs/14978602/tmp/probe.mjs` (job tmp; copy it into `scripts/` if a third set makes it routine).
+5. **Next: set 2, GOES-West** (`data/clouds/tiles/tenday/goes18/`, not on disk yet at 18:15) → prefix
+   `globe/tiles_goes18_2026-09-06_2026-09-15/`, list it SECOND (after GOES-East, before `tiles/`), so the overlap over the
+   Rockies/eastern Pacific stays GOES-East; the per-set longitude and per-view set choice above are already in.
