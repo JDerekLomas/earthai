@@ -136,6 +136,7 @@
         </div>
         <button id="cover" aria-pressed="false" title="where the satellites can see">Coverage</button>
         <button id="blendBtn" aria-pressed="true" title="move the cloud between the ten-minute frames along its measured motion">Blend</button>
+        <button id="nightBtn" aria-pressed="true" title="draw the night side's cloud lit by a soft ambient, so the weather reads all the way round; off = by starlight and moon only">Night cloud</button>
       </div>
     </div>
   </div>
@@ -183,6 +184,7 @@
   <div class="cols">
     <div class="note have"><span class="status">the seams</span><h3 id="satsh">Five satellites, checked with arithmetic</h3><p id="satsp">Where two satellites both see a place at a decent angle, each has its own opinion of the cloud there, and because both opinions are the same physical number they can be compared: the mean difference in opacity across each overlap is printed below, measured over every frame. The two Meteosats come through EUMETSAT's map server as pictures rather than numbers, so their greys are calibrated against a neighbour (MTG against GOES-East over the Atlantic, Meteosat-9 against MTG over Africa) by matching distributions before they are used. Everywhere no satellite sees is drawn honestly clear: the <em>Coverage</em> button shows where that is.</p><p id="seams" class="mono" style="font-size:12px"></p></div>
     <div class="note gate"><span class="status">the poles</span><h3>Nothing looks down on the poles</h3><p>Every geostationary satellite sits over the equator and sees the Earth edge-on past about 60° of latitude, so past 66° there is no cloud on this page at all. The polar caps are the basemap, lit but weatherless.</p></div>
+    <div class="note maybe"><span class="status">the night cloud</span><h3>Lit through the night, by choice</h3><p>On the night side the cloud is measured in the infrared alone (its cold top against the warmer ground), so it is real but softer, and by starlight it would be nearly invisible. This page draws it lit by a soft, cool, shadowless light instead, at about half the brightness of the day side, so the weather can be followed all the way round; the ground and the cities beneath it stay dark. That light is a drawing choice, not a measurement. The <em>Night cloud</em> button switches it off for the version by starlight and moon.</p></div>
     <div class="note maybe"><span class="status">the clear-sky guess</span><h3>Where the method is wrong</h3><p id="wrongp">"What this place looks like with no cloud" is taken from one day of pictures, so a place under cloud all day has no clear reference and its cloud reads thinner than it is. Bright ground (the Atacama, Greenland's ice) is handled by that reference and stays ground; the sun's glint on the sea is switched to the infrared reading alone, so a calm sea at noon is not white. Very cold ground at night, and thin high cloud after dark, are the known failures of an infrared-only night.</p></div>
     <div class="note maybe"><span class="status">the height</span><h3 id="hgth">Every cloud has a top, and it is measured</h3><p id="hgtp">The infrared band reads the temperature of whatever it sees, and the air cools by about 6.5 °C for every kilometre up, so a cloud top 65 °C colder than the ground beneath it is about ten kilometres high. That number, 0 to 16 km for every cloudy pixel, rides in the same clip as the opacity and does three things here: the shadow a cloud throws is as long as its height and the sun's angle say (drawn at three times its true length, because at ten kilometres a pixel a true one is under a pixel for all but the tallest storms); high cloud is a little cooler in colour and keeps the sun for some minutes after the ground below it has gone dark, by the geometry of being higher; and where the top steps up toward the sun, that edge is lit. Two things are wrong with it, and stay wrong: thin cirrus reads too low, because its temperature is a mix of the cold cloud and the warm ground showing through, so a veil at twelve kilometres can come out at five; and a real atmosphere is not a standard one, so the heights are good to a kilometre or two, not a hundred metres.</p></div>
     <div class="note have"><span class="status">between frames</span><h3>Ten minutes, in motion</h3><p>A real frame every ten minutes, twelve of them a second at full speed: two hours a second, a day in twelve seconds. Between two frames the cloud has moved, typically one to three pixels, and a cross-fade would show it fading from one place to the next. So the motion between each frame and the next is measured (optical flow, on the frames themselves) and travels with the clip, and the <em>Blend</em> button carries each frame along it: the older frame is pushed forward, the newer pulled back, and the two are mixed. Nothing is invented; where the motion estimate is wrong the cloud ghosts a little. Switch it off to see the frames step.</p></div>
@@ -254,7 +256,8 @@
     uHasHeight:{value:0}, uHeightKm:{value:16},
     // the sky (see "the sky" below): exposure scales everything drawn, for the opening; the Moon's Earth-fixed direction
     // and how bright its light is tonight (0..1 by phase); a tiled wave texture that breaks up the sea's glint, scrolled by UTC
-    uExposure:{value:1}, uMoon:{value:new THREE.Vector3(0,0,1)}, uMoonLight:{value:0}, uWaves:{value:blank}, uWaveT:{value:0}
+    uExposure:{value:1}, uMoon:{value:new THREE.Vector3(0,0,1)}, uMoonLight:{value:0}, uWaves:{value:blank}, uWaveT:{value:0},
+    uNightCloud:{value:1}                      // 1: night cloud drawn lit by a cool ambient so the weather reads all the way round (a rendering choice, said on the page); 0: by starlight and moon only
   };
   // ---- the air, shared by the planet and its shell: single scattering along the view ray through a thin shell, Rayleigh with
   // a small Mie forward term (O'Neil's model, GPU Gems 2 ch. 16). The optical depth from a point to the sun comes from
@@ -280,7 +283,7 @@
       #define GROUND_N ${lite?2:3}
       uniform sampler2D uBase, uLights, uCover, uCloudA, uCloudB, uTileA, uTileB, uWaves;
       uniform float uMix, uLatMax, uShowCover, uHasCloud, uBicubic, uCloudK, uTileOn, uTileCubic, uTileSub, uHasHeight, uHeightKm;
-      uniform float uExposure, uMoonLight, uWaveT;
+      uniform float uExposure, uMoonLight, uWaveT, uNightCloud;
       uniform vec2 uTileFlow; uniform vec4 uTileRect;
       uniform vec2 uCloudTexel, uFlow; uniform vec3 uSun, uCam, uMoon;
       varying vec2 vUv; varying vec3 vP;
@@ -380,7 +383,7 @@
       // geometry of its height: a top at h km still sees the sun when the sun is acos(R/(R+h)) below the ground's
       // horizon (~3 deg at 10 km), so muC is the cloud's own cosine of the solar zenith, and its dusk band is
       // redder than the ground's because the light reaching it has come the long way through the air.
-      vec3 cloudShade(float hk, float mu, float cov, float refl, float relief, float shadeOn, out float dayC){
+      vec3 cloudShade(float hk, float mu, float cov, float refl, float relief, float shadeOn, out float dayC, out vec3 ambient){
         float hi=smoothstep(6.0, 11.0, hk), lo=1.0-smoothstep(1.0, 4.0, hk);
         float muC=mu+sqrt(2.0*max(hk,0.0)/6378.0);
         dayC=smoothstep(-0.10,0.12,muC);
@@ -389,6 +392,8 @@
         vec3 tint=mix(mix(vec3(0.94,0.955,0.98), vec3(0.965,0.950,0.925), lo), vec3(0.905,0.935,0.99), hi)*(1.0-0.05*hi);
         vec3 cloudDay=tint*(0.08+0.92*pow(clamp(muC*1.15+0.08,0.0,1.0),0.7))*warmC;
         vec3 lit=cloudDay*mix(vec3(0.86,0.91,1.0), vec3(1.0), cov)*refl*(1.0+relief);
+        // the same cloud as if lit by a soft, cool, shadowless ambient: for the night side (see uNightCloud)
+        ambient=tint*0.55*vec3(0.80,0.88,1.0)*mix(vec3(0.86,0.91,1.0), vec3(1.0), cov)*refl*(1.0+relief*0.6);
         return lit*(1.0-0.40*shadeOn);
       }
       void main(){
@@ -471,7 +476,7 @@
         // cloud: white in the sun (a thin one a little blue, from the air beneath it), warm at dusk, blue-grey and faint at
         // night; coloured and lit by its own height (cloudShade), so high cloud stays in the sun after the ground has gone dark
         float dayC;
-        vec3 lit=cloudShade(hk, mu, cov, refl, relief, shadeOn, dayC);
+        vec3 ambient; vec3 lit=cloudShade(hk, mu, cov, refl, relief, shadeOn, dayC, ambient);
         lit*=mix(vec3(1.0), att, 0.7);                                      // the same reddened sun, a little less (high cloud sees it higher)
         // a thick cloud is dark underneath: its flat top away from any lit edge loses a little
         lit*=1.0-0.12*smoothstep(0.65,1.0,cl)*(1.0-clamp(relief*2.0,0.0,1.0));
@@ -480,6 +485,11 @@
         float lining=smoothstep(0.26,0.0,abs(mu))*clamp(slope*3.0,0.0,1.0)*cov*(1.0-cov)*4.0;
         lit+=vec3(1.0,0.93,0.82)*lining*0.30*smoothstep(-0.16,0.04,mu);
         vec3 cloudNight=vec3(0.30,0.36,0.48)*0.0032*(1.0+12.0*ml);            // thick night cloud ~12/255 by starlight, ~40 under a full moon
+        // Derek wants to see the weather continue through the night, lit as close to the day as it can be: so the night cloud is
+        // also drawn as if by a soft, cool, shadowless ambient (about 55% of the day cloud's brightness, its own height tint and
+        // relief kept, blue-shifted, no shadow on the ground). The ground and cities stay dark; only the cloud is lifted. It is a
+        // rendering choice, said on the page, and the Night cloud button turns it off for the starlit version.
+        cloudNight=mix(cloudNight, max(cloudNight, ambient), uNightCloud);
         vec3 col=ground*(1.0-cov)+mix(cloudNight*cov, lit, dayC);
         // the air: what the sun scatters into the view ray on its way here (bluer and paler toward the limb, zero at night).
         // The model's shell is 20x too thick, so its haze is weighted toward the limb: the centre of the disc keeps its contrast
@@ -975,6 +985,8 @@
   coverBtn.addEventListener('click', ()=>{ U.uShowCover.value=U.uShowCover.value?0:1; coverBtn.setAttribute('aria-pressed', !!U.uShowCover.value); });
   let blend=true;
   blendBtn.addEventListener('click', ()=>{ blend=!blend; blendBtn.setAttribute('aria-pressed', blend); });
+  const nightBtn=document.getElementById('nightBtn');
+  nightBtn.addEventListener('click', ()=>{ U.uNightCloud.value=U.uNightCloud.value?0:1; nightBtn.setAttribute('aria-pressed', !!U.uNightCloud.value); });
 
   // One gesture model for mouse, trackpad and touch, on pointer events only: one pointer drags; two pointers pinch to
   // zoom about their midpoint AND drag by the midpoint's motion. Every move is a delta from the previous centroid, so a
