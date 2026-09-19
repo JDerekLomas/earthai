@@ -574,11 +574,63 @@
 
   // ---- loading order: basemap 2048 + poster cloud first (paint), then the video, then the 8192 basemap
   let posterTex=null;
+  perf.T0=Math.round(T0);
+  renderer.domElement.style.cssText='opacity:0; transition:opacity .5s';       // (a) the stage fades up from the page background at first paint
   const t2k=loader.load('base_2048.jpg', t=>{ U.uBase.value=srgb(t); firstPaint(); });
   loader.load('lights_4096.jpg', t=>{ U.uLights.value=t; });
   loader.load('coverage.png', t=>{ t.colorSpace=THREE.NoColorSpace; U.uCover.value=t; });
   loader.load('clouds_poster.webp', t=>{ posterTex=t; t.colorSpace=THREE.NoColorSpace; t.wrapS=THREE.RepeatWrapping; posters[0]=t; if(!U.uHasCloud.value){ U.uCloudA.value=t; U.uCloudB.value=t; U.uHasCloud.value=1; U.uMix.value=0; U.uCloudTexel.value.set(1/t.image.width, 1/t.image.height); posterOn=true; } });
-  function firstPaint(){ if(perf.firstPaint!==null) return; renderer.render(scene,cam); perf.firstPaint=Math.round(performance.now()-T0); }
+  function firstPaint(){ if(perf.firstPaint!==null) return; renderer.render(scene,cam); perf.firstPaint=Math.round(performance.now()-T0); renderer.domElement.style.opacity=1; }
+  // (b) the globe is still until the video has presented its first frame, then eases up to the cruising spin over 1.5 s,
+  // so the first frames of cloud never land on a moving globe (tick multiplies the spin rate by this)
+  function spinRamp(now){ if(perf.videoFirstFrame===null) return 0; const r=Math.min(1, (now-T0-perf.videoFirstFrame)/1500); return r*r*(3-2*r); }
+  // (d) work that can wait for the opening (the tile indexes, sky assets): queued here, run one per idle period once the
+  // big basemap is in. window.__later(fn) is for the sky's stars and Moon.
+  const laterQ=[]; let openDone=false;
+  function later(fn){ laterQ.push(fn); if(openDone) drainLater(); }
+  function drainLater(){ openDone=true; if(!laterQ.length) return; const idle=window.requestIdleCallback||(f=>setTimeout(f,50));
+    idle(()=>{ const fn=laterQ.shift(); try{ fn(); }catch(e){ console.warn(e); } drainLater(); }, {timeout:3000}); }
+  window.__later=later;
+  // The big basemap, streamed onto the GPU. One texImage2D of 8192x8192 (with the JPEG decoded on the main thread on the
+  // way) froze the page for ~0.6 s on its first use, so instead: the JPEG is decoded off the main thread (createImageBitmap),
+  // an empty sRGB texture is allocated, and bands of 128 rows go up with texSubImage2D one per frame (never during a drag),
+  // then one generateMipmap. The raw GL texture is wrapped in a THREE.Texture whose __webglTexture is set through
+  // renderer.properties, so three binds it without ever uploading (its version stays 0). Resolves to the texture only when
+  // it is complete; the caller swaps it in then. Without WebGL2 or createImageBitmap: the plain loader, as before.
+  function streamBase(url){
+    const gl=renderer.getContext(), plain=()=>new Promise(res=>loader.load(url, t=>res(srgb(t))));
+    if(!renderer.capabilities.isWebGL2 || !window.createImageBitmap) return plain();
+    const log={alloc:0, bands:[], mip:0};
+    const frame=()=>new Promise(res=>{ const go=()=>dragging ? setTimeout(go,100) : requestAnimationFrame(res); go(); });
+    return fetch(url).then(r=>{ if(!r.ok) throw new Error(r.status); return r.blob(); })
+      .then(b=>createImageBitmap(b, {premultiplyAlpha:'none', colorSpaceConversion:'none', imageOrientation:'flipY'}))   // flipped once here, off the main thread: v=0 is the image's bottom row, as three has it (UNPACK_FLIP_Y_WEBGL is ignored for an ImageBitmap)
+      .then(async img=>{
+        const W=img.width, H=img.height;                                           // 8192x4096: the map is 2:1
+        const tex=new THREE.Texture(); tex.colorSpace=THREE.SRGBColorSpace;   // metadata only: three never uploads this one
+        const glTex=gl.createTexture(), bind=()=>renderer.state.bindTexture(gl.TEXTURE_2D, glTex), unbind=()=>renderer.state.unbindTexture();
+        await frame(); let t=performance.now();
+        bind(); gl.texStorage2D(gl.TEXTURE_2D, 1+Math.floor(Math.log2(Math.max(W,H))), gl.SRGB8_ALPHA8, W, H);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        const aniso=renderer.extensions.get('EXT_texture_filter_anisotropic'); if(aniso) gl.texParameterf(gl.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT, Math.min(8, renderer.capabilities.getMaxAnisotropy()));
+        unbind(); log.alloc=+(performance.now()-t).toFixed(1);
+        const BAND=128, PER=1, n=Math.ceil(H/BAND), opts={premultiplyAlpha:'none', colorSpaceConversion:'none'};   // 4 MB a call: ANGLE's sRGB upload is ~1 ms up to 8 MB and 20-90 ms above (measured)
+        for(let k=0;k<n;k+=PER){
+          const bands=await Promise.all(Array.from({length:Math.min(PER,n-k)}, (_,j)=>createImageBitmap(img, 0, (k+j)*BAND, W, Math.min(BAND, H-(k+j)*BAND), opts)));
+          await frame(); t=performance.now();
+          bind(); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false); gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE);
+          bands.forEach((band,j)=>{ gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, (k+j)*BAND, W, band.height, gl.RGBA, gl.UNSIGNED_BYTE, band); band.close(); });
+          unbind();
+          log.bands.push(+(performance.now()-t).toFixed(1));
+        }
+        img.close();
+        await frame(); t=performance.now(); bind(); gl.generateMipmap(gl.TEXTURE_2D); unbind(); log.mip=+(performance.now()-t).toFixed(1);
+        await frame();                                                  // the mipmaps are a GPU job: give them a frame before the swap
+        renderer.properties.get(tex).__webglTexture=glTex; perf.baseStream=log;
+        return tex;
+      })
+      .catch(e=>{ perf.baseStream={failed:String(e)}; return plain(); });
+  }
 
   const small=Math.max(screen.width, innerWidth)*Math.min(devicePixelRatio,2) < 1900;     // a phone, or a small 1x screen: the 2048 clip is enough
   const slow=navigator.connection && (navigator.connection.saveData || /2g|3g/.test(navigator.connection.effectiveType||''));
@@ -601,10 +653,10 @@
     document.getElementById('daysline').textContent = days.length>1
       ? `${days.length} days, ${dstr(first)} to ${dstr(last)} ${last.slice(0,4)}, ${m.frames.length} frames · one clip a day, swapped at midnight`
       : `${dstr(first)} ${first.slice(0,4)}, ${m.frames.length} frames`;
-    if(tiles&&tiles.supported) tiles.start({base:A('tiles/'), fallback:'tiles/', frames:m.frames, onReady:c=>{ const el=document.getElementById('tiledays'); perf.tileDays=c;
+    if(tiles&&tiles.supported) later(()=>tiles.start({base:A('tiles/'), fallback:'tiles/', frames:m.frames, onReady:c=>{ const el=document.getElementById('tiledays'); perf.tileDays=c;
       if(!c.n) el.textContent='The tiles are not built for these days yet, so the zoom stops at the whole-Earth clip. ';
       else if(c.n<m.frames.length) el.textContent=`The tiles are built for ${dstr(c.first.slice(0,10))} to ${dstr(c.last.slice(0,10))} (${Math.round(c.n/144)} of the ${days.length} days); the other days stop at ten kilometres. `;
-      else el.textContent=''; }});
+      else el.textContent=''; }}));
     const NAMES={goes19:'GOES-East',goes18:'GOES-West',himawari9:'Himawari-9',mtg:'MTG-I1',iodc:'Meteosat-9'};
     if(m.sats){ const all=['goes18','goes19','himawari9','mtg','iodc'], missing=all.filter(s=>!m.sats.includes(s));
       document.getElementById('satsh').textContent=`${m.sats.length} of five satellites, checked with arithmetic`;
@@ -615,10 +667,12 @@
     document.getElementById('man').textContent=`${m.frames.length} frames, ${m.frames[0].replace('T',' ')} to ${m.frames[m.frames.length-1].replace('T',' ')} · ${(m.sizes['clouds.mp4']/1e6).toFixed(1)} MB (4k) / ${(m.sizes['clouds_2k.mp4']/1e6).toFixed(1)} MB (2k)${perDay}${m.assets?' · clips and tiles from Cloudflare R2':''}`;
     load.textContent=`streaming ${(bytes/1e6).toFixed(0)} MB of cloud…`;
     setSrc(0, 0); vid.play().catch(()=>{});
-    // the big basemap after the video has started, if the card can hold it and the screen can use it
-    const want=(maxTex>=8192 && !useSmall)?8192:4096;
-    const start=()=>{ loader.load(`base_${want}.jpg`, t=>{ U.uBase.value=srgb(t); t2k.dispose(); perf.baseLoaded=Math.round(performance.now()-T0); perf.base=want; }); };
-    vid.addEventListener('playing', start, {once:true}); setTimeout(()=>{ if(!perf.base) start(); }, 4000);
+    // (c) the big basemap half a second after the video is playing steadily (or at 6 s if it never does), if the card can hold
+    // it and the screen can use it; streamed in bands (streamBase above), swapped in whole. Then the tiles and the rest.
+    const want=(maxTex>=8192 && !useSmall)?8192:4096; let started=false;
+    const start=()=>{ if(started) return; started=true;
+      streamBase(`base_${want}.jpg`).then(t=>{ U.uBase.value=t; t2k.dispose(); perf.baseLoaded=Math.round(performance.now()-T0); perf.base=want; }).finally(drainLater); };
+    vid.addEventListener('playing', ()=>setTimeout(start, 500), {once:true}); setTimeout(start, 6000);
   });
   V.forEach((v,k)=>v.addEventListener('error', ()=>{
     if(man&&man.assets && srcName[k] && v.src.startsWith(man.assets)){ v.src=srcName[k]; v.load(); perf.fellBack=(perf.fellBack||0)+1; if(v===vid) sync(); return; }   // R2 failed: the copy beside the page
@@ -712,7 +766,7 @@
     if(Math.abs(zoomTarget-dist)>1e-4){ dist+=(zoomTarget-dist)*(1-Math.exp(-dt/0.12)); cam.position.z=dist; }
     const tpx=texelPx(dist); U.uBicubic.value=tpx>1.15?1:0; perf.texelPx=+tpx.toFixed(2);   // magnified: bicubic; minified: bilinear is right
     const s=sunNow();
-    if(mode==='earth'){ if(!dragging && !vid.paused) spin+=0.027*dt; planet.rotation.y=spin; }
+    if(mode==='earth'){ if(!dragging && !vid.paused){ const r=spinRamp(now); if(r>0 && perf.firstMove==null) perf.firstMove=Math.round(now-T0); spin+=0.027*dt*r; } planet.rotation.y=spin; }
     else { planet.rotation.y=-Math.PI/2 - Math.atan2(s[1],s[0]) + offset; }
     atmo.rotation.y=planet.rotation.y;
     tiltG.rotation.x=tilt;
