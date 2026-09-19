@@ -636,7 +636,7 @@
       .catch(e=>{ perf.baseStream={failed:String(e)}; return plain(); });
   }
 
-  const small=Math.max(screen.width, innerWidth)*Math.min(devicePixelRatio,2) < 1200;     // only a small 1x screen gets the 2048 clip; a retina phone can zoom, so it gets the 4k (40 MB a day, streamed)
+  const small=devicePixelRatio<1.5 && Math.max(screen.width, innerWidth) < 1200;      // only a small 1x screen gets the 2048 clip; a retina phone can zoom in, so it gets the 4k (40 MB a day, streamed)
   const slow=navigator.connection && (navigator.connection.saveData || /2g|3g/.test(navigator.connection.effectiveType||''));
   const useSmall=small||slow;
   fetch('clouds.json').then(r=>r.json()).then(m=>{
