@@ -636,7 +636,7 @@
       .catch(e=>{ perf.baseStream={failed:String(e)}; return plain(); });
   }
 
-  const small=Math.max(screen.width, innerWidth)*Math.min(devicePixelRatio,2) < 1900;     // a phone, or a small 1x screen: the 2048 clip is enough
+  const small=Math.max(screen.width, innerWidth)*Math.min(devicePixelRatio,2) < 1200;     // only a small 1x screen gets the 2048 clip; a retina phone can zoom, so it gets the 4k (40 MB a day, streamed)
   const slow=navigator.connection && (navigator.connection.saveData || /2g|3g/.test(navigator.connection.effectiveType||''));
   const useSmall=small||slow;
   fetch('clouds.json').then(r=>r.json()).then(m=>{
@@ -724,12 +724,22 @@
   let blend=true;
   blendBtn.addEventListener('click', ()=>{ blend=!blend; blendBtn.setAttribute('aria-pressed', blend); });
 
-  const cv=renderer.domElement; let px=0, py=0, pinch=0;
-  cv.addEventListener('pointerdown', e=>{ dragging=true; px=e.clientX; py=e.clientY; vSpin=vTilt=0; cv.setPointerCapture(e.pointerId); cv.classList.add('drag'); });
-  cv.addEventListener('pointermove', e=>{ if(!dragging) return; const dx=e.clientX-px, dy=e.clientY-py; px=e.clientX; py=e.clientY;
-    const k=0.0055*dist/4.3; vSpin=dx*k; vTilt=dy*k; if(mode==='earth') spin+=vSpin; else offset+=vSpin; tilt=Math.max(-1.25, Math.min(1.25, tilt+vTilt)); });
-  const up=()=>{ dragging=false; cv.classList.remove('drag'); };
-  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  // One gesture model for mouse, trackpad and touch, on pointer events only: one pointer drags; two pointers pinch to
+  // zoom about their midpoint AND drag by the midpoint's motion. Every move is a delta from the previous centroid, so a
+  // finger arriving or leaving never produces a jump (that was the "can only go south" bug: touch and pointer
+  // handlers both ran, and a pinch left the drag with a stale origin and dragging=false).
+  const cv=renderer.domElement; const ptrs=new Map(); let cx=0, cy=0, span=0;
+  function centroid(){ let x=0, y=0; for(const p of ptrs.values()){ x+=p.x; y+=p.y; } const n=ptrs.size||1; return [x/n, y/n]; }
+  function spanOf(){ if(ptrs.size<2) return 0; const [a,b]=[...ptrs.values()]; return Math.hypot(a.x-b.x, a.y-b.y); }
+  cv.addEventListener('pointerdown', e=>{ ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY}); [cx,cy]=centroid(); span=spanOf();
+    dragging=true; vSpin=vTilt=0; try{ cv.setPointerCapture(e.pointerId); }catch(_){} cv.classList.add('drag'); });
+  cv.addEventListener('pointermove', e=>{ if(!ptrs.has(e.pointerId)) return; ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY});
+    const [nx,ny]=centroid(); const dx=nx-cx, dy=ny-cy; cx=nx; cy=ny;
+    const k=(0.0055*900/Math.max(stage.clientHeight,300))*dist/4.3; vSpin=dx*k; vTilt=dy*k;   // per stage height: a phone's stage is a third of a laptop's
+    if(mode==='earth') spin+=vSpin; else offset+=vSpin; tilt=Math.max(-1.25, Math.min(1.25, tilt+vTilt));
+    if(ptrs.size>=2){ const ns=spanOf(); if(span>0 && ns>0) zoom(span/ns); span=ns; vSpin=vTilt=0; } });
+  const up=e=>{ ptrs.delete(e.pointerId); if(ptrs.size){ [cx,cy]=centroid(); span=spanOf(); vSpin=vTilt=0; return; } dragging=false; cv.classList.remove('drag'); };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up); cv.addEventListener('lostpointercapture', up);
   // Zoom stops where a cloud texel at the centre of the disc would be wider than MAX_TEXEL_DEV DEVICE pixels: the
   // clip is ~10 km per texel, and past that the cloud is magnified into mush over a basemap that is still sharp.
   // Camera at dist d, fov 30 deg: a texel (2pi/W world units) at the disc centre, depth d-1, covers
@@ -744,14 +754,12 @@
     if(zoomTarget<minDist) zoomTarget=minDist; }
   function zoom(f){ zoomTarget=Math.max(minDist, Math.min(8, zoomTarget*f)); }
   cv.addEventListener('wheel', e=>{ e.preventDefault(); zoom(1+Math.sign(e.deltaY)*0.08); }, {passive:false});
-  cv.addEventListener('touchstart', e=>{ if(e.touches.length===2) pinch=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); }, {passive:true});
-  cv.addEventListener('touchmove', e=>{ if(e.touches.length===2 && pinch){ const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); zoom(pinch/d); pinch=d; dragging=false; } }, {passive:true});
 
   // ---- a view can be set from outside (the measurement script) or from the URL: #lon=-75&lat=-30&zoom=2.2&frame=90
   function setView(lon, lat, d, fi){ mode='earth'; document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed', x.dataset.mode==='earth'));
     spin=-(90+lon)*DEG; tilt=Math.max(-1.25, Math.min(1.25, lat*DEG)); vSpin=vTilt=0; if(d){ dist=zoomTarget=Math.max(minDist, Math.min(8, d)); cam.position.z=dist; } if(fi!=null) seek(fi); }
   window.__setView=setView;
-  window.__dbg={renderer, U, vid:()=>vid, V, vtex:()=>vtex, tiles, rt:()=>rtB, presented:()=>presented, calibrate, code:()=>code, minDist:()=>minDist, dist:()=>dist,
+  window.__dbg={renderer, U, tilt:()=>tilt, spin:()=>spin, vid:()=>vid, V, vtex:()=>vtex, tiles, rt:()=>rtB, presented:()=>presented, calibrate, code:()=>code, minDist:()=>minDist, dist:()=>dist,
     days:()=>({dayIdx, cur, loadedDay:loadedDay.slice(), ready:V.map(v=>v.readyState), t:V.map(v=>+v.currentTime.toFixed(3)), swappedAt, lastPresent, posterOn}), seek, switchDay,
     rafStats:()=>{ const n=Math.min(rafN,240), g=Array.from(rafGap.subarray(0,n)).sort((a,b)=>a-b), w=Array.from(rafWork.subarray(0,n)).sort((a,b)=>a-b);
       const q=(a,p)=>+a[Math.min(a.length-1,Math.floor(a.length*p))].toFixed(2); return {n, gap:{p50:q(g,.5),p95:q(g,.95),max:q(g,1)}, work:{p50:q(w,.5),p95:q(w,.95),max:q(w,1)}}; }};
