@@ -64,3 +64,51 @@ sheet. If it is not beautiful in the sheet, iterate before reporting.
 ## Report back
 Append here: what the shot is, the numbers (intro duration on a warm and cold load, rAF work, gaps), the
 sheet's path, what you'd change. SendMessage 'earthai-46' one line DONE/BLOCKED + URL.
+
+## Report (2026-09-19, session globe-sky — built on top of the sky, commit c6e800f)
+**The shot.** Frame one: a small dark Earth from 14 radii, its night side to us, a thin ring of lit air and a spark of
+forward-scatter on the right limb where the Sun is just behind it; the real stars and, as they arrive, the Milky Way. The
+camera dollies in on an ease-in-out to 4.3 while the exposure comes up from 35% to 100% (the stars hold, they dim only as
+exposure^0.3). From p 0.25 the planet begins a westward turn of 16 deg and the camera cranes up 10 deg, both on a sin^2 hump
+whose rate is zero at both ends; at p 0.59 the Sun's disc clears the RIGHT limb — the shell's Mie flare, the corona, and a
+brief overshoot of the veil (`bloom` in skyTick) — and settles about 5 deg off the limb as the disc grows to rest. At p 1
+playback starts on that frame; the day's own motion (2 h/s: the Sun crosses the sky at 30 deg/s) carries the Sun further
+right and the lit hemisphere slides in from that side within the next five seconds, so the arrival's sunrise is the day's.
+Plates: `docs/globe-2026-09-19/intro_p0.jpg`, `_p0_3`, `_p0_65`, `_p0_9`, `_p1`, the sheet `intro_sheet_12.jpg`, the phone
+sheet `intro_sheet_phone.jpg`, and `intro_after_1s_of_playback.jpg` (the handoff).
+
+**Where I departed, and why.**
+1. *The start latitude is the antisolar latitude, not a free tilt, and the rest tilt is that plus 10 deg, not 0.25.* From 14
+   radii the Earth hides only a 4 deg cone, so the Sun is behind it at p=0 only if the camera sits at minus the Sun's
+   declination (7 deg S in September). And turning the planet under a fixed camera moves the Sun across the sky at the same
+   rate, so the brief's "lit hemisphere sliding in" by rotation would sweep the Sun across a 30 deg frame in two seconds (a
+   38 deg version did exactly that; sheet v4, not kept). The turn is small (16 deg) and the crane small (10 deg); the day's
+   own 30 deg/s does the sliding-in. Net: the arrival rests near the equator in September (further north in winter).
+2. *The turn is westward* (the Sun rises on the right): measured, the day's motion carries the Sun to the right in this
+   view, so a left-limb sunrise (my first version) had the Sun set again behind the Earth a second after playback began.
+3. *The dolly runs to p 0.88, not 0.8*: with 0.8 the last second stood still.
+4. *No cruise during the arrival*: the hump's rate is zero at p=1 and the 1.5 deg/s cruise starts with playback; against the
+   day's 30 deg/s it is invisible, and it let the solver find a rise at 0.59 instead of 0.23.
+
+**The numbers** (headless Chrome, Metal, 1440x900 @2; the clip from R2, which never buffers 15 s inside the cap in headless,
+so `openReady` here is always the 8 s cap): cold open — first paint 176 ms, arrival 171 → 8,923 ms (the crawl at p 0.96 waits
+~2.4 s for the cap; on the laptop where the opening is ready at ~6 s the arrival ends at ~6.5 s with no wait); warm (same
+context, HTTP cache) — the same, because the video is the gate. rAF work p50 0.2 / p95 0.5–0.7 ms. Gaps over 40 ms after
+first paint: one, 50 ms, at the video's first present (the 2x 4096x2272 render-target allocation + calibration readback in
+`present()`, pre-existing; not touched). Warm run: one 133 ms gap at 170 ms, before first paint (script start). Phone
+(390x844 @3): the same arrival, floor 3 s, no gaps, p95 0.5 ms. Interrupt: a click at p 0.31 ended it in 0.6 s at rest,
+paused until ready, then played. Reload in the same session: no arrival (`__intro.state.wanted=false`, dist 4.3).
+
+**Mechanics.** `introState` / `introTick` / `endIntro` / `interruptIntro` / `introReady` in one block before the loop; hooks are
+one line each in `firstPaint` (waits for the manifest and, up to 1.5 s, the stars, so frame one is the arrival's frame one),
+the ready handler (`introReady()`), `spinRamp` (1 after the arrival), `tick`, `pointerdown`, `wheel`, `setView`. The starting
+spin is solved (`solveSpin0`: 720 candidates x 100 p) from the day's first frame's sun; `perf.intro` carries start/end/
+sunRiseP/interrupted; `__intro.setP(p)` freezes it for plates. The canvas is now opaque (`setClearColor(0x04090f)`) so the page
+background never shows through before the Milky Way loads.
+
+**What I'd change.** (a) On a portrait phone the Sun lands beyond the right edge (the Earth at 4.3 already overflows the
+width there) — a portrait rest distance of ~5.5 would show the sunrise; that is the phone's framing, not the arrival's.
+(b) The 50 ms gap at the first present could go: allocate the two render targets from the manifest's dimensions at t=0.
+(c) The night side is the VIIRS texture's tan glow (see the sky report), which makes the dark start browner than it should
+be; a high-pass on `lights_4096.jpg` would make the arrival's first frame bluer and quieter. (d) The `UTC —` clock reads a
+dash during the arrival; it could show the day's first timestamp.
