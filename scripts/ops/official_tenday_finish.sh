@@ -7,23 +7,26 @@
 # This only sequences them for the one job described in .claude/handoffs/2026-09-19-official-products.md, step 8.
 set -e
 BOX=root@51.15.76.176
-REPO=$(cd "$(dirname "$0")/../.." && pwd)
-PY=$REPO/.venv/bin/python
-DAYS=$REPO/data/clouds/official/days10
+REPO=$(cd "$(dirname "$0")/../.." && pwd)                  # the checkout this runs in (a worktree is fine)
+MAIN=/Users/dereklomas/sourcelibrary/earthai                 # data/ and the venv live only in the main checkout
+PY=$MAIN/.venv/bin/python
+DATA=$MAIN/data/clouds
+DAYS=$DATA/official/days10
 cd "$REPO"
 echo "waiting for PIPELINE DONE on the box"
 until ssh -o ConnectTimeout=20 $BOX 'grep -q "PIPELINE DONE" /data/official/tenday.log' 2>/dev/null; do sleep 600; done
 mkdir -p "$DAYS"
 rsync -a --partial $BOX:/data/official/clouds/days/ "$DAYS/"
 ls "$DAYS" | grep -c "clouds_v2_.*[0-9].mp4$" | xargs -I{} echo "{} day clips"
-$PY scripts/r2_sync.py "$DAYS:globe" --skip .log,.txt,.npy,.npz,.jsonl,.DS_Store,.png,.json --done data/clouds/r2_done.jsonl
+$PY scripts/r2_sync.py "$DAYS:globe" --skip .log,.txt,.npy,.npz,.jsonl,.DS_Store,.png,.json --done "$DATA/r2_done.jsonl"
 # the box's manifest replaces every day it carries in the live manifest (the merge keeps `tiles` and the first day's poster)
-$PY - <<'EOF'
+DAYS="$DAYS" $PY - <<'EOF'
 import json, sys, os
 sys.path.insert(0, "scripts")
+os.environ.setdefault("CLOUDS_ROOT", os.environ["DAYS"] + "/..")
 import fetch_clouds as fc
 live = json.load(open("site/globe/clouds.json"))
-new = json.load(open("data/clouds/official/days10/clouds_v2.json"))
+new = json.load(open(os.environ["DAYS"] + "/clouds_v2.json"))
 m = fc.merge_manifests(live, new)
 json.dump(m, open("site/globe/clouds.json", "w"))
 print("days", len(m["days"]), "official", m["official_days"], "tiles", m.get("tiles"), "sizes", m["sizes"])
