@@ -1348,6 +1348,43 @@ def products_summary(sats: list[str], frames: list[Path]) -> dict:
     return out
 
 
+def merge_manifests(old: dict, new: dict) -> dict:
+    """`new`'s days replace `old`'s by date; everything the page reads at the top level (frames, sizes, seam, held,
+    sats, sources, products) is rebuilt from the merged days. `code`/`curve`/`assets`/`tiles` come from `new` (the
+    newer encode), which is right as long as both used the same clip layout (the height rows), which they must:
+    one page reads them all. `official_days` lists the days whose two bands all came from an agency's own L1."""
+    days = {d["date"]: d for d in old.get("days", [])}
+    for d in new["days"]:
+        days[d["date"]] = d
+    merged = dict(new)
+    merged["days"] = [days[k] for k in sorted(days)]
+    off, frames = 0, []
+    for d in merged["days"]:
+        d["off"] = off
+        off += d["n"]
+        frames += d["frames"]
+    merged["frames"] = frames
+    merged["sizes"] = {}
+    for key, fname in (("4k", f"{new.get('clip_name', 'clouds')}.mp4"), ("2k", f"{new.get('clip_name', 'clouds')}_2k.mp4")):
+        merged["sizes"][fname] = sum(d["sizes"][key] for d in merged["days"])
+    seam: dict = {}
+    for d in merged["days"]:
+        for k, v in d.get("seam", {}).items():
+            a = seam.setdefault(k, {"bias": 0.0, "mad": 0.0, "frames": 0})
+            a["bias"] += v["bias"] * v["frames"]; a["mad"] += v["mad"] * v["frames"]; a["frames"] += v["frames"]
+    merged["seam"] = {k: {"bias": round(v["bias"] / v["frames"], 4), "mad": round(v["mad"] / v["frames"], 4), "frames": v["frames"]} for k, v in seam.items() if v["frames"]}
+    held: dict = {}
+    for d in merged["days"]:
+        for s_, n in d.get("held", {}).items():
+            held[s_] = held.get(s_, 0) + n
+    merged["held"] = held
+    merged["sats"] = sorted({s_ for d in merged["days"] for s_ in (d.get("seam") and {x for k in d["seam"] for x in k.split("-")} or set()) | set(d.get("held", {}))} | set(new.get("sats", [])))
+    official = [d["date"] for d in merged["days"] if d.get("sources") and all(v in ("abi", "ptree", "fci", "seviri") for v in d["sources"].values())]
+    merged["official_days"] = official
+    merged["products_days"] = [d["date"] for d in merged["days"] if d.get("products")]
+    return merged
+
+
 def seam_stats(root: Path, frames: list[Path]) -> tuple[dict, dict, list[str]]:
     """The seam numbers and hold counts from the blend (frames.jsonl), averaged over these frames."""
     names = {p.stem for p in frames}
@@ -1383,7 +1420,11 @@ def seam_stats(root: Path, frames: list[Path]) -> tuple[dict, dict, list[str]]:
 @click.option("--root", default=None, type=click.Path(path_type=Path), help="where frames/, height/ and frames.jsonl are (default data/clouds)")
 @click.option("--days-only", default="", help="comma-separated dates to (re)encode with --per-day; other days keep their clips if "
               "the manifest already lists them")
-def encode(out, name, start, end, fps, crf, crf_small, aq, flow_cache, per_day, assets, root, days_only):
+@click.option("--merge-into", default=None, type=click.Path(path_type=Path),
+              help="with --per-day: an existing per-day manifest (e.g. the live clouds.json) whose days this encode's days REPLACE by "
+                   "date, the other days kept as they are (their clips wherever they live); the merged manifest is written to --out/<name>.json "
+                   "AND back to this path. Days carry their own `sources`/`products`, so a page can say which days are the agencies' own data.")
+def encode(out, name, start, end, fps, crf, crf_small, aq, flow_cache, per_day, assets, root, days_only, merge_into):
     root = root or ROOT
     out.mkdir(parents=True, exist_ok=True)
     frames = sorted(p for p in (root / "frames").glob("*.png")
@@ -1446,6 +1487,7 @@ def encode(out, name, start, end, fps, crf, crf_small, aq, flow_cache, per_day, 
             d = {"date": date, "off": sel[0], "n": len(sel), "frames": [p.stem for p in fr],
                  "clips": {"4k": f"{name}_{date}.mp4", "2k": f"{name}_{date}_2k.mp4"}, "poster": f"{name}_{date}_poster.webp", "sizes": {}}
             d["seam"], d["held"], _ = seam_stats(root, fr)
+            d["sources"], d["products"] = manifest["sources"], products_summary(sats, fr)
             if redo is not None and date not in redo and date in old_days and all((out / f).exists() for f in old_days[date]["clips"].values()):
                 d["sizes"] = old_days[date]["sizes"]
                 click.echo(f"{date}: kept ({d['n']} frames)")
@@ -1456,10 +1498,15 @@ def encode(out, name, start, end, fps, crf, crf_small, aq, flow_cache, per_day, 
                     click.echo(f"{dest}  {dest.stat().st_size / 1e6:.1f} MB  ({time.time() - t0:.0f}s)")
                 poster(out / d["poster"], fr[0])
             manifest["days"].append(d)
-        for key, fname in (("4k", f"{name}.mp4"), ("2k", f"{name}_2k.mp4")):       # totals, under the one-clip names the page's footer reads
+        manifest["clip_name"] = "clouds"                                                # the footer reads sizes["clouds.mp4"] whatever the clips are called
+        for key, fname in (("4k", "clouds.mp4"), ("2k", "clouds_2k.mp4")):            # totals, under the one-clip names the page's footer reads
             manifest["sizes"][fname] = sum(d["sizes"][key] for d in manifest["days"])
         poster(out / f"{name}_poster.webp", frames[0])
-        click.echo(f"{len(dates)} days, {dates[0]} to {dates[-1]}: 4k {manifest['sizes'][name + '.mp4'] / 1e6:.0f} MB, 2k {manifest['sizes'][name + '_2k.mp4'] / 1e6:.0f} MB")
+        click.echo(f"{len(dates)} days, {dates[0]} to {dates[-1]}: 4k {manifest['sizes']['clouds.mp4'] / 1e6:.0f} MB, 2k {manifest['sizes']['clouds_2k.mp4'] / 1e6:.0f} MB")
+        if merge_into:
+            manifest = merge_manifests(json.loads(Path(merge_into).read_text()), manifest)
+            Path(merge_into).write_text(json.dumps(manifest))
+            click.echo(f"merged into {merge_into}: {len(manifest['days'])} days, official on {manifest.get('official_days')}")
     (out / f"{name}.json").write_text(json.dumps(manifest))
     click.echo(f"manifest {out / (name + '.json')}")
 
