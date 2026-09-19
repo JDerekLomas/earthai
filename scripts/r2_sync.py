@@ -14,7 +14,9 @@ rebuild uploads only what changed. Thousands of files take a while (~1-2 s each;
 under tmux. Log files, numpy arrays, PNG frames and jsonl are never uploaded (--skip).
 
 Bucket setup, done once on 2026-09-19 with the same wrangler: `r2 bucket dev-url enable earthai-clouds` (public
-read at https://pub-9fd592e0ca484a2dbec64ef0858a9bc9.r2.dev) and a CORS rule allowing GET/HEAD from any origin with
+read at https://pub-9fd592e0ca484a2dbec64ef0858a9bc9.r2.dev, and since 2026-09-19 evening at https://clouds.sourcelibrary.org, a custom
+domain on the bucket with zone cache rules: 30 d edge for everything but *.json, 1 h for the indexes — the page's `assets`
+base; r2.dev is not edge-cached) and a CORS rule allowing GET/HEAD from any origin with
 the Range header and Content-Range exposed (the page fetches tile keyframe groups by byte range).
 """
 from __future__ import annotations
