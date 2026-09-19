@@ -1,0 +1,101 @@
+{
+ "info": {
+  "video": [
+   4096,
+   2272
+  ],
+  "code": {
+   "y_lo": 60,
+   "y_hi": 190,
+   "chroma": 24,
+   "strip": 16,
+   "patches": [
+    [
+     60,
+     128,
+     128
+    ],
+    [
+     125,
+     128,
+     128
+    ],
+    [
+     190,
+     128,
+     128
+    ],
+    [
+     125,
+     152,
+     128
+    ],
+    [
+     125,
+     104,
+     128
+    ],
+    [
+     125,
+     128,
+     152
+    ],
+    [
+     125,
+     128,
+     104
+    ],
+    [
+     125,
+     152,
+     152
+    ]
+   ],
+   "height_rows": 752,
+   "height_km_max": 16,
+   "height_lapse_k_per_km": 6.5,
+   "height_min_op": 0.1,
+   "flow_p99_px": 2.896,
+   "flow_width": 4096,
+   "flow_stats_px": {
+    "p50": 0.456,
+    "p90": 1.483,
+    "p99": 2.896,
+    "p999": 7.48
+   }
+  },
+  "retrieved": null,
+  "srcrow": "GOES-East and GOES-West (bands 2 and 13, NOAA's archive on AWS), Himawari-9 (bands 3 and 13, the raw HSD segments on AWS), Meteosat MTG-I1 and Meteosat-9 (0.6 µm and 10.5/10.8 µm through EUMETView)",
+  "credits": null
+ },
+ "views": {
+  "world_1700z": {
+   "presented": 39,
+   "frame": 966
+  },
+  "chile_1700z": {
+   "presented": 39,
+   "frame": 966
+  },
+  "caribbean_1700z": {
+   "presented": 39,
+   "frame": 966
+  },
+  "mid_atlantic_1700z": {
+   "presented": 39,
+   "frame": 966
+  },
+  "africa_1200z": {
+   "presented": 40,
+   "frame": 936
+  },
+  "dateline_0300z": {
+   "presented": 40,
+   "frame": 882
+  },
+  "australia_night_1700z": {
+   "presented": 41,
+   "frame": 966
+  }
+ }
+}

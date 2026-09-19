@@ -193,7 +193,7 @@
 </section>
 
 <footer>
-  GOES-East and GOES-West ABI L2 CMIP bands 2 and 13 and Himawari-9 AHI L1b bands 3 and 13 via NOAA Open Data on AWS · MTG-I1 and Meteosat-9 via EUMETView, EUMETSAT · Blue Marble and VIIRS city lights via NASA GIBS · stars from the Yale Bright Star Catalogue, 5th ed. (Hoffleit &amp; Warren 1991, public domain) · Milky Way: <a href="https://www.eso.org/public/images/eso0932a/">ESO/S. Brunier</a>, CC BY 4.0 · Moon: <a href="https://svs.gsfc.nasa.gov/4720">NASA SVS CGI Moon Kit</a> (LRO) ·
+  <span id="credits">GOES-East and GOES-West ABI L2 CMIP bands 2 and 13 and Himawari-9 AHI L1b bands 3 and 13 via NOAA Open Data on AWS · MTG-I1 and Meteosat-9 via EUMETView, EUMETSAT ·</span> Blue Marble and VIIRS city lights via NASA GIBS · stars from the Yale Bright Star Catalogue, 5th ed. (Hoffleit &amp; Warren 1991, public domain) · Milky Way: <a href="https://www.eso.org/public/images/eso0932a/">ESO/S. Brunier</a>, CC BY 4.0 · Moon: <a href="https://svs.gsfc.nasa.gov/4720">NASA SVS CGI Moon Kit</a> (LRO) ·
   cloud field by <span class="mono">scripts/fetch_clouds.py</span> · rendered with three.js <span id="threev"></span> · <span id="man"></span>
 </footer>
 </div>
@@ -253,7 +253,7 @@
     uTileOn:{value:0}, uTileCubic:{value:0}, uTileSub:{value:-75*Math.PI/180},                      // the pipeline's vis_k: -k ln(1 - opacity) is the cloud's reflectance again
     // cloud-top height (fetch_clouds.py `height`): the clip carries it in extra rows and the copy pass puts it in the
     // cloud texture's ALPHA, 0..1 = 0..uHeightKm km; 0 until a clip that has it presents (the poster has none)
-    uHasHeight:{value:0}, uHeightKm:{value:16},
+    uHasHeight:{value:0}, uHeightKm:{value:16}, uHeightRetrieved:{value:0},   // 1 when the clip's heights are the agencies' retrieved tops (manifest `products` with cth)
     // the sky (see "the sky" below): exposure scales everything drawn, for the opening; the Moon's Earth-fixed direction
     // and how bright its light is tonight (0..1 by phase); a tiled wave texture that breaks up the sea's glint, scrolled by UTC
     uExposure:{value:1}, uMoon:{value:new THREE.Vector3(0,0,1)}, uMoonLight:{value:0}, uWaves:{value:blank}, uWaveT:{value:0},
@@ -282,7 +282,7 @@
       precision highp float;
       #define GROUND_N ${lite?2:3}
       uniform sampler2D uBase, uLights, uCover, uCloudA, uCloudB, uTileA, uTileB, uWaves;
-      uniform float uMix, uLatMax, uShowCover, uHasCloud, uBicubic, uCloudK, uTileOn, uTileCubic, uTileSub, uHasHeight, uHeightKm;
+      uniform float uMix, uLatMax, uShowCover, uHasCloud, uBicubic, uCloudK, uTileOn, uTileCubic, uTileSub, uHasHeight, uHeightKm, uHeightRetrieved;
       uniform float uExposure, uMoonLight, uWaveT, uNightCloud;
       uniform vec2 uTileFlow; uniform vec4 uTileRect;
       uniform vec2 uCloudTexel, uFlow; uniform vec3 uSun, uCam, uMoon;
@@ -389,7 +389,9 @@
         dayC=smoothstep(-0.10,0.12,muC);
         float duskC=smoothstep(0.30,-0.06,muC)*smoothstep(-0.22,0.0,muC);
         vec3 warmC=mix(vec3(1.0), vec3(1.0,0.68,0.40), duskC*(0.55+0.30*hi));
-        vec3 tint=mix(mix(vec3(0.94,0.955,0.98), vec3(0.965,0.950,0.925), lo), vec3(0.905,0.935,0.99), hi)*(1.0-0.05*hi);
+        // ice tops are brighter than a water deck of the same cover and a shade blue (fresh ice crystals scatter
+        // more and the air above a 10 km top is thin); a low deck is warm grey. Brighter, not dimmer: measured tops.
+        vec3 tint=mix(mix(vec3(0.94,0.955,0.98), vec3(0.965,0.950,0.925), lo), vec3(0.955,0.98,1.02), hi)*(1.0+0.04*hi);
         vec3 cloudDay=tint*(0.08+0.92*pow(clamp(muC*1.15+0.08,0.0,1.0),0.7))*warmC;
         vec3 lit=cloudDay*mix(vec3(0.86,0.91,1.0), vec3(1.0), cov)*refl*(1.0+relief);
         // the same cloud as if lit by a soft, cool, shadowless ambient: for the night side (see uNightCloud)
@@ -445,8 +447,8 @@
         float relief=clamp(slope*1.1, -0.45, 0.45)*(0.4+0.6*sl)*day;
         // and the same from the HEIGHT gradient: a top that steps up toward the sun is lit on that side, so an
         // anvil has an edge where its deck does not; a low deck is flatter than the opacity alone would draw it
-        float reliefH=clamp((ohm.y-ohp.y)*0.06, -0.35, 0.35)*(0.4+0.6*sl)*day*uHasHeight;
-        relief=clamp(relief*mix(0.75,1.0,smoothstep(1.0,5.0,hk)*uHasHeight+(1.0-uHasHeight))+reliefH, -0.55, 0.55);
+        float reliefH=clamp((ohm.y-ohp.y)*mix(0.06,0.09,uHeightRetrieved), -0.35, 0.35)*(0.4+0.6*sl)*day*uHasHeight;
+        relief=clamp(relief*mix(0.75,1.0,smoothstep(1.0,5.0,hk)*uHasHeight+(1.0-uHasHeight))*mix(1.0,0.85,uHeightRetrieved)+reliefH, -0.55, 0.55);
         // the air between here and the camera (aerial perspective) and the sun's transmission down to here
         vec3 insc, att; groundAir(vP, uCam, s, insc, att);
         // ground by day: diffuse with a floor, warm toward dusk (mostly from att now), sea glint
@@ -885,6 +887,46 @@
   const small=devicePixelRatio<1.5 && Math.max(screen.width, innerWidth) < 1200;      // only a small 1x screen gets the 2048 clip; a retina phone can zoom in, so it gets the 4k (40 MB a day, streamed)
   const slow=navigator.connection && (navigator.connection.saveData || /2g|3g/.test(navigator.connection.effectiveType||''));
   const useSmall=small||slow;
+  // The copy about where the cloud comes from follows the MANIFEST, not this file: `sources` names each satellite's
+  // two-band source (abi = NOAA's CMIP; ptree / fci / seviri = the agency's own calibrated L1, fetched with the
+  // credentials Derek registered for; hsd / wms = the earlier second-hand readers) and `products` which agency cloud
+  // retrievals (optical thickness, top height, phase) were folded into how many frames. A clip built the old way
+  // keeps the old sentences, so the page never claims a source the clip did not use.
+  function describeSources(m, NAMES){
+    const src=m.sources||{}, prod=m.products||{}, n=m.frames.length;
+    const SRC={abi:'bands 2 and 13 of NOAA’s ABI L2 CMIP, its archive on AWS', ptree:'bands 3 and 13 of JAXA’s gridded Himawari L1 (P-Tree), calibrated by JAXA/JMA',
+      hsd:'bands 3 and 13 from the raw HSD segments on AWS', fci:'FCI 0.6 and 10.5 µm, EUMETSAT’s Level 1c from the Data Store', seviri:'SEVIRI 0.6 and 10.8 µm, EUMETSAT’s Level 1.5 from the Data Store',
+      wms:'0.6 and 10.5/10.8 µm as 8-bit pictures through EUMETView, calibrated against a neighbour'};
+    const PROD={goes19:'NOAA’s ABI cloud optical depth, top height and phase', goes18:'NOAA’s ABI cloud optical depth, top height and phase',
+      himawari9:'JAXA’s cloud property product (optical thickness, top height, type; by day)', mtg:'EUMETSAT’s Optimal Cloud Analysis (optical thickness, top height, phase)',
+      iodc:'EUMETSAT’s cloud-top height and cloud mask (no optical thickness exists for that service)'};
+    if(!Object.keys(src).length) return;
+    const sats=(m.sats||Object.keys(src)).filter(s=>src[s]);
+    const official=sats.filter(s=>['ptree','fci','seviri','abi'].includes(src[s]));
+    document.getElementById('srcrow').textContent=sats.map(s=>`${NAMES[s]||s}: ${SRC[src[s]]||src[s]}`).join('; ');
+    if(m.official_days && m.days && m.official_days.length && m.official_days.length<m.days.length){
+      const ds=d=>new Date(d+'T00:00:00Z').toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'});
+      const rest=m.days.length-m.official_days.length;
+      document.getElementById('srcrow').textContent+=` — on ${m.official_days.map(ds).join(', ')}. The other ${rest} day${rest>1?'s':''} were built before the agencies’ own data was in hand (Himawari from the raw HSD segments on AWS, the two Meteosats as 8-bit pictures through EUMETView calibrated against a neighbour) and are being rebuilt.`;
+    }
+    const withProd=sats.filter(s=>prod[s]);
+    if(withProd.length){
+      const cod=withProd.filter(s=>prod[s].fields.includes('cod')), cth=withProd.filter(s=>prod[s].fields.includes('cth'));
+      document.getElementById('srcrow').textContent+=`. By day the opacity is the agencies’ own retrieved optical thickness where they have one (${cod.map(s=>NAMES[s]).join(', ')}), turned into cover by two-stream scattering (asymmetry ${(m.curve&&m.curve.cod_asym)||0.86}); by night, and wherever no retrieval exists, the two-band estimate.`;
+      document.getElementById('hrow').textContent=`the height of each cloud’s top, 0 to 16 km: the agency’s retrieved top where it has one (${cth.map(s=>NAMES[s]).join(', ')}), else from how cold it looks at 10.4 µm against the clear-sky temperature of the ground beneath it at a standard 6.5 °C per kilometre; carried at 20 km per pixel`;
+      document.getElementById('hgtp').insertAdjacentHTML('afterbegin', `<b>Where the agencies have retrieved a top (${cth.map(s=>`${NAMES[s]}: ${PROD[s]}`).join('; ')}), that top is used, and the lapse-rate estimate below fills the rest: night over Himawari’s disc, and the gaps in every retrieval.</b> `);
+      document.getElementById('wrongp').insertAdjacentHTML('afterbegin', `<b>By day, where an agency has retrieved the cloud’s optical thickness, that number is the cloud and the clear-sky guess below no longer matters there; a pixel the agency’s mask calls clear has its night-time infrared opacity scaled down by ${(m.curve&&m.curve.clear_damp)||0.25}, which is what removes most of the false cloud over deserts cooling after dark.</b> `);
+    }
+    if(official.includes('mtg')||official.includes('iodc')){
+      const p=document.getElementById('satsp');
+      p.innerHTML=p.innerHTML.replace(/The two Meteosats come through[^.]*\.(\s|&nbsp;)*/, `${['mtg','iodc'].filter(s=>official.includes(s)).map(s=>NAMES[s]).join(' and ')} now come as EUMETSAT’s own calibrated numbers (reflectance and kelvin) rather than pictures, so nothing is matched against a neighbour any more. `);
+    }
+    const CREDIT={ptree:'Himawari data: JAXA/JMA (P-Tree)', hsd:'Himawari data: JMA via NOAA Open Data on AWS', fci:'Meteosat data: EUMETSAT', seviri:'Meteosat data: EUMETSAT', wms:'Meteosat data: EUMETSAT (EUMETView)', abi:'GOES data: NOAA'};
+    const lines=[...new Set(sats.map(s=>CREDIT[src[s]]).filter(Boolean))];
+    const AGENCY={goes19:'NOAA',goes18:'NOAA',himawari9:'JAXA/JMA',mtg:'EUMETSAT',iodc:'EUMETSAT'};
+    if(withProd.length) lines.push('cloud retrievals (optical thickness, top height, phase): '+[...new Set(withProd.map(s=>AGENCY[s]))].join(', '));
+    document.getElementById('credits').textContent=lines.join(' · ')+' ·';
+  }
   fetch('clouds.json').then(r=>r.json()).then(m=>{
     man=m; scrub.max=m.frames.length-1;
     if(m.code){ code=m.code; U.uFlow.value.set(code.flow_p99_px/m.width, -code.flow_p99_px/m.height); }   // flow y is down the image; v is up
@@ -920,6 +962,8 @@
       document.getElementById('satsh').textContent=`${m.sats.length} of five satellites, checked with arithmetic`;
       if(missing.length) document.getElementById('satsp').insertAdjacentHTML('afterbegin', `<b>In this clip: ${m.sats.map(s=>NAMES[s]).join(', ')}. Not yet: ${missing.map(s=>NAMES[s]).join(', ')}, so its part of the world is drawn clear.</b> `); }
     if(m.seam){ document.getElementById('seams').textContent=Object.entries(m.seam).map(([k,v])=>{ const [a,b]=k.split('-'); return `${NAMES[a]||a} vs ${NAMES[b]||b}: mean |difference| ${v.mad.toFixed(3)}, bias ${v.bias>=0?'+':''}${v.bias.toFixed(3)}`; }).join(' · '); }
+    describeSources(m, NAMES);
+    U.uHeightRetrieved.value=(m.products&&Object.values(m.products).some(p=>p.fields.includes('cth')))?1:0;
     const bytes=days[0].sizes[clipKey()]; perf.bytes.clip=bytes;
     const perDay=days.length>1 ? ` · ${(m.sizes['clouds.mp4']/1e6/days.length).toFixed(0)} MB (4k) / ${(m.sizes['clouds_2k.mp4']/1e6/days.length).toFixed(0)} MB (2k) a day` : '';
     document.getElementById('man').textContent=`${m.frames.length} frames, ${m.frames[0].replace('T',' ')} to ${m.frames[m.frames.length-1].replace('T',' ')} · ${(m.sizes['clouds.mp4']/1e6).toFixed(1)} MB (4k) / ${(m.sizes['clouds_2k.mp4']/1e6).toFixed(1)} MB (2k)${perDay}${m.assets?' · clips and tiles from Cloudflare R2':''}`;

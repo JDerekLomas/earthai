@@ -54,6 +54,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import subprocess
 import sys
 import time
@@ -74,22 +75,25 @@ Image.MAX_IMAGE_PIXELS = None
 
 W, H = 4096, 1504
 LAT_MAX = H / W * 180.0                       # 66.09
-ROOT = Path("data/clouds")
+ROOT = Path(os.environ.get("CLOUDS_ROOT", "data/clouds"))   # a second tree (e.g. data/clouds/official) for a side-by-side run
 VIS_SCALE, BT_SCALE = 40000.0, 100.0
 ZEN_FULL, ZEN_ZERO = 58.0, 66.0               # satellite zenith angle: full weight .. none
 DIURNAL_K = 5.0                               # clear-sky bt over water is never below (warmest of all - this)
 DIURNAL_LAND_K = 32.0                         # over land (deserts cool 20-30 K overnight)
 R_EARTH, R_GEO = 6378.137, 42164.16
 
+# `official` is the agency's own calibrated product for the same two bands (scripts/official_sources.py):
+# `fetch --source official` writes physical values into raw/<sat>/ and a source.json marker, and the
+# WMS grey path (`calibrate`, the LUT) is then bypassed for that satellite.
 SATS = {
     "goes19": {"bucket": "noaa-goes19", "lon": -75.0, "kind": "abi", "name": "GOES-East"},
     "goes18": {"bucket": "noaa-goes18", "lon": -137.0, "kind": "abi", "name": "GOES-West"},
-    "himawari9": {"bucket": "noaa-himawari9", "lon": 140.7, "kind": "ahi", "name": "Himawari-9"},
+    "himawari9": {"bucket": "noaa-himawari9", "lon": 140.7, "kind": "ahi", "name": "Himawari-9", "official": "ptree"},
     # EUMETView serves contrast-stretched 8-bit greys, not numbers: `calibrate` maps them onto a
     # neighbour's physical values by quantile matching in the overlap (mtg <- goes19, iodc <- mtg)
-    "mtg": {"lon": 0.0, "kind": "wms", "name": "Meteosat MTG-I1", "step": 10, "ref": "goes19",
+    "mtg": {"lon": 0.0, "kind": "wms", "name": "Meteosat MTG-I1", "step": 10, "ref": "goes19", "official": "fci",
             "vis": ("mtg_fd:vis06_hrfi", ""), "ir": ("mtg_fd:ir105_hrfi", "mtg_fd:mtg_fd_ir105_hrfi_grayscale")},
-    "iodc": {"lon": 45.5, "kind": "wms", "name": "Meteosat-9", "step": 15, "ref": "mtg",
+    "iodc": {"lon": 45.5, "kind": "wms", "name": "Meteosat-9", "step": 15, "ref": "mtg", "official": "seviri",
              "vis": ("msg_iodc:vis006", ""), "ir": ("msg_iodc:ir108", "")},
 }
 WMS = ("https://view.eumetsat.int/geoserver/wms?service=WMS&version=1.3.0&request=GetMap"
@@ -151,42 +155,91 @@ def glint_cos(t: datetime, lon: np.ndarray, lat: np.ndarray, sub_lon: float) -> 
 # ---------------------------------------------------------------- ABI by byte range
 
 class DiskGeometry:
-    """Fractional (row, col) in a 2x2-averaged geostationary fixed grid of every output pixel.
-    `colrow(ax, ay)` turns scan angles (radians, x east, y north) into fractional 0-based native
-    (col, row); ABI and AHI differ only in that function and the sweep axis."""
+    """Fractional (row, col) in a source grid of every output pixel, and `sample()` to pull a source
+    array onto the output grid: box-average `pool`x`pool` (so the source pixel is near the output's
+    ~10 km before it is blurred and sampled bilinearly), a light blur, bilinear, masked to where the
+    satellite sees the ground (zenith under ZEN_ZERO+1).
+    Constructors: `abi`/`ahi`/`fci` for geostationary fixed grids (`colrow(ax, ay)` turns scan angles
+    in radians, x east, y north, into fractional 0-based native (col, row)); `latlon` for a regular
+    lat/lon grid (JAXA's gridded netCDF); `area` for a satpy AreaDefinition (SEVIRI native)."""
 
-    def __init__(self, sub_lon: float, sweep: str, n: int, colrow):
-        from pyproj import Transformer
-        h = 35786023.0
+    def __init__(self, sub_lon: float, rows: np.ndarray, cols: np.ndarray, ok: np.ndarray, pool: int = 2, blur: float = 1.0):
         lon, lat = grid_lonlat()
-        geos = f"+proj=geos +h={h} +lon_0={sub_lon} +sweep={sweep} +a=6378137 +b=6356752.31414 +units=m +no_defs"
+        self.ok = ok & (sat_zenith(lon, lat, sub_lon) < ZEN_ZERO + 1)
+        self.pool, self.blur = pool, blur
+        self.rows = ((rows + 0.5) / pool - 0.5).astype(np.float32) if pool > 1 else rows.astype(np.float32)
+        self.cols = ((cols + 0.5) / pool - 0.5).astype(np.float32) if pool > 1 else cols.astype(np.float32)
+
+    @classmethod
+    def geos(cls, sub_lon: float, sweep: str, colrow, pool: int = 2, h: float = 35786023.0, a: float = 6378137.0, b: float = 6356752.31414):
+        from pyproj import Transformer
+        lon, lat = grid_lonlat()
+        geos = f"+proj=geos +h={h} +lon_0={sub_lon} +sweep={sweep} +a={a} +b={b} +units=m +no_defs"
         gx, gy = Transformer.from_crs("EPSG:4326", geos, always_xy=True).transform(lon.astype(np.float64), lat.astype(np.float64))
         ok = np.isfinite(gx) & np.isfinite(gy)
         cols, rows = colrow(np.where(ok, gx, 0) / h, np.where(ok, gy, 0) / h)
-        ok &= sat_zenith(lon, lat, sub_lon) < ZEN_ZERO + 1
-        self.ok, self.n = ok, n
-        self.rows = ((rows - 0.5) / 2).astype(np.float32)
-        self.cols = ((cols - 0.5) / 2).astype(np.float32)
+        return cls(sub_lon, rows, cols, ok, pool)
 
     @classmethod
     def abi(cls, sub_lon: float, scale: float = 5.6e-05, off: float = 0.151844):
-        return cls(sub_lon, "x", 5424, lambda ax, ay: ((ax + off) / scale, (off - ay) / scale))
+        return cls.geos(sub_lon, "x", lambda ax, ay: ((ax + off) / scale, (off - ay) / scale))
 
     @classmethod
     def ahi(cls, sub_lon: float, cfac: float = 20466275, coff: float = 2750.5):
         f = cfac / 65536 * 180 / math.pi                       # HSD: pixel = COFF + angle_deg * CFAC / 2^16, 1-based
-        return cls(sub_lon, "y", 5500, lambda ax, ay: (coff + ax * f - 1, coff - ay * f - 1))
+        return cls.geos(sub_lon, "y", lambda ax, ay: (coff + ax * f - 1, coff - ay * f - 1))
+
+    @classmethod
+    def fci(cls, sub_lon: float, xscale: float, xoff: float, yscale: float, yoff: float, pool: int):
+        """MTG FCI L1c reference grid: packed x/y are column/row numbers, angle = offset + scale * index. The
+        array assembled from the chunk files has row index = FCI row - 1 and row 1 is the SOUTH edge (south-up).
+        The file's x runs the OTHER way from pyproj's geos x (its positive azimuth is west; taken literally the
+        disc came out mirrored, Atlantic east of Africa), so the azimuth is negated, and satpy's fci_l1c_nc area
+        (verified on coastlines) puts the edge at index -0.5, half a pixel from the packing's literal reading."""
+        return cls.geos(sub_lon, "y", lambda ax, ay: ((-ax - xoff) / xscale - 0.5, (ay - yoff) / yscale - 0.5), pool,
+                        h=35786400.0, a=6378137.0, b=6356752.31424518)
+
+    @classmethod
+    def latlon(cls, sub_lon: float, lat0: float, lon0: float, step: float, nlat: int, nlon: int, pool: int = 1, blur: float = 1.0):
+        """A regular grid with its first row at lat0 (north edge pixel centre) and first column at lon0, `step`
+        degrees; lon0 may exceed 180 (JAXA: 70..210 E), longitudes are unwrapped to match."""
+        lon, lat = grid_lonlat()
+        lonu = np.where(lon < lon0 - 1e-6, lon + 360, lon)
+        rows = (lat0 - lat) / step
+        cols = (lonu - lon0) / step
+        ok = (rows >= -0.5) & (rows <= nlat - 0.5) & (cols >= -0.5) & (cols <= nlon - 0.5)
+        return cls(sub_lon, rows, cols, ok, pool, blur)
+
+    @classmethod
+    def area(cls, sub_lon: float, area, pool: int = 1, blur: float = 0.8):
+        """A satpy/pyresample AreaDefinition: (col, row) from its CRS and extent, in either orientation
+        (SEVIRI native's extent runs south-east up; the formulas below handle a negative pixel size)."""
+        from pyproj import Transformer
+        lon, lat = grid_lonlat()
+        gx, gy = Transformer.from_crs("EPSG:4326", area.crs, always_xy=True).transform(lon.astype(np.float64), lat.astype(np.float64))
+        ok = np.isfinite(gx) & np.isfinite(gy)
+        llx, lly, urx, ury = area.area_extent
+        nrows, ncols = area.shape
+        cols = (np.where(ok, gx, 0) - llx) / ((urx - llx) / ncols) - 0.5
+        rows = (ury - np.where(ok, gy, 0)) / ((ury - lly) / nrows) - 0.5
+        return cls(sub_lon, rows, cols, ok, pool, blur)
 
     def sample(self, raw: np.ndarray) -> np.ndarray:
-        """raw: (n, n) float32 with NaN for fill. Returns the output grid, NaN where unseen."""
+        """raw: 2-D float32 with NaN for fill. Returns the output grid, NaN where unseen."""
         from scipy.ndimage import gaussian_filter, map_coordinates
-        m = self.n // 2
-        a = raw.reshape(m, 2, m, 2)
-        good = np.isfinite(a)
-        cnt = good.sum((1, 3))
-        pooled = np.where(good, a, 0).sum((1, 3)) / np.maximum(cnt, 1)
-        wgt = gaussian_filter((cnt > 0).astype(np.float32), 1.0)
-        pooled = gaussian_filter(np.where(cnt > 0, pooled, 0).astype(np.float32), 1.0) / np.maximum(wgt, 1e-3)
+        p = self.pool
+        if p > 1:
+            m0, m1 = raw.shape[0] // p, raw.shape[1] // p
+            a = raw[:m0 * p, :m1 * p].reshape(m0, p, m1, p)
+            good = np.isfinite(a)
+            cnt = good.sum((1, 3))
+            pooled = np.where(good, a, 0).sum((1, 3)) / np.maximum(cnt, 1)
+            seen = cnt > 0
+        else:
+            seen = np.isfinite(raw)
+            pooled = raw
+        wgt = gaussian_filter(seen.astype(np.float32), self.blur)
+        pooled = gaussian_filter(np.where(seen, pooled, 0).astype(np.float32), self.blur) / np.maximum(wgt, 1e-3)
         pooled[wgt < 0.5] = np.nan
         out = map_coordinates(pooled, [self.rows.ravel(), self.cols.ravel()], order=1, mode="constant", cval=np.nan).reshape(H, W)
         out[~self.ok] = np.nan
@@ -387,12 +440,27 @@ def lut_apply(lut: dict, band: str, grey: np.ndarray) -> np.ndarray:
     return np.interp(grey, lut[band]["grey"], lut[band]["value"]).astype(np.float32)
 
 
+_PHYSICAL: dict[str, bool] = {}
+
+
+def physical(sat: str) -> bool:
+    """True when raw/<sat>/ holds calibrated reflectance and kelvin (ABI, AHI, or an official source
+    fetched by `--source official`, which leaves raw/<sat>/source.json); False for WMS greys + LUT."""
+    if sat not in _PHYSICAL:
+        _PHYSICAL[sat] = SATS[sat]["kind"] != "wms" or (ROOT / "raw" / sat / "source.json").exists()
+    return _PHYSICAL[sat]
+
+
+def lut_for(sat: str) -> dict | None:
+    return None if physical(sat) else json.loads((ROOT / f"lut_{sat}.json").read_text())
+
+
 def load_band(sat: str, t: datetime, band: str, lut: dict | None = None) -> np.ndarray | None:
     """Physical values (reflectance or K) for any satellite, NaN = no data."""
     p = ROOT / "raw" / sat / f"{slot_name(t)}_{band}.png"
     if not p.exists():
         return None
-    if SATS[sat]["kind"] != "wms":
+    if physical(sat):
         return load16(p, VIS_SCALE if band == "vis" else BT_SCALE)
     g = load16(p, GREY_SCALE)
     if lut is None:
@@ -453,11 +521,20 @@ def have(out: Path, slot: datetime) -> bool:
 @click.option("--start", required=True)
 @click.option("--end", required=True)
 @click.option("--workers", default=6, show_default=True)
-def fetch(sat, start, end, workers):
+@click.option("--source", default="legacy", type=click.Choice(["legacy", "official"]), show_default=True,
+              help="official = the agency's calibrated product (JAXA P-Tree for himawari9, EUMETSAT Data Store for mtg and iodc; "
+                   "needs .secrets.json or $EARTHAI_SECRETS); legacy = HSD segments / EUMETView WMS. GOES is always NOAA's own.")
+@click.option("--range-reads", is_flag=True, help="official mtg: read only the two channels of each FCI chunk by HTTP byte range "
+              "(~210 MB a slot in ~440 requests) instead of whole chunk files (~815 MB a slot); slower, lighter")
+def fetch(sat, start, end, workers, source, range_reads):
     cfg = SATS[sat]
     out = ROOT / "raw" / sat
     out.mkdir(parents=True, exist_ok=True)
     log = open(ROOT / "fetch.jsonl", "a")
+    if source == "official" and cfg.get("official"):
+        return fetch_official(sat, cfg, out, start, end, workers, log, range_reads)
+    if cfg["kind"] == "wms" and physical(sat):
+        raise click.ClickException(f"raw/{sat} holds official (physical) frames; a legacy WMS fetch would mix greys into it")
     if cfg["kind"] == "ahi":
         return fetch_ahi(sat, cfg, out, start, end, workers, log)
     if cfg["kind"] == "wms":
@@ -559,6 +636,227 @@ def fetch_wms(sat, cfg, out, start, end, workers, log):
             click.echo(f"   {slot_name(t)}  {dt:.0f}s")
 
 
+def fetch_official(sat, cfg, out, start, end, workers, log, range_reads):
+    """The agency's own calibrated bands (scripts/official_sources.py) onto the grid, written like ABI's:
+    reflectance factor x VIS_SCALE and kelvin x BT_SCALE, plus raw/<sat>/source.json so every later stage
+    treats the satellite as physical (no LUT, the Blue Marble cap applies)."""
+    import official_sources as osrc
+    kind = cfg["official"]
+    step = cfg.get("step", 10)
+    todo = [t for t in slots_between(start, end, step) if not have(out, t)]
+    marker = out / "source.json"
+    if not marker.exists():
+        if any(out.glob("*_bt.png")):
+            raise click.ClickException(f"{out} already holds legacy frames; use a fresh CLOUDS_ROOT or move them away first")
+        marker.write_text(json.dumps({"source": kind, "physical": True, "since": datetime.now(timezone.utc).isoformat(timespec="seconds")}))
+    _PHYSICAL[sat] = True
+    click.echo(f"{sat} <- {kind}: {len(todo)} slots to fetch")
+    if not todo:
+        return
+    lon, lat = grid_lonlat()
+    geo_cache: dict = {}
+
+    def geometry(key, make):
+        if key not in geo_cache:
+            geo_cache[key] = make()
+        return geo_cache[key]
+
+    def one(t):
+        for attempt in range(4):
+            try:
+                t0 = time.time()
+                if kind == "ptree":
+                    got = osrc.ptree_l1(t)
+                    if got is None:
+                        return t, None, 0, 0.0
+                    bands, n = got
+                    g = geometry("ptree", lambda: DiskGeometry.latlon(cfg["lon"], **osrc.PTREE_GRID))
+                    return t, {"vis": g.sample(bands["vis"]), "bt": g.sample(bands["bt"])}, n, time.time() - t0
+                if kind == "fci":
+                    got = osrc.fci_slot(t, use_range=range_reads, workers=max(2, workers))
+                    if got is None:
+                        return t, None, 0, 0.0
+                    d, n = got
+                    pv, pb = d["pack"][osrc.FCI_VIS], d["pack"][osrc.FCI_IR]
+                    gv = geometry("fci_vis", lambda: DiskGeometry.fci(cfg["lon"], pv["xscale"], pv["xoff"], pv["yscale"], pv["yoff"], pool=4))
+                    gb = geometry("fci_ir", lambda: DiskGeometry.fci(cfg["lon"], pb["xscale"], pb["xoff"], pb["yscale"], pb["yoff"], pool=2))
+                    return t, {"vis": gv.sample(d["vis"]), "bt": gb.sample(d["bt"])}, n, time.time() - t0
+                if kind == "seviri":
+                    got = osrc.seviri_slot(t, workdir=ROOT / "tmp")
+                    if got is None:
+                        return t, None, 0, 0.0
+                    d, n = got
+                    g = geometry("seviri", lambda: DiskGeometry.area(cfg["lon"], d["area"], pool=1, blur=0.8))
+                    return t, {"vis": g.sample(d["vis"]), "bt": g.sample(d["bt"])}, n, time.time() - t0
+                raise click.ClickException(f"unknown official source {kind}")
+            except Exception as e:                                  # noqa: BLE001
+                click.echo(f"   retry {attempt + 1} {slot_name(t)}: {type(e).__name__}: {e}")
+                time.sleep(15 * (attempt + 1))
+        return t, None, 0, 0.0
+
+    (ROOT / "tmp").mkdir(exist_ok=True)
+    # FCI parallelises inside a slot (its chunk files); the others across slots
+    n_slots = 1 if kind == "fci" else workers
+    total = 0
+    with ThreadPoolExecutor(n_slots) as pool:
+        for t, bands, nbytes, dt in pool.map(one, todo):
+            if bands is None:
+                click.echo(f"   MISSING {slot_name(t)}")
+                continue
+            save16(out / f"{slot_name(t)}_vis.png", bands["vis"], VIS_SCALE)
+            save16(out / f"{slot_name(t)}_bt.png", bands["bt"], BT_SCALE)
+            total += nbytes
+            log.write(json.dumps({"sat": sat, "slot": slot_name(t), "source": kind, "fetched_bytes": nbytes, "seconds": round(dt, 1)}) + "\n")
+            log.flush()
+            click.echo(f"   {slot_name(t)}  {nbytes / 1e6:.1f} MB  {dt:.0f}s")
+    click.echo(f"fetched {total / 1e9:.2f} GB")
+
+
+# ---------------------------------------------------------------- cloud products (Stage B): the agencies' retrievals
+
+# The page's opacity from an optical thickness. The brief's 1 - exp(-0.75 tau) saturates a tau-2 cloud at 0.78,
+# where the two-band field puts a marine stratocumulus deck (tau ~10) at ~0.5, and no single exponential fits
+# (best g 0.07, rmse 0.139). The two-stream reflectance A x/(1+x), x = (1-g) tau, does: fitted on GOES-East
+# 12 Sep 17Z against the two-band opacity, A 0.88, g 0.86 (the droplet asymmetry parameter; textbook 0.85),
+# rmse 0.123, within 0.05 of the bin medians from tau 3 to tau 70. So the scale of the field is kept and only
+# the PATTERN comes from the retrieval, which is the point: every satellite's tau is the same physical quantity.
+PRODUCTS = {"cod_a": 0.88, "cod_asym": 0.86,                          # opacity = A x/(1+x), x = (1-asym) tau (see cod_opacity)
+            "cod_mu_lo": 0.25, "cod_mu_hi": 0.45,                    # COD is daytime-only: it takes over from the two-band
+            "clear_damp": 0.25}                                      # opacity through this cos(solar zenith) ramp; a confident
+                                                                     # clear classification scales the two-band opacity by this
+
+
+def products_geometry(sat: str, kind: str, info, cache: dict) -> DiskGeometry:
+    """A DiskGeometry for one product field's source grid, cached by (kind, packing)."""
+    key = (kind, json.dumps(info, sort_keys=True, default=str) if kind != "area" else (str(info.area_extent), info.shape))
+    if key in cache:
+        return cache[key]
+    sub_lon = SATS[sat]["lon"]
+    if kind == "abi":
+        px = abs(info["xscale"])                                    # 5.6e-5 rad = 2 km, 1.12e-4 = 4 km, 2.8e-4 = 10 km
+        pool, blur = (2, 1.0) if px < 8e-5 else (1, 1.0) if px < 2e-4 else (1, 0.5)
+        g = DiskGeometry.geos(sub_lon, "x", lambda ax, ay: ((ax - info["xoff"]) / info["xscale"], (ay - info["yoff"]) / info["yscale"]), pool)
+        g.blur = blur
+    elif kind == "fci":
+        g = DiskGeometry.fci(sub_lon, info["xscale"], info["xoff"], info["yscale"], info["yoff"], pool=2)
+    elif kind == "latlon":
+        g = DiskGeometry.latlon(sub_lon, **info)
+    elif kind == "area":
+        g = DiskGeometry.area(sub_lon, info, pool=1, blur=0.8 if info.shape[0] > 2000 else 0.5)
+    else:
+        raise ValueError(kind)
+    cache[key] = g
+    return g
+
+
+def products_paths(sat: str, t: datetime) -> dict[str, Path]:
+    d = ROOT / "products" / sat
+    return {k: d / f"{slot_name(t)}_{k}.png" for k in ("cod", "cth", "cls")}
+
+
+def load_products(sat: str, t: datetime) -> dict | None:
+    """The sampled products for one satellite slot, or None. cod: tau (NaN = none); cth: metres (NaN = none);
+    clear / ice: fractions 0..1 (NaN = unclassified)."""
+    p = products_paths(sat, t)
+    if not p["cls"].exists():
+        return None
+    out = {}
+    cls = np.asarray(Image.open(p["cls"])).astype(np.float32)
+    valid = cls[..., 2] > 0
+    out["clear"] = np.where(valid, cls[..., 0] / 255.0, np.nan).astype(np.float32)
+    out["ice"] = np.where(valid, cls[..., 1] / 255.0, np.nan).astype(np.float32)
+    out["cod"] = load16(p["cod"], 100.0) if p["cod"].exists() else None
+    out["cth"] = (load16(p["cth"], 1.0) - 1.0) if p["cth"].exists() else None
+    return out
+
+
+@cli.command()
+@click.option("--sat", required=True, type=click.Choice(sorted(SATS)))
+@click.option("--start", required=True)
+@click.option("--end", required=True)
+@click.option("--workers", default=4, show_default=True)
+def products(sat, start, end, workers):
+    """The agency's cloud retrievals for this satellite onto the grid, data/clouds/products/<sat>/<slot>_{cod,cth,cls}.png:
+    cod = optical thickness x 100 (uint16, 0 = no retrieval; 0.01 is written for a retrieved zero), cth = top height in
+    metres + 1 (uint16, 0 = none), cls = RGB: clear fraction x 255, ice-top fraction x 255, 255 where classified.
+    GOES: NOAA ABI-L2 CODF/ACHAF/ACTPF (no key). Himawari: JAXA CLP (daytime). MTG: EUMETSAT OCA (day and night).
+    Meteosat-9: EUMETSAT CTH + cloud mask (GRIB), no optical thickness exists for that service."""
+    import official_sources as osrc
+    cfg = SATS[sat]
+    out = ROOT / "products" / sat
+    out.mkdir(parents=True, exist_ok=True)
+    (ROOT / "tmp").mkdir(exist_ok=True)
+    step = cfg.get("step", 10)
+    todo = [t for t in slots_between(start, end, step) if not products_paths(sat, t)["cls"].exists()]
+    click.echo(f"{sat} products: {len(todo)} slots")
+    log = open(ROOT / "fetch.jsonl", "a")
+    geoms: dict = {}
+    glock = __import__("threading").Lock()
+
+    def source(t):
+        if cfg["kind"] == "abi":
+            return osrc.goes_products(cfg["bucket"], t)
+        if sat == "himawari9":
+            return osrc.clp_products(t)
+        if sat == "mtg":
+            return osrc.oca_products(t)
+        if sat == "iodc":
+            return osrc.iodc_products(t, workdir=ROOT / "tmp")
+        raise click.ClickException(f"no product source for {sat}")
+
+    def one(t):
+        for attempt in range(4):
+            try:
+                t0 = time.time()
+                got = source(t)
+                if got is None:
+                    return t, None, 0, 0.0
+                d, n = got
+                fields = {}
+                for k in ("cod", "cth", "clear", "ice"):
+                    if k in d:
+                        kind, info = d["geom"][k]
+                        with glock:
+                            g = products_geometry(sat, kind, info, geoms)
+                        fields[k] = g.sample(d[k])
+                return t, fields, n, time.time() - t0
+            except Exception as e:                                  # noqa: BLE001
+                click.echo(f"   retry {attempt + 1} {slot_name(t)}: {type(e).__name__}: {e}")
+                time.sleep(15 * (attempt + 1))
+        return t, None, 0, 0.0
+
+    total = 0
+    with ThreadPoolExecutor(workers) as pool:
+        for t, f, nbytes, dt in pool.map(one, todo):
+            p = products_paths(sat, t)
+            if f is None:
+                click.echo(f"   none {slot_name(t)}")
+                continue
+            clear = f.get("clear")
+            if clear is None:
+                click.echo(f"   no classification {slot_name(t)}")
+                continue
+            ice = f.get("ice", np.full_like(clear, np.nan))
+            valid = np.isfinite(clear)
+            cls = np.zeros((H, W, 3), np.uint8)
+            cls[..., 0] = np.clip(np.nan_to_num(clear) * 255, 0, 255).round()
+            cls[..., 1] = np.clip(np.nan_to_num(ice) * 255, 0, 255).round()
+            cls[..., 2] = valid * 255
+            Image.fromarray(cls).save(p["cls"].with_suffix(".tmp.png"), compress_level=3)
+            p["cls"].with_suffix(".tmp.png").rename(p["cls"])
+            if "cod" in f:
+                cod = f["cod"]
+                cod = np.where(np.isnan(cod) & (clear > 0.5), 0.0, cod)          # a clear pixel has tau 0, not "none"
+                save16(p["cod"], np.clip(cod, 0, 655.0), 100.0)                   # save16 floors a stored value at 1, so a true 0 reads 0.01
+            if "cth" in f:
+                save16(p["cth"], np.clip(f["cth"], 0, 65000) + 1.0, 1.0)
+            total += nbytes
+            log.write(json.dumps({"sat": sat, "slot": slot_name(t), "products": list(f), "fetched_bytes": nbytes, "seconds": round(dt, 1)}) + "\n")
+            log.flush()
+            click.echo(f"   {slot_name(t)}  {nbytes / 1e6:.1f} MB  {dt:.0f}s  {' '.join(sorted(f))}")
+    click.echo(f"fetched {total / 1e9:.2f} GB")
+
+
 @cli.command()
 @click.option("--sat", required=True)
 @click.option("--slots", default=8, show_default=True, help="how many slots, spread over what is on disk")
@@ -624,7 +922,7 @@ def clearsky(sat):
     vmin = np.full((H, W), np.inf, np.float32)
     bt_all = np.full((H, W), -np.inf, np.float32)
     by_tod: dict[int, np.ndarray] = {}
-    lut = json.loads((ROOT / f"lut_{sat}.json").read_text()) if SATS[sat]["kind"] == "wms" else None
+    lut = lut_for(sat)
     for i, t in enumerate(slots):
         mu = cos_solar_zenith(t, lon, lat).astype(np.float32)
         vis = load_band(sat, t, "vis", lut)
@@ -643,7 +941,7 @@ def clearsky(sat):
     # Only for satellites that deliver calibrated reflectance: a WMS grey mapped by quantiles is not
     # accurate enough over bright deserts for an absolute cap (the Sahara came out as solid cloud).
     water = water_mask()
-    if SATS[sat]["kind"] == "wms":
+    if not physical(sat):
         cap = np.full((H, W), 0.09, np.float32)
         vmin = np.where(np.isfinite(vmin), np.maximum(vmin, 0.0), cap)
     else:
@@ -714,8 +1012,37 @@ def opacity_frame(sat: str, t: datetime, lon, lat, vis_clear, water, clear_dir: 
     g = np.clip((c_in - glint_cos(t, lon, lat, SATS[sat]["lon"])) / (c_in - c_out), 0, 1)
     wv = np.where(water, wv * g, wv)
     op = ir + wv * np.clip(np.nan_to_num(vo, nan=0.0) - ir, 0, None)
+    op = apply_products(sat, t, op, mu)
     op[~np.isfinite(bt)] = np.nan
     return op
+
+
+def cod_opacity(tau: np.ndarray) -> np.ndarray:
+    """Opacity from an optical thickness: the two-stream reflectance of a non-absorbing cloud, A x / (1 + x)
+    with x = (1 - g) tau. g is the droplet asymmetry parameter (fitted 0.86; textbook 0.85) and A the ceiling
+    a very thick cloud reaches on the page (0.88, where the two-band field puts one). See `fit-products`."""
+    x = (1 - PRODUCTS["cod_asym"]) * tau
+    return (PRODUCTS["cod_a"] * x / (1 + x)).astype(np.float32)
+
+
+def apply_products(sat: str, t: datetime, op: np.ndarray, mu: np.ndarray) -> np.ndarray:
+    """Where the agency's retrieval exists for this slot, the optical thickness takes over the daytime opacity
+    through the cos(solar zenith) ramp cod_mu_lo..cod_mu_hi (COD is retrieved by day only; night keeps the
+    two-band field, blended through twilight as before), and a confident clear classification scales the
+    remaining two-band opacity by clear_damp (mostly the infrared night term over cooling deserts, which the
+    mask sees as ground). Without products the field is untouched."""
+    pr = load_products(sat, t)
+    if pr is None:
+        return op
+    if pr["cod"] is not None:
+        tau = pr["cod"]
+        has = np.isfinite(tau)
+        wc = np.clip((mu - PRODUCTS["cod_mu_lo"]) / (PRODUCTS["cod_mu_hi"] - PRODUCTS["cod_mu_lo"]), 0, 1)
+        wc = wc * wc * (3 - 2 * wc) * has
+        op = op * (1 - wc) + cod_opacity(np.nan_to_num(tau)) * wc
+    clear = pr["clear"]
+    damp = 1 - (1 - PRODUCTS["clear_damp"]) * np.clip(np.nan_to_num(clear, nan=0.0), 0, 1)
+    return (op * damp).astype(np.float32)
 
 
 @cli.command()
@@ -733,7 +1060,7 @@ def opacity(sat, start, end, workers):
     slots = [t for t in raw_slots(sat) if (not start or t >= utc(start)) and (not end or t <= utc(end))]
     wgt = view_weight(SATS[sat]["lon"])
     Image.fromarray((wgt * 255).round().astype(np.uint8)).save(ROOT / f"weight_{sat}.png")
-    lut = json.loads((ROOT / f"lut_{sat}.json").read_text()) if SATS[sat]["kind"] == "wms" else None
+    lut = lut_for(sat)
 
     def one(t):
         op = opacity_frame(sat, t, lon, lat, vis_clear, water, clear_dir, PARAMS, lut)
@@ -818,6 +1145,15 @@ def height_frame(sat: str, t: datetime, clear_dir: Path, lut=None) -> np.ndarray
     tod = (t.hour * 60 + t.minute) // 10
     bt_clear = load16(clear_dir / f"bt_clear_{tod:03d}.png", BT_SCALE)
     h = np.clip((bt_clear - bt) / LAPSE_K_PER_KM, 0, HEIGHT_MAX_KM)
+    pr = load_products(sat, t)
+    if pr is not None and pr["cth"] is not None:                # the agency's retrieved top where it has one
+        from scipy.ndimage import maximum_filter
+        cth = np.clip(pr["cth"] / 1000.0, 0, HEIGHT_MAX_KM)
+        # a hole in the retrieval inside a retrieved cloud (the schemes drop pixels they cannot fit) would fall to
+        # the lapse-rate estimate, several km lower than the tops around it, and read as a pit in an anvil: such a
+        # hole takes its neighbours' top (5 px, ~50 km) when that is higher than the estimate
+        near = maximum_filter(np.nan_to_num(cth, nan=0.0), size=5)
+        h = np.where(np.isfinite(cth), cth, np.maximum(h, near))
     h[~np.isfinite(bt)] = np.nan
     return h.astype(np.float32)
 
@@ -837,7 +1173,7 @@ def height(start, end, sats, hold_min, workers):
     out = ROOT / "height"
     out.mkdir(parents=True, exist_ok=True)
     weights = {s: view_weight(SATS[s]["lon"]) for s in names}
-    luts = {s: json.loads((ROOT / f"lut_{s}.json").read_text()) if SATS[s]["kind"] == "wms" else None for s in names}
+    luts = {s: lut_for(s) for s in names}
     slots = slots_between(start, end)
 
     def one(t):
@@ -987,6 +1323,77 @@ def poster(dest: Path, frame: Path) -> None:
     Image.merge("RGB", (op, Image.new("L", op.size, 128), Image.new("L", op.size, 128))).save(dest, quality=80)
 
 
+def source_id(sat: str) -> str:
+    m = ROOT / "raw" / sat / "source.json"
+    if m.exists():
+        return json.loads(m.read_text()).get("source", "official")
+    return {"abi": "abi", "ahi": "hsd", "wms": "wms"}[SATS[sat]["kind"]]
+
+
+def products_summary(sats: list[str], frames: list[Path]) -> dict:
+    """Per satellite: which product fields exist and for how many of these frames (a 15-min satellite's product
+    counts for the frame it was made for; the held frames between are blended from it by `opacity`)."""
+    names = {p.stem for p in frames}
+    out = {}
+    for s in sats:
+        d = ROOT / "products" / s
+        if not d.exists():
+            continue
+        fields, n = set(), 0
+        for cls in d.glob("*_cls.png"):
+            slot = cls.name[:-8]
+            if slot in names:
+                n += 1
+                fields.add("clear")
+                for k in ("cod", "cth"):
+                    if (d / f"{slot}_{k}.png").exists():
+                        fields.add(k)
+        if n:
+            out[s] = {"fields": sorted(fields), "frames": n}
+    return out
+
+
+def merge_manifests(old: dict, new: dict) -> dict:
+    """`new`'s days replace `old`'s by date; everything the page reads at the top level (frames, sizes, seam, held,
+    sats, sources, products) is rebuilt from the merged days. `code`/`curve`/`assets`/`tiles` come from `new` (the
+    newer encode), which is right as long as both used the same clip layout (the height rows), which they must:
+    one page reads them all. `official_days` lists the days whose two bands all came from an agency's own L1."""
+    days = {d["date"]: d for d in old.get("days", [])}
+    for d in new["days"]:
+        days[d["date"]] = d
+    merged = dict(new)
+    merged["days"] = [days[k] for k in sorted(days)]
+    for k in ("poster", "tiles"):                                # the page-level poster is the FIRST day's; tile sets are the page's, not this encode's
+        if k in old:
+            merged[k] = old[k]
+    merged["poster"] = merged["days"][0].get("poster", merged.get("poster"))
+    off, frames = 0, []
+    for d in merged["days"]:
+        d["off"] = off
+        off += d["n"]
+        frames += d["frames"]
+    merged["frames"] = frames
+    merged["sizes"] = {}
+    for key, fname in (("4k", f"{new.get('clip_name', 'clouds')}.mp4"), ("2k", f"{new.get('clip_name', 'clouds')}_2k.mp4")):
+        merged["sizes"][fname] = sum(d["sizes"][key] for d in merged["days"])
+    seam: dict = {}
+    for d in merged["days"]:
+        for k, v in d.get("seam", {}).items():
+            a = seam.setdefault(k, {"bias": 0.0, "mad": 0.0, "frames": 0})
+            a["bias"] += v["bias"] * v["frames"]; a["mad"] += v["mad"] * v["frames"]; a["frames"] += v["frames"]
+    merged["seam"] = {k: {"bias": round(v["bias"] / v["frames"], 4), "mad": round(v["mad"] / v["frames"], 4), "frames": v["frames"]} for k, v in seam.items() if v["frames"]}
+    held: dict = {}
+    for d in merged["days"]:
+        for s_, n in d.get("held", {}).items():
+            held[s_] = held.get(s_, 0) + n
+    merged["held"] = held
+    merged["sats"] = sorted({s_ for d in merged["days"] for s_ in (d.get("seam") and {x for k in d["seam"] for x in k.split("-")} or set()) | set(d.get("held", {}))} | set(new.get("sats", [])))
+    official = [d["date"] for d in merged["days"] if d.get("sources") and all(v in ("abi", "ptree", "fci", "seviri") for v in d["sources"].values())]
+    merged["official_days"] = official
+    merged["products_days"] = [d["date"] for d in merged["days"] if d.get("products")]
+    return merged
+
+
 def seam_stats(root: Path, frames: list[Path]) -> tuple[dict, dict, list[str]]:
     """The seam numbers and hold counts from the blend (frames.jsonl), averaged over these frames."""
     names = {p.stem for p in frames}
@@ -1022,7 +1429,11 @@ def seam_stats(root: Path, frames: list[Path]) -> tuple[dict, dict, list[str]]:
 @click.option("--root", default=None, type=click.Path(path_type=Path), help="where frames/, height/ and frames.jsonl are (default data/clouds)")
 @click.option("--days-only", default="", help="comma-separated dates to (re)encode with --per-day; other days keep their clips if "
               "the manifest already lists them")
-def encode(out, name, start, end, fps, crf, crf_small, aq, flow_cache, per_day, assets, root, days_only):
+@click.option("--merge-into", default=None, type=click.Path(path_type=Path),
+              help="with --per-day: an existing per-day manifest (e.g. the live clouds.json) whose days this encode's days REPLACE by "
+                   "date, the other days kept as they are (their clips wherever they live); the merged manifest is written to --out/<name>.json "
+                   "AND back to this path. Days carry their own `sources`/`products`, so a page can say which days are the agencies' own data.")
+def encode(out, name, start, end, fps, crf, crf_small, aq, flow_cache, per_day, assets, root, days_only, merge_into):
     root = root or ROOT
     out.mkdir(parents=True, exist_ok=True)
     frames = sorted(p for p in (root / "frames").glob("*.png")
@@ -1049,7 +1460,12 @@ def encode(out, name, start, end, fps, crf, crf_small, aq, flow_cache, per_day, 
     seam, held, sats = seam_stats(root, frames)
     manifest = {"frames": [p.stem for p in frames], "fps": fps, "width": W, "height": H, "lat_max": LAT_MAX,
                 "sizes": {}, "poster": f"{name}_poster.webp", "seam": seam, "held": held, "sats": sats,
-                "curve": {"vis_k": PARAMS["vis_k"], "bt_k": PARAMS["bt_k"]},       # the page inverts vis_k for the cloud's brightness
+                "curve": {"vis_k": PARAMS["vis_k"], "bt_k": PARAMS["bt_k"],        # the page inverts vis_k for the cloud's brightness
+                          "cod_a": PRODUCTS["cod_a"], "cod_asym": PRODUCTS["cod_asym"], "clear_damp": PRODUCTS["clear_damp"]},
+                # where each satellite's two bands came from (abi = NOAA's CMIP; ptree/fci/seviri = the agency's calibrated L1
+                # via `fetch --source official`; hsd = raw Himawari segments; wms = EUMETView greys through a LUT) and which
+                # agency cloud retrievals (cod, cth, clear, ice) were folded into how many of these frames per satellite
+                "sources": {s: source_id(s) for s in sats}, "products": products_summary(sats, frames),
                 "code": {"y_lo": Y_LO, "y_hi": Y_HI, "chroma": CHROMA, "strip": STRIP, "patches": PATCHES,
                          # height_rows: rows of cloud-top height under the opacity (at `width`; scale by the clip's actual
                          # width), the field itself in the LEFT half of those rows, luma y_lo..y_hi = 0..height_km_max
@@ -1080,6 +1496,7 @@ def encode(out, name, start, end, fps, crf, crf_small, aq, flow_cache, per_day, 
             d = {"date": date, "off": sel[0], "n": len(sel), "frames": [p.stem for p in fr],
                  "clips": {"4k": f"{name}_{date}.mp4", "2k": f"{name}_{date}_2k.mp4"}, "poster": f"{name}_{date}_poster.webp", "sizes": {}}
             d["seam"], d["held"], _ = seam_stats(root, fr)
+            d["sources"], d["products"] = manifest["sources"], products_summary(sats, fr)
             if redo is not None and date not in redo and date in old_days and all((out / f).exists() for f in old_days[date]["clips"].values()):
                 d["sizes"] = old_days[date]["sizes"]
                 click.echo(f"{date}: kept ({d['n']} frames)")
@@ -1090,10 +1507,15 @@ def encode(out, name, start, end, fps, crf, crf_small, aq, flow_cache, per_day, 
                     click.echo(f"{dest}  {dest.stat().st_size / 1e6:.1f} MB  ({time.time() - t0:.0f}s)")
                 poster(out / d["poster"], fr[0])
             manifest["days"].append(d)
-        for key, fname in (("4k", f"{name}.mp4"), ("2k", f"{name}_2k.mp4")):       # totals, under the one-clip names the page's footer reads
+        manifest["clip_name"] = "clouds"                                                # the footer reads sizes["clouds.mp4"] whatever the clips are called
+        for key, fname in (("4k", "clouds.mp4"), ("2k", "clouds_2k.mp4")):            # totals, under the one-clip names the page's footer reads
             manifest["sizes"][fname] = sum(d["sizes"][key] for d in manifest["days"])
         poster(out / f"{name}_poster.webp", frames[0])
-        click.echo(f"{len(dates)} days, {dates[0]} to {dates[-1]}: 4k {manifest['sizes'][name + '.mp4'] / 1e6:.0f} MB, 2k {manifest['sizes'][name + '_2k.mp4'] / 1e6:.0f} MB")
+        click.echo(f"{len(dates)} days, {dates[0]} to {dates[-1]}: 4k {manifest['sizes']['clouds.mp4'] / 1e6:.0f} MB, 2k {manifest['sizes']['clouds_2k.mp4'] / 1e6:.0f} MB")
+        if merge_into:
+            manifest = merge_manifests(json.loads(Path(merge_into).read_text()), manifest)
+            Path(merge_into).write_text(json.dumps(manifest))
+            click.echo(f"merged into {merge_into}: {len(manifest['days'])} days, official on {manifest.get('official_days')}")
     (out / f"{name}.json").write_text(json.dumps(manifest))
     click.echo(f"manifest {out / (name + '.json')}")
 
