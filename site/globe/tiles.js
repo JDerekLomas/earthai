@@ -169,12 +169,16 @@
     }
     function keyAtOrBefore(t, k) { return k - (k % GOP); }
 
-    // feed the decoder so that frames i-1, i and i+1 come out; restart from a keyframe when the clock jumped
+    // feed the decoder so that frames i-1, i and i+1 come out; restart from a keyframe when the clock jumped.
+    // After a full feed the decoder is one frame AHEAD (next = i + 2), which is not a jump: a paused page feeds
+    // the same i again on every byte arrival, and restarting then re-decoded the group each time and the ring's
+    // "replace the oldest" filled all three slots with frame i + 1, so the tiles never came on (seen live from
+    // R2, whose slower ranges made the restarts land between decodes; 2026-09-19).
     function feed(t, i) {
       if (!t.dec) return;
       t.want = i;
       const hi = Math.min(t.n - 1, i + 1);
-      if (t.next < 0 || t.next > i + 1 || (i - 1) - t.next > GOP * 2) {
+      if (t.next < 0 || t.next > i + 2 || (i - 1) - t.next > GOP * 2) {
         if (t.next >= 0) configure(t);
         t.next = keyAtOrBefore(t, Math.max(0, i - 1));
       }
