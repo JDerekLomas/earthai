@@ -528,7 +528,7 @@
     // both players); the warp's progress is measured from the clock, so that lead is tracked and removed (smoothed over presents)
     if(mt!=null && man){ const lead=mt*man.fps-vid.currentTime*man.fps; if(Number.isFinite(lead) && Math.abs(lead)<1) presentLead=presentLead==null?lead:presentLead*0.9+lead*0.1; }
     if(perf.lastSwap && perf.lastSwap.firstPresent===null) perf.lastSwap.firstPresent=Math.round(now);
-    if(perf.videoFirstFrame===null){ perf.videoFirstFrame=Math.round(now-T0); load.textContent=''; load.style.opacity=0; }
+    if(perf.videoFirstFrame===null){ perf.videoFirstFrame=Math.round(now-T0); if(!perf.openCapped){ load.textContent=''; load.style.opacity=0; } else setTimeout(()=>{ load.style.opacity=0; }, 4000); }
   }
   // both players report their presented frames; only the one being shown is uploaded (the other is paused on its first frame)
   if('requestVideoFrameCallback' in V[0]) V.forEach(v=>{ const cb=(t,md)=>{ if(v===vid){ perf.mediaTime=md&&md.mediaTime; present(md?md.mediaTime:null); } v.requestVideoFrameCallback(cb); }; v.requestVideoFrameCallback(cb); });
@@ -672,14 +672,24 @@
     const bytes=days[0].sizes[clipKey()]; perf.bytes.clip=bytes;
     const perDay=days.length>1 ? ` · ${(m.sizes['clouds.mp4']/1e6/days.length).toFixed(0)} MB (4k) / ${(m.sizes['clouds_2k.mp4']/1e6/days.length).toFixed(0)} MB (2k) a day` : '';
     document.getElementById('man').textContent=`${m.frames.length} frames, ${m.frames[0].replace('T',' ')} to ${m.frames[m.frames.length-1].replace('T',' ')} · ${(m.sizes['clouds.mp4']/1e6).toFixed(1)} MB (4k) / ${(m.sizes['clouds_2k.mp4']/1e6).toFixed(1)} MB (2k)${perDay}${m.assets?' · clips and tiles from Cloudflare R2':''}`;
-    load.textContent=`streaming ${(bytes/1e6).toFixed(0)} MB of cloud…`;
-    setSrc(0, 0); vid.play().catch(()=>{});
-    // (c) the big basemap half a second after the video is playing steadily (or at 6 s if it never does), if the card can hold
-    // it and the screen can use it; streamed in bands (streamBase above), swapped in whole. Then the tiles and the rest.
-    const want=(maxTex>=8192 && !useSmall)?8192:4096; let started=false;
-    const start=()=>{ if(started) return; started=true;
-      streamBase(`base_${want}.jpg`).then(t=>{ U.uBase.value=t; t2k.dispose(); perf.baseLoaded=Math.round(performance.now()-T0); perf.base=want; }).finally(drainLater); };
-    vid.addEventListener('playing', ()=>setTimeout(start, 500), {once:true}); setTimeout(start, 6000);
+    // The opening holds still until everything a smooth first minute needs is in hand, then starts: Derek asked for
+    // "a bit of a loader so everything is fully ready when it starts playing smooth". Ready means: the big basemap is on
+    // the GPU (streamed in bands, see streamBase) and the first READY_S seconds of the day's clip are buffered (the tiles
+    // start in idle time after the opening, as before). Until then the globe sits lit and still under the poster cloud with one quiet line saying so.
+    // A slow link is capped at READY_CAP_MS so nobody waits forever; the line then says what is still streaming.
+    const READY_S=15, READY_CAP_MS=8000;
+    load.textContent='preparing the day…';
+    setSrc(0, 0); wantPlay=false;                          // load, do not play yet (sync() honours wantPlay)
+    const want=(maxTex>=8192 && !useSmall)?8192:4096;
+    const baseReady=streamBase(`base_${want}.jpg`).then(t=>{ U.uBase.value=t; t2k.dispose(); perf.baseLoaded=Math.round(performance.now()-T0); perf.base=want; }).catch(()=>{});
+    const vidReady=new Promise(res=>{ const ok=()=>{ const b=vid.buffered; if(vid.readyState>=3 && b.length && b.end(0)>=Math.min(READY_S, vid.duration||READY_S)-0.1){ res(); return true; } return false; };
+      if(ok()) return; const tick=()=>{ if(!ok()) setTimeout(tick, 100); }; tick(); });
+    const cap=new Promise(res=>setTimeout(res, READY_CAP_MS));
+    Promise.race([Promise.all([baseReady, vidReady]), cap]).then(()=>{
+      perf.openReady=Math.round(performance.now()-T0); perf.openCapped=perf.openReady>=READY_CAP_MS-50;
+      const b=vid.buffered; perf.openBuffered=b.length?+b.end(b.length-1).toFixed(1):0;
+      load.textContent=perf.openCapped?`still streaming ${(bytes/1e6).toFixed(0)} MB of cloud…`:'';
+      wantPlay=true; if(!vid.paused) return; sync(); drainLater(); });
   });
   V.forEach((v,k)=>v.addEventListener('error', ()=>{
     if(man&&man.assets && srcName[k] && v.src.startsWith(man.assets)){ v.src=srcName[k]; v.load(); perf.fellBack=(perf.fellBack||0)+1; if(v===vid) sync(); return; }   // R2 failed: the copy beside the page
