@@ -51,3 +51,41 @@ pipeline. Curl-check and look at a screenshot of the opening frame after deploy.
 ## Report back
 Append here: what changed, the gap log before/after, first paint / first moving frame before/after. SendMessage
 'earthai-46' one line DONE/BLOCKED + URL.
+
+## Report (2026-09-19, session smooth-open) — DONE, live at https://earthai-scales.vercel.app/globe/ (commit 3860d3e)
+
+**What changed** (`site/globe/index.html`, the loading-order section and the tick's spin line only):
+- `streamBase(url)`: the big basemap is fetched, decoded off the main thread with `createImageBitmap(blob, {imageOrientation:'flipY'})`,
+  an empty `SRGB8_ALPHA8` texture of the image's size is allocated with `texStorage2D`, and **32 bands of 8192x128 (4 MB)** go up with
+  `texSubImage2D`, **one per frame** (0.6–1.5 ms each, ~0.55 s in all), never during a drag; then one `generateMipmap`, one frame's
+  grace, and the swap. The raw GL texture is wrapped in a `THREE.Texture` whose `__webglTexture` is set through
+  `renderer.properties.get(tex)` — its `version` stays 0 so three binds it and never uploads; sampler params (mipmap linear, repeat/clamp,
+  anisotropy 8) are set by hand. Without WebGL2 or `createImageBitmap`, or on any error, the plain loader as before.
+- The opening: the canvas fades up over 500 ms at first paint (inline style, set before the 2048 basemap arrives); `spinRamp()` keeps
+  the globe still until the video presents its first frame, then eases 0→1 over 1.5 s (tick multiplies the spin rate by it);
+  the big basemap starts 500 ms after `playing` (6 s fallback); `later(fn)` queues the tile start (and, via `window.__later`, the sky's
+  stars/Moon) one per idle period after the basemap is in. The "lighting the Earth… / streaming N MB of cloud…" line is still the only
+  loader and still fades at the first video frame.
+- `perf.T0`, `perf.firstMove`, `perf.baseStream` {alloc, bands[], mip} added to `window.__globe` for measuring.
+
+**Gap log, live page, headless Chrome 1440x900 @2x Metal, rAF gaps in the first 15 s** (times relative to script start `T0`):
+| | first paint | video 1st frame | first moving frame | 8192 in | gaps > 40 ms |
+|---|---|---|---|---|---|
+| before ×3 (this morning) | 69–157 ms | 1,078–1,827 | 1,178 (handoff) | 2.3–7.4 s, then a freeze | **550–620 ms** at the basemap's first use (one `texSubImage2D`: main-thread JPEG decode + 128 MB upload); 50 ms at the video's first frames in 2 of 3 |
+| after ×3 (deployed) | 68–70 ms | 2,064–2,259 | 2,046–2,240 (= the video's first frame, by design) | 5.3–5.5 s, no freeze | **none after first paint**; one 50 ms in the first-paint frame itself in 2 of 3 (the 2048/poster/coverage/lights uploads, before the fade-up, globe still) |
+
+Over 25 ms after the first second: only a 33 ms at ~7.7 s in two runs (the tile indexes starting in idle time). `__dbg.rafStats()` steady
+state unchanged (p95 gap 16.7, work p95 0.6 ms). The video start hitch did not appear in any after run. The first moving frame is later
+than before because (b) ties it to the video's first frame; the globe now sits still under the poster cloud until the cloud is real.
+The streamed texture is pixel-identical to the old one: row readback at 15 latitudes matches, and clouds-off screenshots at three views
+(whole globe, US west at 1.3, Antarctic at 1.3) differ by 0.0 mean. Scripts: `$CLAUDE_JOB_DIR/tmp/{gaps,base,look,texread}.cjs` of job 258cf20c.
+
+**Traps found on the way** (also in auto-memory `earthai-globe-gpu-upload-traps`):
+- The 367–400 ms "constant" gap at ~3.5 s in every before run was **my logger's mid-run screenshot** stalling the page, not the site.
+  Never screenshot inside a timing window.
+- ANGLE Metal: `texSubImage2D` into `SRGB8_ALPHA8` is ~1 ms up to 8 MB a call and **45–98 ms at 16 MB** (RGBA8 stays 2–4 ms at any size);
+  ImageBitmap sources trip it at a lower size — hence 128-row bands, not 512.
+- `UNPACK_FLIP_Y_WEBGL` is **ignored for ImageBitmap sources**; `imageOrientation:'flipY'` at `createImageBitmap` is honoured.
+- The basemap JPEGs are **2:1 (8192x4096)**, not square — a square allocation put the map in the lower half and the north black.
+- Headless Chrome's `navigator.connection.effectiveType` flips to `3g` under load, so the page picks the 2k clip and the 4096 basemap
+  in some runs; pin it with `--force-effective-connection-type=4G`.
