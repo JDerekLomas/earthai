@@ -181,24 +181,30 @@ class FtpRange(Reads):
 
     def _range(self, lo: int, hi: int) -> bytes:
         n = hi - lo
-        conn = self.ftp.transfercmd("RETR " + self.path, rest=lo)
         buf = bytearray()
         try:
-            while len(buf) < n:
-                b = conn.recv(min(1 << 20, n - len(buf)))
-                if not b:
-                    break
-                buf += b
-        finally:
+            conn = self.ftp.transfercmd("RETR " + self.path, rest=lo)
             try:
-                conn.shutdown(socket.SHUT_RDWR)
-            except OSError:
+                while len(buf) < n:
+                    b = conn.recv(min(1 << 20, n - len(buf)))
+                    if not b:
+                        break
+                    buf += b
+            finally:
+                try:
+                    conn.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+                conn.close()
+            try:
+                self.ftp.voidresp()
+            except (ftplib.error_temp, ftplib.error_perm):
                 pass
-            conn.close()
-        try:
-            self.ftp.voidresp()
-        except (ftplib.error_temp, ftplib.error_perm):
-            pass
+        except (OSError, EOFError) + ftplib.all_errors:
+            # a timed-out data connection leaves the control connection out of step: drop it so the thread's
+            # next call logs in afresh (ptree_ftp), and let the caller retry
+            ftp_drop(self.ftp)
+            raise
         self.reqs += 1
         self.fetched += len(buf)
         if len(buf) < n:
@@ -209,6 +215,15 @@ class FtpRange(Reads):
 _ftp_local = threading.local()
 
 
+def ftp_drop(ftp: ftplib.FTP) -> None:
+    if getattr(_ftp_local, "ftp", None) is ftp:
+        _ftp_local.ftp = None
+    try:
+        ftp.close()
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def ptree_ftp() -> ftplib.FTP:
     """One logged-in FTP connection per thread, reconnected when it has gone stale."""
     ftp = getattr(_ftp_local, "ftp", None)
@@ -216,7 +231,7 @@ def ptree_ftp() -> ftplib.FTP:
         try:
             ftp.voidcmd("NOOP")
             return ftp
-        except (ftplib.all_errors, OSError):
+        except ftplib.all_errors + (OSError,):
             pass
     s = secrets()
     ftp = ftplib.FTP(s["PTREE_FTP_HOST"], timeout=180)
@@ -262,7 +277,11 @@ def ptree_clp(t: datetime) -> tuple[dict[str, np.ndarray], int] | None:
     if not ptree_exists(path):
         return None
     buf = io.BytesIO()
-    ftp.retrbinary("RETR " + path, buf.write, blocksize=1 << 20)
+    try:
+        ftp.retrbinary("RETR " + path, buf.write, blocksize=1 << 20)
+    except (OSError, EOFError) + ftplib.all_errors:
+        ftp_drop(ftp)
+        raise
     import h5py
     h = h5py.File(buf, "r")
     out = {}

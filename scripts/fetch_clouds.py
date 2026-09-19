@@ -1318,6 +1318,36 @@ def poster(dest: Path, frame: Path) -> None:
     Image.merge("RGB", (op, Image.new("L", op.size, 128), Image.new("L", op.size, 128))).save(dest, quality=80)
 
 
+def source_id(sat: str) -> str:
+    m = ROOT / "raw" / sat / "source.json"
+    if m.exists():
+        return json.loads(m.read_text()).get("source", "official")
+    return {"abi": "abi", "ahi": "hsd", "wms": "wms"}[SATS[sat]["kind"]]
+
+
+def products_summary(sats: list[str], frames: list[Path]) -> dict:
+    """Per satellite: which product fields exist and for how many of these frames (a 15-min satellite's product
+    counts for the frame it was made for; the held frames between are blended from it by `opacity`)."""
+    names = {p.stem for p in frames}
+    out = {}
+    for s in sats:
+        d = ROOT / "products" / s
+        if not d.exists():
+            continue
+        fields, n = set(), 0
+        for cls in d.glob("*_cls.png"):
+            slot = cls.name[:-8]
+            if slot in names:
+                n += 1
+                fields.add("clear")
+                for k in ("cod", "cth"):
+                    if (d / f"{slot}_{k}.png").exists():
+                        fields.add(k)
+        if n:
+            out[s] = {"fields": sorted(fields), "frames": n}
+    return out
+
+
 def seam_stats(root: Path, frames: list[Path]) -> tuple[dict, dict, list[str]]:
     """The seam numbers and hold counts from the blend (frames.jsonl), averaged over these frames."""
     names = {p.stem for p in frames}
@@ -1380,7 +1410,12 @@ def encode(out, name, start, end, fps, crf, crf_small, aq, flow_cache, per_day, 
     seam, held, sats = seam_stats(root, frames)
     manifest = {"frames": [p.stem for p in frames], "fps": fps, "width": W, "height": H, "lat_max": LAT_MAX,
                 "sizes": {}, "poster": f"{name}_poster.webp", "seam": seam, "held": held, "sats": sats,
-                "curve": {"vis_k": PARAMS["vis_k"], "bt_k": PARAMS["bt_k"]},       # the page inverts vis_k for the cloud's brightness
+                "curve": {"vis_k": PARAMS["vis_k"], "bt_k": PARAMS["bt_k"],        # the page inverts vis_k for the cloud's brightness
+                          "cod_a": PRODUCTS["cod_a"], "cod_asym": PRODUCTS["cod_asym"], "clear_damp": PRODUCTS["clear_damp"]},
+                # where each satellite's two bands came from (abi = NOAA's CMIP; ptree/fci/seviri = the agency's calibrated L1
+                # via `fetch --source official`; hsd = raw Himawari segments; wms = EUMETView greys through a LUT) and which
+                # agency cloud retrievals (cod, cth, clear, ice) were folded into how many of these frames per satellite
+                "sources": {s: source_id(s) for s in sats}, "products": products_summary(sats, frames),
                 "code": {"y_lo": Y_LO, "y_hi": Y_HI, "chroma": CHROMA, "strip": STRIP, "patches": PATCHES,
                          # height_rows: rows of cloud-top height under the opacity (at `width`; scale by the clip's actual
                          # width), the field itself in the LEFT half of those rows, luma y_lo..y_hi = 0..height_km_max
