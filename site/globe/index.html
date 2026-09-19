@@ -225,7 +225,7 @@
 
   // ---- renderer and scene
   const renderer=new THREE.WebGLRenderer({antialias:true, alpha:true, powerPreference:'high-performance'});
-  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setClearColor(0x04090f, 1);   // the stage tone, opaque: the sky is drawn on it
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   stage.insertBefore(renderer.domElement, stage.firstChild);
   const maxTex=renderer.capabilities.maxTextureSize;
@@ -558,7 +558,7 @@
       void main(){ vC=aCol; vA=clamp(pow(10.0,-0.4*(aMag-3.2)),0.0,1.0); gl_PointSize=uPx*(1.5+2.4*smoothstep(6.0,-1.5,aMag));
         gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
     fragmentShader:`varying vec3 vC; varying float vA; uniform float uExposure;
-      void main(){ float d=length(gl_PointCoord-0.5)*2.0; gl_FragColor=vec4(vC*smoothstep(1.0,0.25,d)*vA*uExposure, 1.0); }`}));
+      void main(){ float d=length(gl_PointCoord-0.5)*2.0; gl_FragColor=vec4(vC*smoothstep(1.0,0.25,d)*vA*pow(uExposure,0.3), 1.0); }`}));
   stars.renderOrder=-2; stars.visible=false; sky.add(stars);
   fetch('sky/stars.bin').then(r=>r.arrayBuffer()).then(buf=>{
     const a=new Int16Array(buf), n=a.length/5, idx=Array.from({length:n},(_,i)=>i).sort((i,j)=>a[i*5+2]-a[j*5+2]);
@@ -578,7 +578,7 @@
     uniforms:{t:{value:blank}, uExposure:U.uExposure, uOn:{value:0}}, side:THREE.BackSide, transparent:true, depthWrite:false, blending:THREE.CustomBlending, blendSrc:THREE.OneFactor, blendDst:THREE.OneFactor,
     vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
     fragmentShader:`uniform sampler2D t; uniform float uExposure, uOn; varying vec2 vUv;
-      void main(){ vec3 c=texture2D(t, vec2(1.0-vUv.x, vUv.y)).rgb; c=pow(c, vec3(1.35))*0.55; gl_FragColor=vec4(c*uExposure*uOn, 1.0); }`}));
+      void main(){ vec3 c=texture2D(t, vec2(1.0-vUv.x, vUv.y)).rgb; c=pow(c, vec3(1.35))*0.55; gl_FragColor=vec4(c*pow(uExposure,0.3)*uOn, 1.0); }`}));
   (function(){ const a=[-0.0548755604,-0.8734370902,-0.4838350155, 0.4941094279,-0.4448296300,0.7469822445, -0.8676661490,-0.1980763734,0.4559837762];   // equatorial -> galactic, J2000
     const E2G=new THREE.Matrix4().set(a[0],a[1],a[2],0, a[3],a[4],a[5],0, a[6],a[7],a[8],0, 0,0,0,1), G2E=E2G.clone().transpose();
     const P=new THREE.Matrix4().set(1,0,0,0, 0,0,1,0, 0,-1,0,0, 0,0,0,1);                 // the standard (x RA0, y RA6h, z pole) into this page's (x RA0, y pole, z -RA6h)
@@ -626,7 +626,7 @@
   // per frame: the shell follows the camera and the sidereal turn; the Sun and Moon take their places; the planet learns where
   // the Moon is (Earth-fixed) and how bright it is by phase; the glare learns whether the Sun's disc is in frame and not behind the Earth
   const skyTmp={v:new THREE.Vector3(), w:new THREE.Vector3(), x:new THREE.Vector3(), y:new THREE.Vector3(), z:new THREE.Vector3(), m:new THREE.Matrix4(), q:new THREE.Quaternion(), sunCel:new THREE.Vector3(), moonCel:new THREE.Vector3()};
-  let glareLevel=0; const skyInfo={};
+  let glareLevel=0, glareOnAt=-1e9; const skyInfo={};
   function skyTick(d, dt){
     const T=skyTmp, gm=gmst(d);
     sky.position.set(0,0,dist); sky.rotation.set(tilt, planet.rotation.y-gm, 0);
@@ -648,8 +648,10 @@
     const behind=T.w.z<0 && Math.acos(Math.max(-1,Math.min(1,-T.w.z)))<Math.asin(1/dist)+0.012;
     T.v.copy(T.w).multiplyScalar(SKY_R).add(cam.position).project(cam);
     const inFrame=T.w.z<0.2 && Math.abs(T.v.x)<1.3 && Math.abs(T.v.y)<1.3;
-    const want=(inFrame&&!behind)?1:0; glareLevel+=(want-glareLevel)*(1-Math.exp(-dt/0.35));
-    skyGlare.material.uniforms.uSunPx.value.set(T.v.x,T.v.y); skyGlare.material.uniforms.uAspect.value=cam.aspect; skyGlare.material.uniforms.uOn.value=glareLevel;
+    const want=(inFrame&&!behind)?1:0; if(want && skyInfo.sunVisible===0) glareOnAt=performance.now();
+    glareLevel+=(want-glareLevel)*(1-Math.exp(-dt/0.35));
+    const bloom=1+1.6*Math.exp(-(performance.now()-glareOnAt)/700);          // the sunrise: a brief overshoot as the disc clears the limb
+    skyGlare.material.uniforms.uSunPx.value.set(T.v.x,T.v.y); skyGlare.material.uniforms.uAspect.value=cam.aspect; skyGlare.material.uniforms.uOn.value=glareLevel*bloom;
     skyInfo.gmstH=+(gm/DEG/15).toFixed(3); skyInfo.sunRaH=+(((Math.atan2(-T.sunCel.z,T.sunCel.x)/DEG+360)%360)/15).toFixed(2); skyInfo.sunDec=+(Math.asin(T.sunCel.y)/DEG).toFixed(2);
     skyInfo.moonRaH=+(((mra/DEG+360)%360)/15).toFixed(2); skyInfo.moonDec=+(mdec/DEG).toFixed(2); skyInfo.moonFrac=+frac.toFixed(3); skyInfo.moonLight=+U.uMoonLight.value.toFixed(3); skyInfo.sunVisible=want; skyInfo.sunPx=[+T.v.x.toFixed(3),+T.v.y.toFixed(3)];
     T.v.copy(T.moonCel).applyQuaternion(sky.quaternion).multiplyScalar(SKY_R).add(cam.position).project(cam); skyInfo.moonPx=[+T.v.x.toFixed(3),+T.v.y.toFixed(3)];
@@ -813,10 +815,12 @@
   loader.load('lights_4096.jpg', t=>{ U.uLights.value=t; });
   loader.load('coverage.png', t=>{ t.colorSpace=THREE.NoColorSpace; U.uCover.value=t; });
   loader.load('clouds_poster.webp', t=>{ posterTex=t; t.colorSpace=THREE.NoColorSpace; t.wrapS=THREE.RepeatWrapping; posters[0]=t; if(!U.uHasCloud.value){ U.uCloudA.value=t; U.uCloudB.value=t; U.uHasCloud.value=1; U.uMix.value=0; U.uCloudTexel.value.set(1/t.image.width, 1/t.image.height); posterOn=true; } });
-  function firstPaint(){ if(perf.firstPaint!==null) return; renderer.render(scene,cam); perf.firstPaint=Math.round(performance.now()-T0); renderer.domElement.style.opacity=1; }
+  function firstPaint(){ if(perf.firstPaint!==null) return;
+    if(introState.wanted && !introState.done){ if(!man || !suns.length) return; if(!stars.visible && performance.now()-T0<1500){ setTimeout(firstPaint, 50); return; } solveSpin0(); spin=introState.spin0; }
+    renderer.render(scene,cam); perf.firstPaint=Math.round(performance.now()-T0); renderer.domElement.style.opacity=1; }
   // (b) the globe is still until the video has presented its first frame, then eases up to the cruising spin over 1.5 s,
   // so the first frames of cloud never land on a moving globe (tick multiplies the spin rate by this)
-  function spinRamp(now){ if(perf.videoFirstFrame===null) return 0; const r=Math.min(1, (now-T0-perf.videoFirstFrame)/1500); return r*r*(3-2*r); }
+  function spinRamp(now){ if(introState.done) return 1; if(perf.videoFirstFrame===null) return 0; const r=Math.min(1, (now-T0-perf.videoFirstFrame)/1500); return r*r*(3-2*r); }
   // (d) work that can wait for the opening (the tile indexes, sky assets): queued here, run one per idle period once the
   // big basemap is in. window.__later(fn) is for the sky's stars and Moon.
   const laterQ=[]; let openDone=false;
@@ -875,6 +879,7 @@
     zoomLimit();
     times=m.frames.map(s=>new Date(s.slice(0,4)+'-'+s.slice(5,7)+'-'+s.slice(8,10)+'T'+s.slice(11,13)+':'+s.slice(13,15)+':00Z'));
     suns=times.map(sunVec);
+    if(U.uBase.value!==blank) firstPaint();                 // the arrival waits for the sun before its first frame
     // a one-clip manifest is one "day" of however many frames it has
     days=m.days || [{date:m.frames[0].slice(0,10), off:0, n:m.frames.length, frames:m.frames, clips:{'4k':'clouds.mp4','2k':'clouds_2k.mp4'}, poster:m.poster||'clouds_poster.webp', sizes:{'4k':m.sizes['clouds.mp4'],'2k':m.sizes['clouds_2k.mp4']}}];
     dayOf=new Uint16Array(m.frames.length); days.forEach((d,k)=>{ for(let i=d.off;i<d.off+d.n;i++) dayOf[i]=k; });
@@ -918,7 +923,7 @@
       perf.openReady=Math.round(performance.now()-T0); perf.openCapped=perf.openReady>=READY_CAP_MS-50;
       const b=vid.buffered; perf.openBuffered=b.length?+b.end(b.length-1).toFixed(1):0;
       load.textContent=perf.openCapped?`still streaming ${(bytes/1e6).toFixed(0)} MB of cloud…`:'';
-      wantPlay=true; if(!vid.paused) return; sync(); drainLater(); });
+      if(!vid.paused) return; introReady(); });
   });
   V.forEach((v,k)=>v.addEventListener('error', ()=>{
     if(man&&man.assets && srcName[k] && v.src.startsWith(man.assets)){ v.src=srcName[k]; v.load(); perf.fellBack=(perf.fellBack||0)+1; if(v===vid) sync(); return; }   // R2 failed: the copy beside the page
@@ -975,7 +980,7 @@
   const cv=renderer.domElement; const ptrs=new Map(); let cx=0, cy=0, span=0;
   function centroid(){ let x=0, y=0; for(const p of ptrs.values()){ x+=p.x; y+=p.y; } const n=ptrs.size||1; return [x/n, y/n]; }
   function spanOf(){ if(ptrs.size<2) return 0; const [a,b]=[...ptrs.values()]; return Math.hypot(a.x-b.x, a.y-b.y); }
-  cv.addEventListener('pointerdown', e=>{ ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY}); [cx,cy]=centroid(); span=spanOf();
+  cv.addEventListener('pointerdown', e=>{ interruptIntro(); ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY}); [cx,cy]=centroid(); span=spanOf();
     dragging=true; vSpin=vTilt=0; try{ cv.setPointerCapture(e.pointerId); }catch(_){} cv.classList.add('drag'); });
   cv.addEventListener('pointermove', e=>{ if(!ptrs.has(e.pointerId)) return; ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY});
     const [nx,ny]=centroid(); const dx=nx-cx, dy=ny-cy; cx=nx; cy=ny;
@@ -997,10 +1002,10 @@
   function zoomLimit(){ const Wc=Math.max(rtW||4096, tiles&&tiles.supported ? tiles.finestWidth() : 0); minDist=Math.max(1.35, 1+texelPx(2, Wc)/MAX_TEXEL_DEV); perf.minDist=+minDist.toFixed(3);
     if(zoomTarget<minDist) zoomTarget=minDist; }
   function zoom(f){ zoomTarget=Math.max(minDist, Math.min(8, zoomTarget*f)); }
-  cv.addEventListener('wheel', e=>{ e.preventDefault(); zoom(1+Math.sign(e.deltaY)*0.08); }, {passive:false});
+  cv.addEventListener('wheel', e=>{ e.preventDefault(); interruptIntro(); zoom(1+Math.sign(e.deltaY)*0.08); }, {passive:false});
 
   // ---- a view can be set from outside (the measurement script) or from the URL: #lon=-75&lat=-30&zoom=2.2&frame=90
-  function setView(lon, lat, d, fi){ mode='earth'; document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed', x.dataset.mode==='earth'));
+  function setView(lon, lat, d, fi){ endIntro(); mode='earth'; document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed', x.dataset.mode==='earth'));
     spin=-(90+lon)*DEG; tilt=Math.max(-1.25, Math.min(1.25, lat*DEG)); vSpin=vTilt=0; if(d){ dist=zoomTarget=Math.max(minDist, Math.min(8, d)); cam.position.z=dist; } if(fi!=null) seek(fi); }
   window.__setView=setView;
   window.__dbg={renderer, U, tilt:()=>tilt, spin:()=>spin, sky:skyInfo, star:starCheck, skyObjs:{sky, stars, mw, moon, sunDisc, atmo}, vid:()=>vid, V, vtex:()=>vtex, tiles, rt:()=>rtB, presented:()=>presented, calibrate, code:()=>code, minDist:()=>minDist, dist:()=>dist,
@@ -1009,6 +1014,81 @@
       const q=(a,p)=>+a[Math.min(a.length-1,Math.floor(a.length*p))].toFixed(2); return {n, gap:{p50:q(g,.5),p95:q(g,.95),max:q(g,1)}, work:{p50:q(w,.5),p95:q(w,.95),max:q(w,1)}}; }};
   window.__pause=()=>{ wantPlay=false; sync(); playBtn.textContent='Play'; playBtn.setAttribute('aria-pressed','false'); };
   (function(){ const h=new URLSearchParams(location.hash.slice(1)); if(h.has('lon')) setView(+h.get('lon'), +(h.get('lat')||0), +(h.get('zoom')||0)||null, null); })();
+
+  // ---- the arrival: on a cold open the load hold (see the opening above) is an approach instead of a still. One progress p
+  // (0..1) drives everything: the camera dollies from 14 to the rest 4.3 on an ease-in-out over p 0..0.88, the exposure rises
+  // from 35% to 100% by p 0.6, the tilt eases from 0.42 to the resting 0.25, and the planet turns so that the Sun clears the
+  // limb at p ~0.6 (the starting spin is solved from the real sun direction of the day's first frame, below) and the lit
+  // hemisphere then slides into view on a hump of rotation that tapers into the cruising rate. p is time-based with a 6.5 s
+  // guess; when the opening is ready the rest of the path is re-fitted to finish in max(0.8 s, what it had left, the floor),
+  // and if the opening is late p crawls to 0.96 and waits, so playback and the arrival always end on the same frame.
+  // Any pointer or wheel on the stage ends it (0.6 s ease to rest); #nointro, prefers-reduced-motion, a #lon= view and a
+  // same-session reload (sessionStorage) skip it. Everything lives in introState/introTick/endIntro: delete this block
+  // and the page opens as before. __intro.setP(p) freezes it at a p for the contact sheet.
+  const introState={wanted:false, on:false, done:false, ready:false, t0:0, dur:lite?5500:6500, floor:lite?3000:4000, p:0, fin:null, forceP:null,
+    interrupted:false, spin0:0, tiltEnd:0.25, HUMP:-16*DEG, H0:0.25, riseP:0.6, sunRise:null};
+  const REST_DIST=4.3, INTRO_DIST=14, CRANE=10*DEG; let INTRO_TILT=0.25;   // the start tilt is set from the sun's declination (solveSpin0); the crane is the climb from it
+  const ease=x=>{ x=Math.max(0,Math.min(1,x)); return x<0.5 ? 4*x*x*x : 1-Math.pow(-2*x+2,3)/2; };
+  const sstep=(a,b,x)=>{ x=Math.max(0,Math.min(1,(x-a)/(b-a))); return x*x*(3-2*x); };
+  // the hump of rotation: sin^2 from H0 to 1, so its rate is zero at both ends; integral in radians of spin at p
+  function bump(p){ const u=Math.max(0,Math.min(1,(p-introState.H0)/(1-introState.H0))); return u-Math.sin(2*Math.PI*u)/(2*Math.PI); }   // 0..1 over H0..1, rate zero at both ends
+  function humpAt(p){ return introState.HUMP*bump(p); }
+  function introDist(p){ return REST_DIST+(INTRO_DIST-REST_DIST)*(1-ease(p/0.88)); }   // the dolly runs to p 0.88, not 0.8: the last second of the approach was standing still
+  function introTilt(p){ return INTRO_TILT+CRANE*bump(p); }                            // the crane up rides the same hump as the turn
+  function introSpin(p){ return introState.spin0+humpAt(p); }   // no cruise during the arrival: the hump's rate is zero at p=1, and the day's own 30 deg/s takes over at once
+  function introExposure(p){ return 0.35+0.65*sstep(0,0.6,p); }
+  (function(){ let w=true; try{ const h=location.hash; if(/nointro|lon=/.test(h) || matchMedia('(prefers-reduced-motion: reduce)').matches || sessionStorage.getItem('globeIntro')) w=false; }catch(_){}
+    introState.wanted=w; if(w){ dist=zoomTarget=INTRO_DIST; cam.position.z=dist; tilt=INTRO_TILT; U.uExposure.value=introExposure(0); } })();
+  // the starting spin: scan a turn for the spin0 at which the Sun first clears the limb (its centre a disc's radius past the
+  // Earth's edge, as seen from the camera at that p) closest to riseP, having been hidden at p=0. Uses the day's first frame's sun.
+  const introTmp=new THREE.Vector3(), introEul=new THREE.Euler(0,0,0,'XYZ');
+  function sunClear(p, spinAt){ const s=suns[0], d=introDist(p); introTmp.set(s[0],s[2],-s[1]).applyEuler(introEul.set(introTilt(p), spinAt, 0));
+    return introTmp.z > -Math.cos(Math.asin(1/d)+0.3*DEG); }
+  // From 14 Earth radii the Earth hides only a 4 deg cone, so the Sun is behind it at p=0 only if the camera starts at the
+  // antisolar latitude (minus the sun's declination, less a little so the disc sits low): the night side faces us with a ring
+  // of lit air, a sliver of day on one limb. Turning the planet under a fixed camera moves the Sun across the sky at the same
+  // rate, so the turn (HUMP) and the crane (CRANE) are small: the Sun clears the limb and hangs there, ~8 deg off it, instead
+  // of whipping across a 30 deg frame. The turn is westward (HUMP < 0) so the Sun clears the RIGHT limb: once the day plays,
+  // its own motion (2 h/s, the Sun crossing the sky at 30 deg/s) carries it further right and the lit hemisphere slides in from
+  // that side — the arrival's sunrise becomes the day's. The arrival rests 10 deg above the antisolar latitude (about the equator in
+  // September, further north in winter), not at the page's usual 0.25 rad: a departure from the brief, for the composition.
+  function solveSpin0(){ if(introState.sunRise!=null) return; let best=null;
+    INTRO_TILT=Math.max(-1.0, Math.min(1.0, -Math.asin(suns[0][2])-1.5*DEG)); tilt=INTRO_TILT; introState.tiltEnd=INTRO_TILT+CRANE;
+    for(let k=0;k<720;k++){ const s0=k/720*2*Math.PI; if(sunClear(0, s0)) continue; let rise=null;
+      for(let j=1;j<=100;j++){ const p=j/100; if(sunClear(p, s0+humpAt(p))){ rise=p; break; } }
+      if(rise==null) continue; const err=Math.abs(rise-introState.riseP); if(!best || err<best.err) best={s0, rise, err}; }
+    introState.spin0=best?best.s0:spin; introState.sunRise=best?best.rise:null; }
+  function introP(now){
+    if(introState.forceP!=null) return introState.forceP;
+    if(introState.fin){ const f=introState.fin; return Math.min(1, f.p0+(1-f.p0)*Math.min(1,(now-f.t0)/f.ms)); }
+    return Math.min(0.96, (now-introState.t0)/introState.dur);
+  }
+  function introFinish(now, ms){ if(introState.fin) return; introState.fin={p0:introP(now), t0:now, ms:Math.max(1,ms)}; }
+  function startIntro(now){ introState.on=true; introState.t0=now; solveSpin0(); spin=introState.spin0; try{ sessionStorage.setItem('globeIntro','1'); }catch(_){}
+    perf.intro={start:Math.round(now-T0), spin0:+introState.spin0.toFixed(3), sunRiseP:introState.sunRise};
+    if(introState.ready) introFinish(now, Math.max(800, introState.floor)); }
+  function introReady(){                     // the opening is ready: end the arrival on its own terms, or start playback now if there is none
+    introState.ready=true;
+    if(introState.on){ const now=performance.now(), el=now-introState.t0, p=introP(now); introFinish(now, Math.max(800, (1-p)*introState.dur, introState.floor-el)); return; }
+    if(introState.wanted && !introState.done) return;     // it has not started yet: startIntro will finish it on the floor
+    wantPlay=true; sync(); drainLater();
+  }
+  function introTick(now, dt){
+    if(!introState.on){ if(introState.wanted && !introState.done && man && suns.length && perf.firstPaint!==null) startIntro(now); else return; }
+    const p=introP(now); introState.p=p;
+    dist=zoomTarget=introDist(p); cam.position.z=dist; tilt=introTilt(p); U.uExposure.value=introExposure(p);
+    if(!introState.interrupted) spin=introSpin(p);
+    load.style.opacity=1-sstep(0.85,1,p);
+    if(p>=1) endIntro();
+  }
+  function endIntro(){
+    if(!introState.on){ if(introState.wanted && !introState.done){ introState.done=true; introState.wanted=false; dist=zoomTarget=REST_DIST; cam.position.z=dist; tilt=0.25; U.uExposure.value=1; } return; }
+    introState.on=false; introState.done=true; dist=zoomTarget=REST_DIST; cam.position.z=dist; tilt=introState.tiltEnd; U.uExposure.value=1; load.style.opacity='';
+    perf.intro.end=Math.round(performance.now()-T0); perf.intro.interrupted=introState.interrupted;
+    if(introState.ready){ wantPlay=true; sync(); } drainLater();
+  }
+  function interruptIntro(){ if(!introState.on || introState.interrupted) return; introState.interrupted=true; introState.fin=null; introFinish(performance.now(), 600); perf.intro.interruptedAt=+introState.p.toFixed(2); }
+  window.__intro={state:introState, setP:p=>{ introState.forceP=p; }, release:()=>{ introState.forceP=null; }};
 
   // ---- loop: no allocation per frame
   const sunObj=U.uSun.value, camObj=U.uCam.value, inv=new THREE.Matrix4();
@@ -1023,6 +1103,7 @@
     if(i!==lastFrame){ lastFrame=i; showClock(i); if(man && (i&7)===0) preloadNext(i); }
     if(!dragging){ const decay=Math.pow(0.94,k60); if(Math.abs(vSpin)>1e-4){ if(mode==='earth') spin+=vSpin*k60; else offset+=vSpin*k60; } if(Math.abs(vTilt)>1e-4) tilt=Math.max(-1.25, Math.min(1.25, tilt+vTilt*k60)); vSpin*=decay; vTilt*=decay; }
     if(Math.abs(zoomTarget-dist)>1e-4){ dist+=(zoomTarget-dist)*(1-Math.exp(-dt/0.12)); cam.position.z=dist; }
+    introTick(now, dt);
     const tpx=texelPx(dist); U.uBicubic.value=tpx>1.15?1:0; perf.texelPx=+tpx.toFixed(2);   // magnified: bicubic; minified: bilinear is right
     const s=sunNow();
     if(mode==='earth'){ if(!dragging && !vid.paused){ const r=spinRamp(now); if(r>0 && perf.firstMove==null) perf.firstMove=Math.round(now-T0); spin+=0.027*dt*r; } planet.rotation.y=spin; }
