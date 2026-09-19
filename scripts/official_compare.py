@@ -74,7 +74,7 @@ def main(legacy, official, date, plates):
             hc = (ha > 0) & (hb > 0)
             hsum += float(np.abs(hb - ha)[hc].sum()); hn += int(hc.sum()); hmoved += int((np.abs(hb - ha) > 2)[hc].sum())
         per_hour.setdefault(s[11:13], []).append(float(np.abs(d).mean()))
-    click.echo(f"opacity: mean |delta| {dsum / n:.4f} over every pixel; cloud pixels (op >= 0.1 in either) {cloudy / n / len(slots):.3f} of the grid, "
+    click.echo(f"opacity: mean |delta| {dsum / n:.4f} over every pixel; cloud pixels (op >= 0.1 in either) {cloudy / n:.3f} of the grid, "
                f"of which {moved / cloudy:.3f} moved by more than 0.2")
     if hn:
         click.echo(f"height (where both have a top): mean |delta| {hsum / hn:.2f} km, {hmoved / hn:.3f} moved by more than 2 km")

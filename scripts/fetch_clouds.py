@@ -1147,8 +1147,13 @@ def height_frame(sat: str, t: datetime, clear_dir: Path, lut=None) -> np.ndarray
     h = np.clip((bt_clear - bt) / LAPSE_K_PER_KM, 0, HEIGHT_MAX_KM)
     pr = load_products(sat, t)
     if pr is not None and pr["cth"] is not None:                # the agency's retrieved top where it has one
-        cth = pr["cth"]
-        h = np.where(np.isfinite(cth), np.clip(cth / 1000.0, 0, HEIGHT_MAX_KM), h)
+        from scipy.ndimage import maximum_filter
+        cth = np.clip(pr["cth"] / 1000.0, 0, HEIGHT_MAX_KM)
+        # a hole in the retrieval inside a retrieved cloud (the schemes drop pixels they cannot fit) would fall to
+        # the lapse-rate estimate, several km lower than the tops around it, and read as a pit in an anvil: such a
+        # hole takes its neighbours' top (5 px, ~50 km) when that is higher than the estimate
+        near = maximum_filter(np.nan_to_num(cth, nan=0.0), size=5)
+        h = np.where(np.isfinite(cth), cth, np.maximum(h, near))
     h[~np.isfinite(bt)] = np.nan
     return h.astype(np.float32)
 
@@ -1358,6 +1363,10 @@ def merge_manifests(old: dict, new: dict) -> dict:
         days[d["date"]] = d
     merged = dict(new)
     merged["days"] = [days[k] for k in sorted(days)]
+    for k in ("poster", "tiles"):                                # the page-level poster is the FIRST day's; tile sets are the page's, not this encode's
+        if k in old:
+            merged[k] = old[k]
+    merged["poster"] = merged["days"][0].get("poster", merged.get("poster"))
     off, frames = 0, []
     for d in merged["days"]:
         d["off"] = off
