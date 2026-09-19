@@ -400,7 +400,9 @@
         float day=smoothstep(-0.10,0.12,mu);
         float dusk=smoothstep(0.30,-0.06,mu)*smoothstep(-0.22,0.0,mu);   // a band either side of the terminator
         vec3 base=texture2D(uBase,vUv).rgb;
-        float lights=texture2D(uLights,vUv).r;
+        // VIIRS carries a floor that is not city light (sea 4/255, the Amazon 9, the Sahara 28: moonlit ground and airglow in the
+        // composite); it painted the whole night side tan. A soft knee keeps the cities and drops the floor.
+        float lights=texture2D(uLights,vUv).r; lights*=smoothstep(0.10,0.22,lights);
         float water=step(base.r*1.25,base.b)*step(base.r,0.30);
         float lat=(vUv.y-0.5)*3.14159265;
         // cloud (opacity, top height), and the cloud toward the sun for its shadow on the ground
@@ -457,11 +459,12 @@
         dayCol+=vec3(1.0,0.95,0.85)*spec*(1.0-cov);
         dayCol*=1.0-0.5*clamp((shadow-0.01)/0.9,0.0,1.0)*(1.0-cov);
         dayCol*=att;
-        // ground by night: a faint blue from the sky, city lights through thin cloud, and the Moon: a lift of the ground by its
-        // phase and a cool glint off the sea (uMoonLight is 0 at new moon, 1 at full)
+        // ground by night: from orbit it is black but for the cities, so a whisper of blue from the sky (~5/255 on screen — the
+        // gamma makes 0.0005 linear read as that), city lights through thin cloud, and the Moon: a lift of the ground by its
+        // phase (10/255 at full) and a cool glint off the sea (uMoonLight is 0 at new moon, 1 at full)
         float ml=max(dot(n,uMoon),0.0)*uMoonLight*(1.0-day);
-        vec3 nightCol=base*vec3(0.020,0.027,0.046)+vec3(1.0,0.82,0.55)*lights*0.85*(1.0-cov*0.85)+vec3(0.35,0.42,0.55)*cov*0.030;
-        nightCol+=base*vec3(0.055,0.065,0.085)*ml*(1.0-cov);
+        vec3 nightCol=base*vec3(0.0010,0.0014,0.0024)+vec3(1.0,0.82,0.55)*lights*0.85*(1.0-cov*0.85)+vec3(0.35,0.42,0.55)*cov*0.0015;
+        nightCol+=base*vec3(0.012,0.014,0.018)*ml*(1.0-cov);
         vec3 rm=reflect(-uMoon,nw);
         nightCol+=vec3(0.75,0.85,1.0)*pow(max(dot(rm,v),0.0),240.0)*water*0.10*ml*(1.0-cov);
         vec3 ground=mix(nightCol, dayCol, day);
@@ -476,7 +479,7 @@
         // (opacity falling along gdir) forward-scatters: a warm-white rim, strongest on middling cover
         float lining=smoothstep(0.26,0.0,abs(mu))*clamp(slope*3.0,0.0,1.0)*cov*(1.0-cov)*4.0;
         lit+=vec3(1.0,0.93,0.82)*lining*0.30*smoothstep(-0.16,0.04,mu);
-        vec3 cloudNight=vec3(0.30,0.36,0.48)*0.16*(1.0+2.5*ml);
+        vec3 cloudNight=vec3(0.30,0.36,0.48)*0.0032*(1.0+12.0*ml);            // thick night cloud ~12/255 by starlight, ~40 under a full moon
         vec3 col=ground*(1.0-cov)+mix(cloudNight*cov, lit, dayC);
         // the air: what the sun scatters into the view ray on its way here (bluer and paler toward the limb, zero at night).
         // The model's shell is 20x too thick, so its haze is weighted toward the limb: the centre of the disc keeps its contrast

@@ -112,3 +112,14 @@ width there) — a portrait rest distance of ~5.5 would show the sunrise; that i
 (c) The night side is the VIIRS texture's tan glow (see the sky report), which makes the dark start browner than it should
 be; a high-pass on `lights_4096.jpg` would make the arrival's first frame bluer and quieter. (d) The `UTC —` clock reads a
 dash during the arrival; it could show the day's first timestamp.
+
+### Addendum (earthai-46 review: the night side was too bright)
+The tan came from `lights_4096.jpg` itself: VIIRS carries a floor that is not city light (sea 4/255, the Amazon 9, the Sahara
+28) and the shader painted it at 0.85. Now: a soft knee on the lights (`smoothstep(0.10,0.22)`, cities untouched), the night
+ground down to a whisper of blue (0.001 linear ≈ 5/255 on screen), night cloud 12/255 where thick scaled to ~40 under a full
+moon, moonlit ground 10/255 at full, the terminator band and the airglow line as they were, the day side untouched.
+Measured at the night_rest view (lon −100, lat 20, dist 4.3, frame 60 = 6 Sep 10:00Z, `#nointro`, 100 px patches, 0–255):
+disc centre over the US (cities) 75 → 32; Pacific off Mexico 57 → 10.5; south Pacific 47 → 8; northern Canada 73 → 17.
+Plate: `docs/globe-2026-09-19/night_rest_before_after.jpg` (top before, bottom after). The arrival's exposure ramp keeps the
+night near black at 100% by construction (it is a multiplier). Sheet and plates redone. A warm run this time did get the
+opening ready at 1.7 s: the arrival then ran its full 6.5 s (215 → 6,732 ms) with one 67 ms gap at 1.35 s (the first present).
