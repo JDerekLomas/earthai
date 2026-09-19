@@ -775,7 +775,13 @@
     planet.updateMatrixWorld(); inv.copy(planet.matrixWorld).invert(); camObj.copy(cam.position).applyMatrix4(inv);
     atmo.material.uniforms.uSunV.value.set(s[0],s[2],-s[1]).applyMatrix3(rot3.setFromMatrix4(planet.matrixWorld));
     // cross-fade from the older frame to the newest over the measured gap between presents
-    U.uMix.value = window.__mix!=null ? window.__mix : blend && presented>1 && !vid.paused ? Math.max(0, Math.min(1, (performance.now()-lastPresent)/1000/Math.max(frameGap,1e-3))) : 1;
+    // the warp's progress from frame B toward the next frame comes from the VIDEO's clock, not from wall time since the
+    // present callback: currentTime advances smoothly and reaches the next frame exactly when it is due, whereas the
+    // callback lands at an arbitrary point inside a render frame, so a wall-clock mix stopped at ~0.8 and snapped
+    // (measured 2026-09-19: 0, .2, .4, .6, .8, 0 — a visible 12 Hz jump on every cloud). lastMT is frame B's media time.
+    U.uMix.value = window.__mix!=null ? window.__mix : blend && presented>1 && !vid.paused && lastMT>=0 && man
+      ? Math.max(0, Math.min(1, (vid.currentTime-lastMT)*man.fps))          // media seconds since frame B, in frames: right at any playback rate
+      : 1;
     if(tiles&&tiles.supported){ tiles.update(i, dt); const fw=tiles.finestWidth(); if(fw!==lastFinest){ lastFinest=fw; zoomLimit(); }
       const L=tiles.stats.level; U.uTileCubic.value=(L && tpx/(1<<(L-3))>1.15)?1:0; }
     renderer.render(scene, cam);
