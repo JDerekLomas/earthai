@@ -54,6 +54,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import subprocess
 import sys
 import time
@@ -74,22 +75,25 @@ Image.MAX_IMAGE_PIXELS = None
 
 W, H = 4096, 1504
 LAT_MAX = H / W * 180.0                       # 66.09
-ROOT = Path("data/clouds")
+ROOT = Path(os.environ.get("CLOUDS_ROOT", "data/clouds"))   # a second tree (e.g. data/clouds/official) for a side-by-side run
 VIS_SCALE, BT_SCALE = 40000.0, 100.0
 ZEN_FULL, ZEN_ZERO = 58.0, 66.0               # satellite zenith angle: full weight .. none
 DIURNAL_K = 5.0                               # clear-sky bt over water is never below (warmest of all - this)
 DIURNAL_LAND_K = 32.0                         # over land (deserts cool 20-30 K overnight)
 R_EARTH, R_GEO = 6378.137, 42164.16
 
+# `official` is the agency's own calibrated product for the same two bands (scripts/official_sources.py):
+# `fetch --source official` writes physical values into raw/<sat>/ and a source.json marker, and the
+# WMS grey path (`calibrate`, the LUT) is then bypassed for that satellite.
 SATS = {
     "goes19": {"bucket": "noaa-goes19", "lon": -75.0, "kind": "abi", "name": "GOES-East"},
     "goes18": {"bucket": "noaa-goes18", "lon": -137.0, "kind": "abi", "name": "GOES-West"},
-    "himawari9": {"bucket": "noaa-himawari9", "lon": 140.7, "kind": "ahi", "name": "Himawari-9"},
+    "himawari9": {"bucket": "noaa-himawari9", "lon": 140.7, "kind": "ahi", "name": "Himawari-9", "official": "ptree"},
     # EUMETView serves contrast-stretched 8-bit greys, not numbers: `calibrate` maps them onto a
     # neighbour's physical values by quantile matching in the overlap (mtg <- goes19, iodc <- mtg)
-    "mtg": {"lon": 0.0, "kind": "wms", "name": "Meteosat MTG-I1", "step": 10, "ref": "goes19",
+    "mtg": {"lon": 0.0, "kind": "wms", "name": "Meteosat MTG-I1", "step": 10, "ref": "goes19", "official": "fci",
             "vis": ("mtg_fd:vis06_hrfi", ""), "ir": ("mtg_fd:ir105_hrfi", "mtg_fd:mtg_fd_ir105_hrfi_grayscale")},
-    "iodc": {"lon": 45.5, "kind": "wms", "name": "Meteosat-9", "step": 15, "ref": "mtg",
+    "iodc": {"lon": 45.5, "kind": "wms", "name": "Meteosat-9", "step": 15, "ref": "mtg", "official": "seviri",
              "vis": ("msg_iodc:vis006", ""), "ir": ("msg_iodc:ir108", "")},
 }
 WMS = ("https://view.eumetsat.int/geoserver/wms?service=WMS&version=1.3.0&request=GetMap"
@@ -151,42 +155,91 @@ def glint_cos(t: datetime, lon: np.ndarray, lat: np.ndarray, sub_lon: float) -> 
 # ---------------------------------------------------------------- ABI by byte range
 
 class DiskGeometry:
-    """Fractional (row, col) in a 2x2-averaged geostationary fixed grid of every output pixel.
-    `colrow(ax, ay)` turns scan angles (radians, x east, y north) into fractional 0-based native
-    (col, row); ABI and AHI differ only in that function and the sweep axis."""
+    """Fractional (row, col) in a source grid of every output pixel, and `sample()` to pull a source
+    array onto the output grid: box-average `pool`x`pool` (so the source pixel is near the output's
+    ~10 km before it is blurred and sampled bilinearly), a light blur, bilinear, masked to where the
+    satellite sees the ground (zenith under ZEN_ZERO+1).
+    Constructors: `abi`/`ahi`/`fci` for geostationary fixed grids (`colrow(ax, ay)` turns scan angles
+    in radians, x east, y north, into fractional 0-based native (col, row)); `latlon` for a regular
+    lat/lon grid (JAXA's gridded netCDF); `area` for a satpy AreaDefinition (SEVIRI native)."""
 
-    def __init__(self, sub_lon: float, sweep: str, n: int, colrow):
-        from pyproj import Transformer
-        h = 35786023.0
+    def __init__(self, sub_lon: float, rows: np.ndarray, cols: np.ndarray, ok: np.ndarray, pool: int = 2, blur: float = 1.0):
         lon, lat = grid_lonlat()
-        geos = f"+proj=geos +h={h} +lon_0={sub_lon} +sweep={sweep} +a=6378137 +b=6356752.31414 +units=m +no_defs"
+        self.ok = ok & (sat_zenith(lon, lat, sub_lon) < ZEN_ZERO + 1)
+        self.pool, self.blur = pool, blur
+        self.rows = ((rows + 0.5) / pool - 0.5).astype(np.float32) if pool > 1 else rows.astype(np.float32)
+        self.cols = ((cols + 0.5) / pool - 0.5).astype(np.float32) if pool > 1 else cols.astype(np.float32)
+
+    @classmethod
+    def geos(cls, sub_lon: float, sweep: str, colrow, pool: int = 2, h: float = 35786023.0, a: float = 6378137.0, b: float = 6356752.31414):
+        from pyproj import Transformer
+        lon, lat = grid_lonlat()
+        geos = f"+proj=geos +h={h} +lon_0={sub_lon} +sweep={sweep} +a={a} +b={b} +units=m +no_defs"
         gx, gy = Transformer.from_crs("EPSG:4326", geos, always_xy=True).transform(lon.astype(np.float64), lat.astype(np.float64))
         ok = np.isfinite(gx) & np.isfinite(gy)
         cols, rows = colrow(np.where(ok, gx, 0) / h, np.where(ok, gy, 0) / h)
-        ok &= sat_zenith(lon, lat, sub_lon) < ZEN_ZERO + 1
-        self.ok, self.n = ok, n
-        self.rows = ((rows - 0.5) / 2).astype(np.float32)
-        self.cols = ((cols - 0.5) / 2).astype(np.float32)
+        return cls(sub_lon, rows, cols, ok, pool)
 
     @classmethod
     def abi(cls, sub_lon: float, scale: float = 5.6e-05, off: float = 0.151844):
-        return cls(sub_lon, "x", 5424, lambda ax, ay: ((ax + off) / scale, (off - ay) / scale))
+        return cls.geos(sub_lon, "x", lambda ax, ay: ((ax + off) / scale, (off - ay) / scale))
 
     @classmethod
     def ahi(cls, sub_lon: float, cfac: float = 20466275, coff: float = 2750.5):
         f = cfac / 65536 * 180 / math.pi                       # HSD: pixel = COFF + angle_deg * CFAC / 2^16, 1-based
-        return cls(sub_lon, "y", 5500, lambda ax, ay: (coff + ax * f - 1, coff - ay * f - 1))
+        return cls.geos(sub_lon, "y", lambda ax, ay: (coff + ax * f - 1, coff - ay * f - 1))
+
+    @classmethod
+    def fci(cls, sub_lon: float, xscale: float, xoff: float, yscale: float, yoff: float, pool: int):
+        """MTG FCI L1c reference grid: packed x/y are column/row numbers, angle = offset + scale * index. The
+        array assembled from the chunk files has row index = FCI row - 1 and row 1 is the SOUTH edge (south-up).
+        The file's x runs the OTHER way from pyproj's geos x (its positive azimuth is west; taken literally the
+        disc came out mirrored, Atlantic east of Africa), so the azimuth is negated, and satpy's fci_l1c_nc area
+        (verified on coastlines) puts the edge at index -0.5, half a pixel from the packing's literal reading."""
+        return cls.geos(sub_lon, "y", lambda ax, ay: ((-ax - xoff) / xscale - 0.5, (ay - yoff) / yscale - 0.5), pool,
+                        h=35786400.0, a=6378137.0, b=6356752.31424518)
+
+    @classmethod
+    def latlon(cls, sub_lon: float, lat0: float, lon0: float, step: float, nlat: int, nlon: int, pool: int = 1, blur: float = 1.0):
+        """A regular grid with its first row at lat0 (north edge pixel centre) and first column at lon0, `step`
+        degrees; lon0 may exceed 180 (JAXA: 70..210 E), longitudes are unwrapped to match."""
+        lon, lat = grid_lonlat()
+        lonu = np.where(lon < lon0 - 1e-6, lon + 360, lon)
+        rows = (lat0 - lat) / step
+        cols = (lonu - lon0) / step
+        ok = (rows >= -0.5) & (rows <= nlat - 0.5) & (cols >= -0.5) & (cols <= nlon - 0.5)
+        return cls(sub_lon, rows, cols, ok, pool, blur)
+
+    @classmethod
+    def area(cls, sub_lon: float, area, pool: int = 1, blur: float = 0.8):
+        """A satpy/pyresample AreaDefinition: (col, row) from its CRS and extent, in either orientation
+        (SEVIRI native's extent runs south-east up; the formulas below handle a negative pixel size)."""
+        from pyproj import Transformer
+        lon, lat = grid_lonlat()
+        gx, gy = Transformer.from_crs("EPSG:4326", area.crs, always_xy=True).transform(lon.astype(np.float64), lat.astype(np.float64))
+        ok = np.isfinite(gx) & np.isfinite(gy)
+        llx, lly, urx, ury = area.area_extent
+        nrows, ncols = area.shape
+        cols = (np.where(ok, gx, 0) - llx) / ((urx - llx) / ncols) - 0.5
+        rows = (ury - np.where(ok, gy, 0)) / ((ury - lly) / nrows) - 0.5
+        return cls(sub_lon, rows, cols, ok, pool, blur)
 
     def sample(self, raw: np.ndarray) -> np.ndarray:
-        """raw: (n, n) float32 with NaN for fill. Returns the output grid, NaN where unseen."""
+        """raw: 2-D float32 with NaN for fill. Returns the output grid, NaN where unseen."""
         from scipy.ndimage import gaussian_filter, map_coordinates
-        m = self.n // 2
-        a = raw.reshape(m, 2, m, 2)
-        good = np.isfinite(a)
-        cnt = good.sum((1, 3))
-        pooled = np.where(good, a, 0).sum((1, 3)) / np.maximum(cnt, 1)
-        wgt = gaussian_filter((cnt > 0).astype(np.float32), 1.0)
-        pooled = gaussian_filter(np.where(cnt > 0, pooled, 0).astype(np.float32), 1.0) / np.maximum(wgt, 1e-3)
+        p = self.pool
+        if p > 1:
+            m0, m1 = raw.shape[0] // p, raw.shape[1] // p
+            a = raw[:m0 * p, :m1 * p].reshape(m0, p, m1, p)
+            good = np.isfinite(a)
+            cnt = good.sum((1, 3))
+            pooled = np.where(good, a, 0).sum((1, 3)) / np.maximum(cnt, 1)
+            seen = cnt > 0
+        else:
+            seen = np.isfinite(raw)
+            pooled = raw
+        wgt = gaussian_filter(seen.astype(np.float32), self.blur)
+        pooled = gaussian_filter(np.where(seen, pooled, 0).astype(np.float32), self.blur) / np.maximum(wgt, 1e-3)
         pooled[wgt < 0.5] = np.nan
         out = map_coordinates(pooled, [self.rows.ravel(), self.cols.ravel()], order=1, mode="constant", cval=np.nan).reshape(H, W)
         out[~self.ok] = np.nan
@@ -387,12 +440,27 @@ def lut_apply(lut: dict, band: str, grey: np.ndarray) -> np.ndarray:
     return np.interp(grey, lut[band]["grey"], lut[band]["value"]).astype(np.float32)
 
 
+_PHYSICAL: dict[str, bool] = {}
+
+
+def physical(sat: str) -> bool:
+    """True when raw/<sat>/ holds calibrated reflectance and kelvin (ABI, AHI, or an official source
+    fetched by `--source official`, which leaves raw/<sat>/source.json); False for WMS greys + LUT."""
+    if sat not in _PHYSICAL:
+        _PHYSICAL[sat] = SATS[sat]["kind"] != "wms" or (ROOT / "raw" / sat / "source.json").exists()
+    return _PHYSICAL[sat]
+
+
+def lut_for(sat: str) -> dict | None:
+    return None if physical(sat) else json.loads((ROOT / f"lut_{sat}.json").read_text())
+
+
 def load_band(sat: str, t: datetime, band: str, lut: dict | None = None) -> np.ndarray | None:
     """Physical values (reflectance or K) for any satellite, NaN = no data."""
     p = ROOT / "raw" / sat / f"{slot_name(t)}_{band}.png"
     if not p.exists():
         return None
-    if SATS[sat]["kind"] != "wms":
+    if physical(sat):
         return load16(p, VIS_SCALE if band == "vis" else BT_SCALE)
     g = load16(p, GREY_SCALE)
     if lut is None:
@@ -453,11 +521,20 @@ def have(out: Path, slot: datetime) -> bool:
 @click.option("--start", required=True)
 @click.option("--end", required=True)
 @click.option("--workers", default=6, show_default=True)
-def fetch(sat, start, end, workers):
+@click.option("--source", default="legacy", type=click.Choice(["legacy", "official"]), show_default=True,
+              help="official = the agency's calibrated product (JAXA P-Tree for himawari9, EUMETSAT Data Store for mtg and iodc; "
+                   "needs .secrets.json or $EARTHAI_SECRETS); legacy = HSD segments / EUMETView WMS. GOES is always NOAA's own.")
+@click.option("--range-reads", is_flag=True, help="official mtg: read only the two channels of each FCI chunk by HTTP byte range "
+              "(~210 MB a slot in ~440 requests) instead of whole chunk files (~815 MB a slot); slower, lighter")
+def fetch(sat, start, end, workers, source, range_reads):
     cfg = SATS[sat]
     out = ROOT / "raw" / sat
     out.mkdir(parents=True, exist_ok=True)
     log = open(ROOT / "fetch.jsonl", "a")
+    if source == "official" and cfg.get("official"):
+        return fetch_official(sat, cfg, out, start, end, workers, log, range_reads)
+    if cfg["kind"] == "wms" and physical(sat):
+        raise click.ClickException(f"raw/{sat} holds official (physical) frames; a legacy WMS fetch would mix greys into it")
     if cfg["kind"] == "ahi":
         return fetch_ahi(sat, cfg, out, start, end, workers, log)
     if cfg["kind"] == "wms":
@@ -559,6 +636,82 @@ def fetch_wms(sat, cfg, out, start, end, workers, log):
             click.echo(f"   {slot_name(t)}  {dt:.0f}s")
 
 
+def fetch_official(sat, cfg, out, start, end, workers, log, range_reads):
+    """The agency's own calibrated bands (scripts/official_sources.py) onto the grid, written like ABI's:
+    reflectance factor x VIS_SCALE and kelvin x BT_SCALE, plus raw/<sat>/source.json so every later stage
+    treats the satellite as physical (no LUT, the Blue Marble cap applies)."""
+    import official_sources as osrc
+    kind = cfg["official"]
+    step = cfg.get("step", 10)
+    todo = [t for t in slots_between(start, end, step) if not have(out, t)]
+    marker = out / "source.json"
+    if not marker.exists():
+        if any(out.glob("*_bt.png")):
+            raise click.ClickException(f"{out} already holds legacy frames; use a fresh CLOUDS_ROOT or move them away first")
+        marker.write_text(json.dumps({"source": kind, "physical": True, "since": datetime.now(timezone.utc).isoformat(timespec="seconds")}))
+    _PHYSICAL[sat] = True
+    click.echo(f"{sat} <- {kind}: {len(todo)} slots to fetch")
+    if not todo:
+        return
+    lon, lat = grid_lonlat()
+    geo_cache: dict = {}
+
+    def geometry(key, make):
+        if key not in geo_cache:
+            geo_cache[key] = make()
+        return geo_cache[key]
+
+    def one(t):
+        for attempt in range(4):
+            try:
+                t0 = time.time()
+                if kind == "ptree":
+                    got = osrc.ptree_l1(t)
+                    if got is None:
+                        return t, None, 0, 0.0
+                    bands, n = got
+                    g = geometry("ptree", lambda: DiskGeometry.latlon(cfg["lon"], **osrc.PTREE_GRID))
+                    return t, {"vis": g.sample(bands["vis"]), "bt": g.sample(bands["bt"])}, n, time.time() - t0
+                if kind == "fci":
+                    got = osrc.fci_slot(t, use_range=range_reads, workers=max(2, workers))
+                    if got is None:
+                        return t, None, 0, 0.0
+                    d, n = got
+                    pv, pb = d["pack"][osrc.FCI_VIS], d["pack"][osrc.FCI_IR]
+                    gv = geometry("fci_vis", lambda: DiskGeometry.fci(cfg["lon"], pv["xscale"], pv["xoff"], pv["yscale"], pv["yoff"], pool=4))
+                    gb = geometry("fci_ir", lambda: DiskGeometry.fci(cfg["lon"], pb["xscale"], pb["xoff"], pb["yscale"], pb["yoff"], pool=2))
+                    return t, {"vis": gv.sample(d["vis"]), "bt": gb.sample(d["bt"])}, n, time.time() - t0
+                if kind == "seviri":
+                    got = osrc.seviri_slot(t, workdir=ROOT / "tmp")
+                    if got is None:
+                        return t, None, 0, 0.0
+                    d, n = got
+                    g = geometry("seviri", lambda: DiskGeometry.area(cfg["lon"], d["area"], pool=1, blur=0.8))
+                    return t, {"vis": g.sample(d["vis"]), "bt": g.sample(d["bt"])}, n, time.time() - t0
+                raise click.ClickException(f"unknown official source {kind}")
+            except Exception as e:                                  # noqa: BLE001
+                click.echo(f"   retry {attempt + 1} {slot_name(t)}: {type(e).__name__}: {e}")
+                time.sleep(15 * (attempt + 1))
+        return t, None, 0, 0.0
+
+    (ROOT / "tmp").mkdir(exist_ok=True)
+    # FCI parallelises inside a slot (its chunk files); the others across slots
+    n_slots = 1 if kind == "fci" else workers
+    total = 0
+    with ThreadPoolExecutor(n_slots) as pool:
+        for t, bands, nbytes, dt in pool.map(one, todo):
+            if bands is None:
+                click.echo(f"   MISSING {slot_name(t)}")
+                continue
+            save16(out / f"{slot_name(t)}_vis.png", bands["vis"], VIS_SCALE)
+            save16(out / f"{slot_name(t)}_bt.png", bands["bt"], BT_SCALE)
+            total += nbytes
+            log.write(json.dumps({"sat": sat, "slot": slot_name(t), "source": kind, "fetched_bytes": nbytes, "seconds": round(dt, 1)}) + "\n")
+            log.flush()
+            click.echo(f"   {slot_name(t)}  {nbytes / 1e6:.1f} MB  {dt:.0f}s")
+    click.echo(f"fetched {total / 1e9:.2f} GB")
+
+
 @cli.command()
 @click.option("--sat", required=True)
 @click.option("--slots", default=8, show_default=True, help="how many slots, spread over what is on disk")
@@ -624,7 +777,7 @@ def clearsky(sat):
     vmin = np.full((H, W), np.inf, np.float32)
     bt_all = np.full((H, W), -np.inf, np.float32)
     by_tod: dict[int, np.ndarray] = {}
-    lut = json.loads((ROOT / f"lut_{sat}.json").read_text()) if SATS[sat]["kind"] == "wms" else None
+    lut = lut_for(sat)
     for i, t in enumerate(slots):
         mu = cos_solar_zenith(t, lon, lat).astype(np.float32)
         vis = load_band(sat, t, "vis", lut)
@@ -643,7 +796,7 @@ def clearsky(sat):
     # Only for satellites that deliver calibrated reflectance: a WMS grey mapped by quantiles is not
     # accurate enough over bright deserts for an absolute cap (the Sahara came out as solid cloud).
     water = water_mask()
-    if SATS[sat]["kind"] == "wms":
+    if not physical(sat):
         cap = np.full((H, W), 0.09, np.float32)
         vmin = np.where(np.isfinite(vmin), np.maximum(vmin, 0.0), cap)
     else:
@@ -733,7 +886,7 @@ def opacity(sat, start, end, workers):
     slots = [t for t in raw_slots(sat) if (not start or t >= utc(start)) and (not end or t <= utc(end))]
     wgt = view_weight(SATS[sat]["lon"])
     Image.fromarray((wgt * 255).round().astype(np.uint8)).save(ROOT / f"weight_{sat}.png")
-    lut = json.loads((ROOT / f"lut_{sat}.json").read_text()) if SATS[sat]["kind"] == "wms" else None
+    lut = lut_for(sat)
 
     def one(t):
         op = opacity_frame(sat, t, lon, lat, vis_clear, water, clear_dir, PARAMS, lut)
@@ -837,7 +990,7 @@ def height(start, end, sats, hold_min, workers):
     out = ROOT / "height"
     out.mkdir(parents=True, exist_ok=True)
     weights = {s: view_weight(SATS[s]["lon"]) for s in names}
-    luts = {s: json.loads((ROOT / f"lut_{s}.json").read_text()) if SATS[s]["kind"] == "wms" else None for s in names}
+    luts = {s: lut_for(s) for s in names}
     slots = slots_between(start, end)
 
     def one(t):
