@@ -15,57 +15,70 @@
 // is missing or not yet decoded the atlas is transparent and the base clip shows through, so the
 // worst case is the picture we already had, never a hole. The layer fades in over 300 ms once every
 // tile in view has a frame, and fades out when the level changes or the zoom no longer needs it.
+//
+// Days. A tile SET is one directory of indexes and streams covering a run of frames (one day, ten days,
+// a week added later at the front of the page's span); its streams are numbered from its own first
+// frame. The page can name several sets (`tiles` in clouds.json), and each is matched to the page's
+// frames BY NAME, so an older-days set and a newer-days set coexist and a set that covers only some of
+// the page's days simply leaves the others at the base clip. Crossing from one set to the next while
+// playing is a new tile set for the decoders, like a pan: the base clip carries the first second.
 (function () {
   'use strict';
   const TILE = 512, G = 4, GOP = 12, MAX_DEC = 16, RING = 3, FADE_MS = 300, LINGER_MS = 2500, BUF_CAP = 160e6;
 
   window.CloudTiles = function (o) {
     const renderer = o.renderer, planet = o.planet, cam = o.cam, stage = o.stage, U = o.U;
-    let base = o.base || 'tiles/', fallback = null, frames = null, onReady = null;
     const levels = o.levels || [5, 4];
     const supported = !!(window.VideoDecoder && window.EncodedVideoChunk && window.VideoFrame && VideoFrame.prototype.copyTo && renderer.capabilities.isWebGL2);
-    const st = { tiles: 0, decoders: 0, bytes: 0, decoded: 0, dropped: 0, sharpMs: null, level: 0, on: 0, err: null, formats: {}, updMax: 0, compMax: 0, makeMax: 0, feedMax: 0, base: base };
-    const api = { supported, stats: st, idx: {}, coverage: null, finestWidth: () => 4096, update: () => {}, view: () => null, start: () => {} };
+    const st = { tiles: 0, decoders: 0, bytes: 0, decoded: 0, dropped: 0, sharpMs: null, level: 0, on: 0, err: null, formats: {}, updMax: 0, compMax: 0, makeMax: 0, feedMax: 0, base: o.base || 'tiles/', sets: 0 };
+    const api = { supported, stats: st, idx: {}, sets: [], coverage: null, finestWidth: () => 4096, update: () => {}, view: () => null, start: () => {} };
     if (!supported) return api;
 
-    // ---- the indexes. One index per level covers every frame the tiles were built for, which need not be the frames
-    // the page plays: the tile set may be one day of a ten-day page (or, later, more days than the page has). `start`
-    // gets the page's frame names and builds `map`, page frame -> tile frame (-1 = no tile that frame); the page's
-    // clock index goes through it. The indexes and streams come from `base` (the manifest's asset host) and, if that
-    // fails, from `fallback` (the copy beside the page).
-    const idx = api.idx;
-    const loading = {};
-    let map = null;
+    // ---- the sets and their indexes. `start` gets the page's frame names and, as each set's first index
+    // arrives, fills `map` (page frame -> frame within its set, -1 = no tiles) and `mapSet` (which set); an
+    // earlier-listed set wins where two cover the same frame. A set's indexes and streams come from its `base`
+    // (the manifest's asset host) and, if that fails, from its `fallback` (the copy beside the page).
+    const sets = api.sets;
+    let frames = null, onReady = null, map = null, mapSet = null;
     function fetchIndex(b, L) { return fetch(`${b}L${L}.json`).then(r => r.ok ? r.json() : null); }
-    function loadIndex(L) {
-      if (loading[L]) return loading[L];
-      loading[L] = fetchIndex(base, L).catch(() => null)
-        .then(j => (j || !fallback || fallback === base) ? j : fetchIndex(fallback, L).then(j2 => { if (j2) { base = fallback; st.base = base; } return j2; }).catch(() => null))
+    function loadIndex(s, L) {
+      if (s.loading[L]) return s.loading[L];
+      s.loading[L] = fetchIndex(s.base, L).catch(() => null)
+        .then(j => (j || !s.fallback || s.fallback === s.base) ? j : fetchIndex(s.fallback, L).then(j2 => { if (j2) { s.base = s.fallback; st.base = s.base; } return j2; }).catch(() => null))
         .then(j => {
           if (j) { j.keySet = {}; for (const k in j.tiles) j.keySet[k] = new Set(j.tiles[k].keys); j.N = 1 << L; }
-          idx[L] = j;
-          if (j && j.codec) VideoDecoder.isConfigSupported({ codec: j.codec }).then(s => { if (!s.supported) { st.err = `codec ${j.codec} unsupported`; idx[L] = null; } });
-          if (j && frames && !map) mapFrames(j);
+          s.idx[L] = j;
+          if (j && j.codec) VideoDecoder.isConfigSupported({ codec: j.codec }).then(r => { if (!r.supported) { st.err = `codec ${j.codec} unsupported`; s.idx[L] = null; } });
+          if (j && frames && !s.mapped) mapFrames(s, j);
           return j;
-        }).catch(() => { idx[L] = null; });
-      return loading[L];
+        }).catch(() => { s.idx[L] = null; });
+      return s.loading[L];
     }
-    function mapFrames(j) {
+    function mapFrames(s, j) {
+      s.mapped = true;
+      if (!map) { map = new Int32Array(frames.length).fill(-1); mapSet = new Int8Array(frames.length).fill(-1); }
       const pos = {}; j.frames.forEach((n, k) => { pos[n] = k; });
-      map = new Int32Array(frames.length).fill(-1);
+      s.first = null; s.last = null; s.n = 0;
+      frames.forEach((name, i) => { if (name in pos && (mapSet[i] < 0 || mapSet[i] > s.k)) { map[i] = pos[name]; mapSet[i] = s.k; } });
       let n = 0, first = null, last = null;
-      frames.forEach((name, i) => { if (name in pos) { map[i] = pos[name]; n++; if (first === null) first = name; last = name; } });
-      api.coverage = { n, first, last, tileFrames: j.frames.length };
-      st.frames = n;
+      for (let i = 0; i < frames.length; i++) if (map[i] >= 0) { n++; if (first === null) first = frames[i]; last = frames[i]; }
+      api.coverage = { n, first, last, sets: sets.filter(x => x.mapped).length };
+      st.frames = n; st.sets = api.coverage.sets;
       if (onReady) onReady(api.coverage);
     }
-    api.start = function (s) {
-      if (s.base) { base = s.base; st.base = base; }
-      fallback = s.fallback || null; frames = s.frames || null; onReady = s.onReady || null;
-      levels.forEach(loadIndex);
+    function addSet(base, fallback) {
+      const s = { k: sets.length, base, fallback: fallback || null, idx: {}, loading: {}, mapped: false };
+      sets.push(s); if (s.k === 0) api.idx = s.idx;
+      return s;
+    }
+    api.start = function (a) {
+      frames = a.frames || null; onReady = a.onReady || null;
+      const list = a.sets || [{ base: a.base, fallback: a.fallback }];
+      for (const x of list) { const s = addSet(x.base || 'tiles/', x.fallback); levels.forEach(L => loadIndex(s, L)); }
     };
-    if (o.base) levels.forEach(loadIndex);                    // the older calling convention: everything relative to the page
-    function has(L, tx, ty) { const j = idx[L]; return !!(j && j.tiles[`${((tx % j.N) + j.N) % j.N}_${ty}`]); }
+    if (o.base) { const s = addSet(o.base, null); levels.forEach(L => loadIndex(s, L)); }   // the older calling convention: one set, relative to the page
+    let lastGi = 0, curSet = null;                            // the set that covers the page's current frame
+    function has(s, L, tx, ty) { const j = s && s.idx[L]; return !!(j && j.tiles[`${((tx % j.N) + j.N) % j.N}_${ty}`]); }
 
     // ---- the atlas: G x G tiles, r = opacity, gb = flow, a = 1 where a tile has been drawn
     const rtOpts = { format: THREE.RGBAFormat, type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false };
@@ -89,11 +102,11 @@
     U.uTileA.value = rtA.texture; U.uTileB.value = rtB.texture;
 
     // ---- one tile: a decoder, a ring of decoded frames as textures, the bytes it has, its quad in the atlas
-    const tiles = new Map();                                 // "L/tx_ty" -> tile
+    const tiles = new Map();                                 // "set/L/tx_ty" -> tile
     let scratch = new Uint8Array(TILE * TILE * 3);
-    function makeTile(L, tx, ty) {
-      const j = idx[L], key = `${tx}_${ty}`;
-      const t = { L, tx, ty, key, id: `${L}/${key}`, info: j.tiles[key], keys: j.keySet[key], n: j.frames.length,
+    function makeTile(s, L, tx, ty) {
+      const j = s.idx[L], key = `${tx}_${ty}`;
+      const t = { set: s, L, tx, ty, key, id: `${s.k}/${L}/${key}`, info: j.tiles[key], keys: j.keySet[key], n: j.frames.length, fps: j.fps,
         ring: [], next: -1, want: 0, dec: null, bufs: new Map(), pending: new Set(), bytes: 0, chain: Promise.resolve(), lastWanted: performance.now(), mesh: null };
       for (let r = 0; r < RING; r++) t.ring.push({ i: -1, y: plane(TILE, TILE, 1), uv: plane(TILE / 2, TILE / 2, 2) });
       t.mesh = new THREE.Mesh(quad, tileMaterial()); t.mesh.visible = false; t.mesh.frustumCulled = false; atlasScene.add(t.mesh);
@@ -102,7 +115,7 @@
       return t;
     }
     function configure(t) {
-      const j = idx[t.L];
+      const j = t.set.idx[t.L];
       if (t.dec) { try { t.dec.close(); } catch (e) { /* already closed */ } }
       t.dec = new VideoDecoder({ output: f => onFrame(t, f), error: e => { st.err = String(e); t.dec = null; t.next = -1; } });
       t.dec.configure({ codec: j.codec, optimizeForLatency: true });
@@ -117,7 +130,7 @@
 
     // a decoded frame: copy its planes into the oldest ring slot (Y as R8, U/V interleaved as RG8)
     function onFrame(t, frame) {
-      const i = Math.round(frame.timestamp * idx[t.L].fps / 1e6);
+      const i = Math.round(frame.timestamp * t.fps / 1e6);
       if (i < t.want - 1 || !tiles.has(t.id)) { frame.close(); st.dropped++; return; }           // pre-roll from the keyframe, or the tile went away
       t.chain = t.chain.then(async () => {
         try {
@@ -153,7 +166,7 @@
       if (g < 0 || g * GOP >= t.n || t.bufs.has(g) || t.pending.has(g)) return;
       const off = t.info.offsets, a = off[g * GOP], b = off[Math.min(t.n, (g + 1) * GOP)];
       t.pending.add(g);
-      fetch(`${base}L${t.L}/${t.key}.h264`, { headers: { Range: `bytes=${a}-${b - 1}` } }).then(async r => {
+      fetch(`${t.set.base}L${t.L}/${t.key}.h264`, { headers: { Range: `bytes=${a}-${b - 1}` } }).then(async r => {
         if (!r.ok) throw new Error(`tile ${t.key} ${r.status}`);
         let ab = await r.arrayBuffer();
         if (r.status === 200) ab = ab.slice(a, b);                                            // a host that ignored the Range
@@ -186,7 +199,7 @@
         const k = t.next, data = chunk(t, k);
         if (!data) break;                                                                       // in flight; try again when it lands
         if (t.dec.decodeQueueSize > 16) break;
-        t.dec.decode(new EncodedVideoChunk({ type: t.keys.has(k) ? 'key' : 'delta', timestamp: Math.round(k * 1e6 / idx[t.L].fps), data }));
+        t.dec.decode(new EncodedVideoChunk({ type: t.keys.has(k) ? 'key' : 'delta', timestamp: Math.round(k * 1e6 / t.fps), data }));
         t.next = k + 1;
       }
       ensureBytes(t, gopOf(hi) + 1);
@@ -224,39 +237,41 @@
     // foreshortened almost to the limb when the zoom is modest, so the window does not try to cover them; the
     // shader fades the tiles out at the window's edge and the base clip carries on beneath. Wanted tiles are
     // the window's tiles that the view actually touches.
-    function rectFor(L) {
-      const j = idx[L]; if (!j || view.hits < 12) return null;
+    function rectFor(s, L) {
+      const j = s.idx[L]; if (!j || view.hits < 12) return null;
       const N = j.N, tdeg = 360 / N;
       const fx = (view.lon + 180) / tdeg, fy = (90 - view.lat) / tdeg;
       const tx0 = Math.round(fx - G / 2), ty0 = Math.max(0, Math.min(N / 2 - G, Math.round(fy - G / 2)));
       const vx0 = Math.floor((view.lon + view.dlon[0] + 180) / tdeg), vx1 = Math.floor((view.lon + view.dlon[1] + 180) / tdeg);
       const vy0 = Math.max(0, Math.floor((90 - view.lat1) / tdeg)), vy1 = Math.min(N / 2 - 1, Math.floor((90 - view.lat0) / tdeg));
-      return { L, N, tx0, ty0, w: G, h: G, vx0, vx1, vy0, vy1 };
+      return { set: s, L, N, tx0, ty0, w: G, h: G, vx0, vx1, vy0, vy1 };
     }
-    let lastGi = 0;
     api.finestWidth = function () {                          // for the zoom cap: the finest level with a tile under the view centre, on a frame the tiles cover
-      if (map && (lastGi >= map.length || map[lastGi] < 0)) return 4096;
-      for (const L of levels) { const j = idx[L]; if (!j) continue; const tdeg = 360 / j.N;
-        if (has(L, Math.floor((view.lon + 180) / tdeg), Math.floor((90 - view.lat) / tdeg))) return TILE << L; }
+      const s = map ? curSet : sets[0];
+      if (!s) return 4096;
+      for (const L of levels) { const j = s.idx[L]; if (!j) continue; const tdeg = 360 / j.N;
+        if (has(s, L, Math.floor((view.lon + 180) / tdeg), Math.floor((90 - view.lat) / tdeg))) return TILE << L; }
       return 4096;
     };
     api.view = () => view;
     api._tiles = tiles;                                     // for measurement scripts only
+    api._map = () => ({ map, mapSet, lastGi, at: map ? map[lastGi] : null, set: curSet ? curSet.k : null });
 
     function setEq(a, b) { if (a.size !== b.size) return false; for (const x of a) if (!b.has(x)) return false; return true; }
     // ---- the loop
-    let active = null;                                       // {L, N, tx0, ty0, w, h, ids:Set}
+    let active = null;                                       // {set, L, N, tx0, ty0, w, h, ids:Set}
     let dirty = false, dirtyFeed = false, lastI = -1, on = 0, wantOn = false, changedAt = 0;
     api.update = function (gi, dt) {
       const tU = performance.now();
-      const i = map ? (gi < map.length ? map[gi] : -1) : gi;   // the page's frame -> the tiles' frame; -1 = the tiles do not cover this frame
-      lastGi = gi;
+      // the page's frame -> the frame within the set that covers it; -1 = no set covers this frame
+      let i = gi; lastGi = gi;
+      if (map) { i = gi < map.length ? map[gi] : -1; curSet = i >= 0 ? sets[mapSet[gi]] : null; } else curSet = sets[0] || null;
       measureView();
       // which level: the finest whose texel is not much smaller than a CSS pixel and whose tiles fit
       let rect = null;
-      if (view.texel3 > 1.25 && i >= 0) for (const L of levels) {
+      if (view.texel3 > 1.25 && i >= 0 && curSet) for (const L of levels) {
         if (view.texel3 / (1 << (L - 3)) < 0.6) continue;                 // a level may be minified up to ~1.7x; finer than that is wasted decoding
-        rect = rectFor(L); if (rect) break;
+        rect = rectFor(curSet, L); if (rect) break;
       }
       const now = performance.now();
       if (rect) {
@@ -264,16 +279,16 @@
         for (let ty = Math.max(rect.ty0, rect.vy0); ty < Math.min(rect.ty0 + G, rect.vy1 + 1); ty++)
           for (let tx = Math.max(rect.tx0, rect.vx0); tx < Math.min(rect.tx0 + G, rect.vx1 + 1); tx++) {
             const txm = ((tx % rect.N) + rect.N) % rect.N;
-            if (has(rect.L, txm, ty) && ids.size < MAX_DEC) ids.add(`${rect.L}/${txm}_${ty}`);
+            if (has(rect.set, rect.L, txm, ty) && ids.size < MAX_DEC) ids.add(`${rect.set.k}/${rect.L}/${txm}_${ty}`);
           }
         rect.ids = ids;
-        const same = active && active.L === rect.L && active.tx0 === rect.tx0 && active.ty0 === rect.ty0 && setEq(active.ids, ids);
+        const same = active && active.set === rect.set && active.L === rect.L && active.tx0 === rect.tx0 && active.ty0 === rect.ty0 && setEq(active.ids, ids);
         if (!same) {
           const levelChange = !active || active.L !== rect.L;
           if (levelChange) { on = Math.min(on, 0.999); wantOn = false; }              // fade to the base while the new level warms up
           active = rect; changedAt = now; st.sharpMs = null; dirty = true; dirtyFeed = true;   // feed even when the clock is paused
           const tM = performance.now();
-          for (const id of ids) if (!tiles.has(id)) { const [L, k] = id.split('/'); const [tx, ty] = k.split('_').map(Number); makeTile(+L, tx, ty); }
+          for (const id of ids) if (!tiles.has(id)) { const [k, L, key] = id.split('/'); const [tx, ty] = key.split('_').map(Number); makeTile(sets[+k], +L, tx, ty); }
           st.makeMax = Math.max(st.makeMax, performance.now() - tM);
         }
         for (const id of ids) tiles.get(id).lastWanted = now;
@@ -305,7 +320,7 @@
       if (active) {
         const N = active.N;
         U.uTileRect.value.set((((active.tx0 % N) + N) % N) / N, 1 - 2 * (active.ty0 + G) / N, N / G, N / (2 * G));
-        const lpt = idx[active.L].flow_levels_per_texel, f = 127.5 / lpt / (TILE * G);
+        const lpt = active.set.idx[active.L].flow_levels_per_texel, f = 127.5 / lpt / (TILE * G);
         U.uTileFlow.value.set(f, -f);
       }
       st.level = active ? active.L : 0; st.on = +on.toFixed(2); st.tiles = tiles.size;

@@ -657,9 +657,12 @@
     document.getElementById('daysline').textContent = days.length>1
       ? `${days.length} days, ${dstr(first)} to ${dstr(last)} ${last.slice(0,4)}, ${m.frames.length} frames · one clip a day, swapped at midnight`
       : `${dstr(first)} ${first.slice(0,4)}, ${m.frames.length} frames`;
-    if(tiles&&tiles.supported) later(()=>tiles.start({base:A('tiles/'), fallback:'tiles/', frames:m.frames, onReady:c=>{ const el=document.getElementById('tiledays'); perf.tileDays=c;
+    // the tile sets: `tiles` in the manifest lists directories (relative to the assets), one per run of days the tiles
+    // were built for (a set built later for older days is just another entry); default one set, `tiles/`
+    const tileSets=(m.tiles||['tiles/']).map(p=>({base:A(p), fallback:p}));
+    if(tiles&&tiles.supported) later(()=>tiles.start({sets:tileSets, frames:m.frames, onReady:c=>{ const el=document.getElementById('tiledays'); perf.tileDays=c;
       if(!c.n) el.textContent='The tiles are not built for these days yet, so the zoom stops at the whole-Earth clip. ';
-      else if(c.n<m.frames.length) el.textContent=`The tiles are built for ${dstr(c.first.slice(0,10))} to ${dstr(c.last.slice(0,10))} (${Math.round(c.n/144)} of the ${days.length} days); the other days stop at ten kilometres. `;
+      else if(c.n<m.frames.length) el.textContent=`The tiles are built for ${dstr(c.first.slice(0,10))} to ${dstr(c.last.slice(0,10))} (${Math.round(c.n/144)} of the ${days.length} days${c.n<(new Date(c.last.slice(0,10))-new Date(c.first.slice(0,10)))/864e5*144+144?', with gaps':''}); the other days stop at ten kilometres. `;
       else el.textContent=''; }}));
     const NAMES={goes19:'GOES-East',goes18:'GOES-West',himawari9:'Himawari-9',mtg:'MTG-I1',iodc:'Meteosat-9'};
     if(m.sats){ const all=['goes18','goes19','himawari9','mtg','iodc'], missing=all.filter(s=>!m.sats.includes(s));
