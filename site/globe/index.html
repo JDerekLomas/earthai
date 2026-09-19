@@ -506,6 +506,7 @@
     else perf.calib={rejected:true, checkErr:+err.toFixed(2), patches:P.map(c=>c.map(x=>Math.round(x)))};
   }
   let lastPresent=0, frameGap=1/12, presented=0, hRowsNow=0, posterOn=false, lastMT=-1, lastMTvid=null;
+  let presentLead=null;                  // frames by which a present leads the clock, see present()
   function present(mt){                  // the video has a new frame: upload it once, into the older target
     if(vid.videoWidth===0) return;
     if(mt!=null){ if(lastMTvid===vid && mt===lastMT) return; lastMT=mt; lastMTvid=vid; }   // the same frame offered twice (a day swap presents frame 0 by hand)
@@ -523,6 +524,9 @@
     renderer.setRenderTarget(rtB); renderer.render(copyScene, copyCam); renderer.setRenderTarget(null);
     U.uCloudA.value=rtA.texture; U.uCloudB.value=rtB.texture; U.uHasCloud.value=1;
     const now=performance.now(); if(lastPresent) frameGap=Math.min(0.5, (now-lastPresent)/1000); lastPresent=now; presented++;
+    // the compositor presents each frame a little BEFORE the clock reaches it (measured 2026-09-19: ~0.17 of a frame on Chrome/Mac,
+    // both players); the warp's progress is measured from the clock, so that lead is tracked and removed (smoothed over presents)
+    if(mt!=null && man){ const lead=mt*man.fps-vid.currentTime*man.fps; if(Number.isFinite(lead) && Math.abs(lead)<1) presentLead=presentLead==null?lead:presentLead*0.9+lead*0.1; }
     if(perf.lastSwap && perf.lastSwap.firstPresent===null) perf.lastSwap.firstPresent=Math.round(now);
     if(perf.videoFirstFrame===null){ perf.videoFirstFrame=Math.round(now-T0); load.textContent=''; load.style.opacity=0; }
   }
@@ -779,8 +783,10 @@
     // present callback: currentTime advances smoothly and reaches the next frame exactly when it is due, whereas the
     // callback lands at an arbitrary point inside a render frame, so a wall-clock mix stopped at ~0.8 and snapped
     // (measured 2026-09-19: 0, .2, .4, .6, .8, 0 — a visible 12 Hz jump on every cloud). lastMT is frame B's media time.
+    // progress from frame A (older) to B (newest presented) = the clock, in frames, past B's due time plus the measured present lead;
+    // the clock is continuous and reaches 1 exactly when the next frame is due, at any playback rate
     U.uMix.value = window.__mix!=null ? window.__mix : blend && presented>1 && !vid.paused && lastMT>=0 && man
-      ? Math.max(0, Math.min(1, (vid.currentTime-lastMT)*man.fps))          // media seconds since frame B, in frames: right at any playback rate
+      ? Math.max(0, Math.min(1, (vid.currentTime-lastMT)*man.fps+(presentLead||0)))
       : 1;
     if(tiles&&tiles.supported){ tiles.update(i, dt); const fw=tiles.finestWidth(); if(fw!==lastFinest){ lastFinest=fw; zoomLimit(); }
       const L=tiles.stats.level; U.uTileCubic.value=(L && tpx/(1<<(L-3))>1.15)?1:0; }
