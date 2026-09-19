@@ -248,7 +248,7 @@
     uCloudK:{value:0.45},
     // the tile atlas (tiles.js): rect = (u of the west edge, v of the south edge, 1/width, 1/height) of the atlas window in
     // lon/lat uv; flow = atlas uv per unit of coded flow; on = 0..1 fade; cubic = 1 when an atlas texel is magnified;
-    // sub = the tiles' satellite longitude in radians (GOES-East), for the same 58..66 deg view-angle fade the pipeline uses
+    // sub = the drawn tile set's satellite longitude in radians (tiles.js sets it per set; GOES-East until a set loads), for the same 58..66 deg view-angle fade the pipeline uses
     uTileA:{value:blank}, uTileB:{value:blank}, uTileRect:{value:new THREE.Vector4(0,0,1,1)}, uTileFlow:{value:new THREE.Vector2(0,0)},
     uTileOn:{value:0}, uTileCubic:{value:0}, uTileSub:{value:-75*Math.PI/180},                      // the pipeline's vis_k: -k ln(1 - opacity) is the cloud's reflectance again
     // cloud-top height (fetch_clouds.py `height`): the clip carries it in extra rows and the copy pass puts it in the
@@ -909,7 +909,11 @@
     const tileSets=(m.tiles||['tiles/']).map(p=>({base:A(p), fallback:p}));
     if(tiles&&tiles.supported) later(()=>tiles.start({sets:tileSets, frames:m.frames, onReady:c=>{ const el=document.getElementById('tiledays'); perf.tileDays=c;
       if(!c.n) el.textContent='The tiles are not built for these days yet, so the zoom stops at the whole-Earth clip. ';
-      else if(c.n<m.frames.length) el.textContent=`The tiles are built for ${dstr(c.first.slice(0,10))} to ${dstr(c.last.slice(0,10))} (${Math.round(c.n/144)} of the ${days.length} days${c.n<(new Date(c.last.slice(0,10))-new Date(c.first.slice(0,10)))/864e5*144+144?', with gaps':''}); the other days stop at ten kilometres. `;
+      else if(c.n<m.frames.length){ const d0=c.first.slice(0,10), d1=c.last.slice(0,10), nd=Math.round((new Date(d1)-new Date(d0))/864e5)+1, miss=m.frames.length-c.n;
+        // a few slots the satellite never scanned (GOES-East skipped 14 Sep 10:40Z) are not "gaps" in the days: say so plainly
+        el.textContent = nd>=days.length
+          ? `The tiles are built for all ${days.length} days; ${miss===1?'one ten-minute slot the satellite did not scan falls':`${miss} ten-minute slots the satellite did not scan fall`} back to the whole-Earth clip. `
+          : `The tiles are built for ${dstr(d0)} to ${dstr(d1)} (${nd} of the ${days.length} days${c.n<nd*144?', with gaps':''}); the other days stop at ten kilometres. `; }
       else el.textContent=''; }}));
     const NAMES={goes19:'GOES-East',goes18:'GOES-West',himawari9:'Himawari-9',mtg:'MTG-I1',iodc:'Meteosat-9'};
     if(m.sats){ const all=['goes18','goes19','himawari9','mtg','iodc'], missing=all.filter(s=>!m.sats.includes(s));

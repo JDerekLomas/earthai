@@ -20,11 +20,18 @@
 // a week added later at the front of the page's span); its streams are numbered from its own first
 // frame. The page can name several sets (`tiles` in clouds.json), and each is matched to the page's
 // frames BY NAME, so an older-days set and a newer-days set coexist and a set that covers only some of
-// the page's days simply leaves the others at the base clip. Crossing from one set to the next while
-// playing is a new tile set for the decoders, like a pan: the base clip carries the first second.
+// the page's days simply leaves the others at the base clip. Sets may also cover the same frames from
+// different satellites (GOES-East and GOES-West): on a frame several sets cover, the one drawn is the
+// first listed that has a tile under the view centre, so the overlap belongs to whichever is listed
+// first and the fade by view angle (uTileSub) follows the drawn set's satellite. Crossing from one set
+// to the next while playing is a new tile set for the decoders, like a pan: the base clip carries the
+// first second.
 (function () {
   'use strict';
   const TILE = 512, G = 4, GOP = 12, MAX_DEC = 16, RING = 3, FADE_MS = 300, LINGER_MS = 2500, BUF_CAP = 160e6;
+  // sub-satellite longitude (degrees) by the index's `sats[0]`, the values fetch_clouds.py SATS stitches with: the shader
+  // fades a set's tiles out towards that satellite's limb (58..66 deg view angle, the pipeline's own ramp)
+  const SUB_LON = { goes19: -75.0, goes18: -137.0, himawari9: 140.7, mtg: 0.0, iodc: 45.5 };
 
   window.CloudTiles = function (o) {
     const renderer = o.renderer, planet = o.planet, cam = o.cam, stage = o.stage, U = o.U;
@@ -58,8 +65,9 @@
       s.mapped = true;
       if (!map) { map = new Int32Array(frames.length).fill(-1); mapSet = new Int8Array(frames.length).fill(-1); }
       const pos = {}; j.frames.forEach((n, k) => { pos[n] = k; });
-      s.first = null; s.last = null; s.n = 0;
-      frames.forEach((name, i) => { if (name in pos && (mapSet[i] < 0 || mapSet[i] > s.k)) { map[i] = pos[name]; mapSet[i] = s.k; } });
+      s.map = new Int32Array(frames.length).fill(-1);       // this set's own frame for each page frame
+      s.sub = SUB_LON[(j.sats || [])[0]]; if (s.sub === undefined) s.sub = SUB_LON.goes19;
+      frames.forEach((name, i) => { if (name in pos) { s.map[i] = pos[name]; if (mapSet[i] < 0 || mapSet[i] > s.k) { map[i] = pos[name]; mapSet[i] = s.k; } } });
       let n = 0, first = null, last = null;
       for (let i = 0; i < frames.length; i++) if (map[i] >= 0) { n++; if (first === null) first = frames[i]; last = frames[i]; }
       api.coverage = { n, first, last, sets: sets.filter(x => x.mapped).length };
@@ -255,7 +263,7 @@
     };
     api.view = () => view;
     api._tiles = tiles;                                     // for measurement scripts only
-    api._map = () => ({ map, mapSet, lastGi, at: map ? map[lastGi] : null, set: curSet ? curSet.k : null });
+    api._map = () => ({ map, mapSet, lastGi, at: curSet && curSet.map ? curSet.map[lastGi] : (map ? map[lastGi] : null), set: curSet ? curSet.k : null, sub: curSet ? curSet.sub : null });
 
     function setEq(a, b) { if (a.size !== b.size) return false; for (const x of a) if (!b.has(x)) return false; return true; }
     // ---- the loop
@@ -265,8 +273,17 @@
       const tU = performance.now();
       // the page's frame -> the frame within the set that covers it; -1 = no set covers this frame
       let i = gi; lastGi = gi;
-      if (map) { i = gi < map.length ? map[gi] : -1; curSet = i >= 0 ? sets[mapSet[gi]] : null; } else curSet = sets[0] || null;
       measureView();
+      if (map) {
+        curSet = null;
+        if (gi < map.length && map[gi] >= 0) {
+          let first = null;
+          for (const s of sets) { if (!s.map || s.map[gi] < 0) continue; if (!first) first = s;
+            if (levels.some(L => { const j = s.idx[L]; return j && has(s, L, Math.floor((view.lon + 180) * j.N / 360), Math.floor((90 - view.lat) * j.N / 360)); })) { curSet = s; break; } }
+          curSet = curSet || first;
+        }
+        i = curSet ? curSet.map[gi] : -1;
+      } else curSet = sets[0] || null;
       // which level: the finest whose texel is not much smaller than a CSS pixel and whose tiles fit
       let rect = null;
       if (view.texel3 > 1.25 && i >= 0 && curSet) for (const L of levels) {
@@ -322,6 +339,7 @@
         U.uTileRect.value.set((((active.tx0 % N) + N) % N) / N, 1 - 2 * (active.ty0 + G) / N, N / G, N / (2 * G));
         const lpt = active.set.idx[active.L].flow_levels_per_texel, f = 127.5 / lpt / (TILE * G);
         U.uTileFlow.value.set(f, -f);
+        if (U.uTileSub && active.set.sub !== undefined) U.uTileSub.value = active.set.sub * Math.PI / 180;
       }
       st.level = active ? active.L : 0; st.on = +on.toFixed(2); st.tiles = tiles.size;
       let d = 0; for (const t of tiles.values()) if (t.dec) d++; st.decoders = d;
