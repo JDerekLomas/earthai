@@ -956,6 +956,54 @@ def yuv_frame(op: np.ndarray, flow: np.ndarray, p99: float, width: int, hgt: np.
     return y.tobytes() + u.tobytes() + v.tobytes()
 
 
+def encode_clip(dest: Path, frames: list[Path], heights: list[Path] | None, flow: np.ndarray, p99: float,
+                width: int, fps: int, crf: int, x264: str) -> int:
+    """One clip of `frames` (opacity PNGs) at `width`, with the height field when `heights` is given.
+    `flow` is the flow row for each frame (already sliced to match). Returns the file size."""
+    import cv2
+    h = H * width // W
+    hh = height_rows(width) if heights else 0
+    ff = subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "yuv420p", "-s", f"{width}x{h + hh + STRIP}",
+                           "-r", str(fps), "-i", "-", "-c:v", "libx264", "-preset", "slow", "-crf", str(crf),
+                           "-g", str(fps * 2), "-keyint_min", str(fps * 2), "-sc_threshold", "0", "-bf", "0", "-pix_fmt", "yuv420p",
+                           "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
+                           "-x264-params", x264,
+                           "-movflags", "+faststart+write_colr", "-an", str(dest)], stdin=subprocess.PIPE)
+    for i, p in enumerate(frames):
+        op = np.asarray(Image.open(p).convert("L"))
+        if width != W:
+            op = cv2.resize(op, (width, h), interpolation=cv2.INTER_AREA)
+        hgt = cv2.resize(np.asarray(Image.open(heights[i]).convert("L")), (width // 2, hh), interpolation=cv2.INTER_AREA) if heights else None
+        ff.stdin.write(yuv_frame(op, flow[i], p99, width, hgt))
+    ff.stdin.close(); ff.wait()
+    if ff.returncode:
+        raise RuntimeError(f"ffmpeg failed on {dest}")
+    return dest.stat().st_size
+
+
+def poster(dest: Path, frame: Path) -> None:
+    """The first frame in the page's decoded form: r = opacity (full 0..255), g = b = 128 (no motion)."""
+    op = Image.open(frame).convert("L").resize((2048, H // 2), Image.LANCZOS)
+    Image.merge("RGB", (op, Image.new("L", op.size, 128), Image.new("L", op.size, 128))).save(dest, quality=80)
+
+
+def seam_stats(root: Path, frames: list[Path]) -> tuple[dict, dict, list[str]]:
+    """The seam numbers and hold counts from the blend (frames.jsonl), averaged over these frames."""
+    names = {p.stem for p in frames}
+    rows = [json.loads(l) for l in (root / "frames.jsonl").read_text().splitlines() if l.strip()] if (root / "frames.jsonl").exists() else []
+    rows = {r["t"]: r for r in rows if r["t"] in names}.values()
+    seam, held = {}, {}
+    for r in rows:
+        for k, v in r.get("seam", {}).items():
+            seam.setdefault(k, []).append((v["bias"], v["mad"]))
+        for s, back in r.get("held", {}).items():
+            if back:
+                held[s] = held.get(s, 0) + 1
+    seam = {k: {"bias": round(float(np.mean([a for a, _ in v])), 4), "mad": round(float(np.mean([b for _, b in v])), 4), "frames": len(v)} for k, v in seam.items()}
+    sats = sorted({s for k in seam for s in k.split("-")} | set(held))
+    return seam, held, sats
+
+
 @cli.command()
 @click.option("--out", required=True, type=click.Path(path_type=Path))
 @click.option("--name", default="clouds", show_default=True)
@@ -967,14 +1015,23 @@ def yuv_frame(op: np.ndarray, flow: np.ndarray, p99: float, width: int, hgt: np.
 @click.option("--aq", default="3:1.2", show_default=True, help="x264 aq-mode:aq-strength; mode 3 with 1.2 gives the near-clear ocean "
               "(opacity 0..0.1, where the eye looks and the codec spends nothing) its own bits; '' for x264's default")
 @click.option("--flow-cache", default=None, type=click.Path(path_type=Path), help="reuse/save the flow fields (.npz)")
-def encode(out, name, start, end, fps, crf, crf_small, aq, flow_cache):
-    import cv2
+@click.option("--per-day", is_flag=True, help="one clip per UTC day (<name>_<date>.mp4, _2k, _poster) and a manifest with a `days` list; "
+              "the page swaps clips at midnight. Without it, one clip of every frame, as before.")
+@click.option("--assets", default="", help="base URL the page loads the clips and tiles from (Cloudflare R2), written into the "
+              "manifest as `assets`; '' = relative to the page")
+@click.option("--root", default=None, type=click.Path(path_type=Path), help="where frames/, height/ and frames.jsonl are (default data/clouds)")
+@click.option("--days-only", default="", help="comma-separated dates to (re)encode with --per-day; other days keep their clips if "
+              "the manifest already lists them")
+def encode(out, name, start, end, fps, crf, crf_small, aq, flow_cache, per_day, assets, root, days_only):
+    root = root or ROOT
     out.mkdir(parents=True, exist_ok=True)
-    frames = sorted(p for p in (ROOT / "frames").glob("*.png")
+    frames = sorted(p for p in (root / "frames").glob("*.png")
                     if (not start or parse_slot(p.name) >= utc(start)) and (not end or parse_slot(p.name) <= utc(end)))
     t0 = time.time()
     if flow_cache and flow_cache.exists():
         z = np.load(flow_cache); flow, p99 = z["flow"], float(z["p99"])
+        if len(flow) != len(frames):
+            raise click.ClickException(f"{flow_cache} has {len(flow)} frames, the selection {len(frames)}: recompute it")
     else:
         flow, p99 = flow_fields(frames)
         if flow_cache:
@@ -982,53 +1039,16 @@ def encode(out, name, start, end, fps, crf, crf_small, aq, flow_cache):
     mag = np.hypot(flow[..., 0].astype(np.float32), flow[..., 1].astype(np.float32))
     click.echo(f"flow: {len(frames)} frames in {time.time() - t0:.0f}s; |flow| p50 {np.percentile(mag, 50):.2f} p90 {np.percentile(mag, 90):.2f} "
                f"p99 {p99:.2f} p99.9 {np.percentile(mag, 99.9):.2f} px at {W}; coded +/-{CHROMA} levels = +/-{p99:.2f} px")
-    heights = [ROOT / "height" / p.name for p in frames]
+    heights = [root / "height" / p.name for p in frames]
     with_height = bool(frames) and all(q.exists() for q in heights)
     click.echo(f"height field: {'in the clip' if with_height else 'NOT built (run `height` first); clip is opacity only'}")
-    sizes = {}
     x264 = "colorprim=bt709:transfer=bt709:colormatrix=bt709:range=tv"
     if aq:
         mode, strength = aq.split(":")
         x264 += f":aq-mode={mode}:aq-strength={strength}"
-    for width, c, suffix in ((W, crf, ""), (W // 2, crf_small, "_2k")):
-        dest = out / f"{name}{suffix}.mp4"
-        h = H * width // W
-        hh = height_rows(width) if with_height else 0
-        ff = subprocess.Popen(["ffmpeg", "-y", "-loglevel", "error", "-f", "rawvideo", "-pix_fmt", "yuv420p", "-s", f"{width}x{h + hh + STRIP}",
-                               "-r", str(fps), "-i", "-", "-c:v", "libx264", "-preset", "slow", "-crf", str(c),
-                               "-g", str(fps * 2), "-keyint_min", str(fps * 2), "-sc_threshold", "0", "-bf", "0", "-pix_fmt", "yuv420p",
-                               "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
-                               "-x264-params", x264,
-                               "-movflags", "+faststart+write_colr", "-an", str(dest)], stdin=subprocess.PIPE)
-        for i, p in enumerate(frames):
-            op = np.asarray(Image.open(p).convert("L"))
-            if width != W:
-                op = cv2.resize(op, (width, h), interpolation=cv2.INTER_AREA)
-            hgt = cv2.resize(np.asarray(Image.open(heights[i]).convert("L")), (width // 2, hh), interpolation=cv2.INTER_AREA) if with_height else None
-            ff.stdin.write(yuv_frame(op, flow[i], p99, width, hgt))
-        ff.stdin.close(); ff.wait()
-        if ff.returncode:
-            raise RuntimeError(f"ffmpeg failed on {dest}")
-        sizes[dest.name] = dest.stat().st_size
-        click.echo(f"{dest}  {dest.stat().st_size / 1e6:.1f} MB  ({time.time() - t0:.0f}s)")
-    # the poster is the first frame in the page's decoded form: r = opacity (full 0..255), g = b = 128 (no motion)
-    op = Image.open(frames[0]).convert("L").resize((2048, H // 2), Image.LANCZOS)
-    Image.merge("RGB", (op, Image.new("L", op.size, 128), Image.new("L", op.size, 128))).save(out / f"{name}_poster.webp", quality=80)
-    # the seam numbers and hold counts from the blend, averaged over these frames
-    names = {p.stem for p in frames}
-    rows = [json.loads(l) for l in (ROOT / "frames.jsonl").read_text().splitlines() if l.strip()]
-    rows = {r["t"]: r for r in rows if r["t"] in names}.values()
-    seam, held = {}, {}
-    for r in rows:
-        for k, v in r.get("seam", {}).items():
-            seam.setdefault(k, []).append((v["bias"], v["mad"]))
-        for s, back in r.get("held", {}).items():
-            if back:
-                held[s] = held.get(s, 0) + 1
-    seam = {k: {"bias": round(float(np.mean([a for a, _ in v])), 4), "mad": round(float(np.mean([b for _, b in v])), 4), "frames": len(v)} for k, v in seam.items()}
-    sats = sorted({s for k in seam for s in k.split("-")} | set(held))
+    seam, held, sats = seam_stats(root, frames)
     manifest = {"frames": [p.stem for p in frames], "fps": fps, "width": W, "height": H, "lat_max": LAT_MAX,
-                "sizes": sizes, "poster": f"{name}_poster.webp", "seam": seam, "held": held, "sats": sats,
+                "sizes": {}, "poster": f"{name}_poster.webp", "seam": seam, "held": held, "sats": sats,
                 "curve": {"vis_k": PARAMS["vis_k"], "bt_k": PARAMS["bt_k"]},       # the page inverts vis_k for the cloud's brightness
                 "code": {"y_lo": Y_LO, "y_hi": Y_HI, "chroma": CHROMA, "strip": STRIP, "patches": PATCHES,
                          # height_rows: rows of cloud-top height under the opacity (at `width`; scale by the clip's actual
@@ -1037,6 +1057,43 @@ def encode(out, name, start, end, fps, crf, crf_small, aq, flow_cache):
                          "height_lapse_k_per_km": LAPSE_K_PER_KM, "height_min_op": HEIGHT_MIN_OP,
                          "flow_p99_px": round(p99, 3), "flow_width": W,
                          "flow_stats_px": {k: round(float(np.percentile(mag, q)), 3) for k, q in (("p50", 50), ("p90", 90), ("p99", 99), ("p999", 99.9))}}}
+    if assets:
+        manifest["assets"] = assets if assets.endswith("/") else assets + "/"
+    if not per_day:
+        for width, c, suffix in ((W, crf, ""), (W // 2, crf_small, "_2k")):
+            dest = out / f"{name}{suffix}.mp4"
+            manifest["sizes"][dest.name] = encode_clip(dest, frames, heights if with_height else None, flow, p99, width, fps, c, x264)
+            click.echo(f"{dest}  {dest.stat().st_size / 1e6:.1f} MB  ({time.time() - t0:.0f}s)")
+        poster(out / f"{name}_poster.webp", frames[0])
+    else:
+        # One clip per UTC day, the flow still continuous across midnight (the last frame of a day carries the motion to
+        # the first of the next). The manifest's `days` carry each day's frames, files and sizes; the top level keeps
+        # every frame in order and the same `code`, so a page reading a one-clip manifest still reads this one.
+        old = json.loads((out / f"{name}.json").read_text()) if days_only and (out / f"{name}.json").exists() else {}
+        old_days = {d["date"]: d for d in old.get("days", [])}
+        redo = set(days_only.split(",")) if days_only else None
+        dates = sorted({p.stem[:10] for p in frames})
+        manifest["days"] = []
+        for date in dates:
+            sel = [i for i, p in enumerate(frames) if p.stem[:10] == date]
+            fr = [frames[i] for i in sel]
+            d = {"date": date, "off": sel[0], "n": len(sel), "frames": [p.stem for p in fr],
+                 "clips": {"4k": f"{name}_{date}.mp4", "2k": f"{name}_{date}_2k.mp4"}, "poster": f"{name}_{date}_poster.webp", "sizes": {}}
+            d["seam"], d["held"], _ = seam_stats(root, fr)
+            if redo is not None and date not in redo and date in old_days and all((out / f).exists() for f in old_days[date]["clips"].values()):
+                d["sizes"] = old_days[date]["sizes"]
+                click.echo(f"{date}: kept ({d['n']} frames)")
+            else:
+                for width, c, key in ((W, crf, "4k"), (W // 2, crf_small, "2k")):
+                    dest = out / d["clips"][key]
+                    d["sizes"][key] = encode_clip(dest, fr, [heights[i] for i in sel] if with_height else None, flow[sel[0]:sel[-1] + 1], p99, width, fps, c, x264)
+                    click.echo(f"{dest}  {dest.stat().st_size / 1e6:.1f} MB  ({time.time() - t0:.0f}s)")
+                poster(out / d["poster"], fr[0])
+            manifest["days"].append(d)
+        for key, fname in (("4k", f"{name}.mp4"), ("2k", f"{name}_2k.mp4")):       # totals, under the one-clip names the page's footer reads
+            manifest["sizes"][fname] = sum(d["sizes"][key] for d in manifest["days"])
+        poster(out / f"{name}_poster.webp", frames[0])
+        click.echo(f"{len(dates)} days, {dates[0]} to {dates[-1]}: 4k {manifest['sizes'][name + '.mp4'] / 1e6:.0f} MB, 2k {manifest['sizes'][name + '_2k.mp4'] / 1e6:.0f} MB")
     (out / f"{name}.json").write_text(json.dumps(manifest))
     click.echo(f"manifest {out / (name + '.json')}")
 

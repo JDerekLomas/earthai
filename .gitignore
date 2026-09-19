@@ -28,3 +28,5 @@ data/goes/
 
 # regional cloud tiles: 260 MB of h264 built by scripts/cloud_tiles.py, deployed from disk, never in git
 site/globe/tiles/
+# per-day posters (fetch_clouds.py encode --per-day): on R2 with the clips; clouds_poster.webp (the first day's) stays tracked
+site/globe/clouds_*_poster.webp
